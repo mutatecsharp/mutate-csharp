@@ -7,7 +7,6 @@
         <Nullable>enable</Nullable>
         <WarningsAsErrors>nullable</WarningsAsErrors>
         <Optimize>true</Optimize>
-        <OutputPath>..\..\artifacts\MutateCSharp\bin\$(Configuration)\</OutputPath>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 

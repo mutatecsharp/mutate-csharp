@@ -7,7 +7,9 @@
         <WarningsAsErrors>nullable</WarningsAsErrors>
         <Optimize>true</Optimize>
         <OutputPath>..\..\artifacts\MutateCSharp.Tests\bin\$(Configuration)\</OutputPath>
-
+<!--        <BaseIntermediateOutputPath>..\..\artifacts\MutateCSharp.Tests\obj\</BaseIntermediateOutputPath>-->
+<!--        <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>-->
+<!--        <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)$(Configuration)\</MSBuildProjectExtensionsPath>-->
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
     </PropertyGroup>
