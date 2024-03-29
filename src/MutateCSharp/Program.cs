@@ -1,3 +1,21 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using Serilog;
+using Serilog.Events;
 
-Console.WriteLine("Hello, World!");
+try
+{
+  Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .WriteTo.File("log.txt")
+    .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
+    .CreateLogger();
+  
+  Log.Debug("Hello, world!");
+}
+catch (Exception error)
+{
+  Log.Error(error, "Unhandled exception");
+}
+finally
+{
+  Log.CloseAndFlush();
+}
