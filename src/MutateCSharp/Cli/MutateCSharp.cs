@@ -6,8 +6,8 @@ using Serilog.Events;
 try
 {
   Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Verbose()
-    .WriteTo.File("log.txt")
+    .MinimumLevel.Debug()
+    .WriteTo.File(path: "log.txt")
     .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
     .CreateLogger();
   
@@ -21,7 +21,7 @@ try
 }
 catch (Exception e)
 {
-  Log.Error(e, "Unknown error");
+  Log.Error(e, "Unhandled error");
   return 1;
 }
 finally

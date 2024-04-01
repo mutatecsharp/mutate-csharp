@@ -1,44 +1,56 @@
 using LibGit2Sharp;
+using MethodTimer;
 using Serilog;
 
 namespace MutateCSharp.VersionControl;
 
-public sealed class Repository
+public sealed class Repository: IDisposable
 {
-  private readonly string _localDirectory;
+  private readonly LibGit2Sharp.Repository _repository;
 
   public Repository(string remoteUri, string localDirectory, string branchName)
   {
+    _repository = Clone(remoteUri, localDirectory);
+    Checkout(branchName);
+  }
+
+  [Time("Clone repository")]
+  private static LibGit2Sharp.Repository Clone(string remoteUri, string localDirectory)
+  {
     try
     {
-      var cloneOptions = new CloneOptions
-      {
-        RecurseSubmodules = true,
-        BranchName = string.IsNullOrEmpty(branchName) ? null : branchName
-      };
-      _localDirectory = LibGit2Sharp.Repository.Clone(remoteUri, localDirectory, cloneOptions);
-      Log.Verbose("Cloned repository into: {Directory}", _localDirectory);
+      var cloneOptions = new CloneOptions { RecurseSubmodules = true };
+      LibGit2Sharp.Repository.Clone(remoteUri, localDirectory, cloneOptions);
+      Log.Information("Clone repository to: {Directory}", localDirectory);
     }
     catch (NameConflictException)
     {
-      _localDirectory = Path.GetFullPath(localDirectory);
-      Log.Information("Proceed with existing repository: {Directory}", _localDirectory);
+      Log.Information("Proceed with existing repository: {Directory}", localDirectory);
     }
     
-    using var repo = new LibGit2Sharp.Repository(_localDirectory);
-    var currentBranchName = repo.Head.FriendlyName; 
+    return new LibGit2Sharp.Repository(localDirectory);
+  }
+  
+  private void Checkout(string branchName)
+  {
+    if (!string.IsNullOrEmpty(branchName))
+    {
+      var branch = _repository.Branches[branchName];
+      if (branch is null)
+      {
+        throw new ArgumentException($"Specified branch {branchName} does not exist");
+      }
+      
+      // Update HEAD to point to checked out branch
+      Commands.Checkout(_repository, branch);
+      _repository.Branches.Update(branch, b => b.TrackedBranch = branch.CanonicalName);
+    }
     
-    if (string.IsNullOrEmpty(branchName))
-    {
-      Log.Information("Checkout branch: {Branch}", repo.Head.FriendlyName);
-    }
-    else if (!string.IsNullOrEmpty(branchName) && !branchName.Equals(currentBranchName))
-    {
-      Log.Warning("Specified branch {SpecifiedBranch} is invalid, checked out {DefaultBranch} instead", branchName, currentBranchName);
-    }
-    else
-    {
-      Log.Verbose("Checkout branch: {Branch}", repo.Head.FriendlyName);
-    }
+    Log.Information("Checkout branch: {Branch}", _repository.Head.FriendlyName);
+  }
+
+  public void Dispose()
+  {
+    _repository.Dispose();
   }
 }

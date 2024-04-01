@@ -5,7 +5,7 @@ namespace MutateCSharp.Cli;
 internal sealed class CliOptions
 {
   private readonly string _repository = string.Empty;
-  private readonly string _directory = "sut";
+  private readonly string _directory = Path.GetFullPath("sut");
   
   [Option("repository", Required = true, HelpText = "The remote URL to the repository under test.")]
   public required string Repository
@@ -32,10 +32,10 @@ internal sealed class CliOptions
         throw new ArgumentException("Unable to parse malformed directory");
       }
 
-      _directory = value;
+      _directory = Path.GetFullPath(value);
     }
   }
 
-  [Option("branch", HelpText = "The specific branch to clone from.")]
+  [Option("branch", HelpText = "The specific branch to clone from. (Default: default branch)")]
   public string Branch { get; init; } = string.Empty;
 }
