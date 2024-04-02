@@ -9,6 +9,9 @@ internal static class CliHandler
   {
     Log.Debug("After parse: {@CliOptions}", options);
     var repository = new VersionControl.Repository(options.Repository, options.Directory, options.Branch);
+    var project = new SUT.Application(repository.RootDirectory);
+    // var mutants = Mutation.Mutator.DeclareMutants(project);
+    // var representativeMutants = Mutator.SelectMutants(mutants);
   }
 
   internal static void HandleParseError(IEnumerable<Error> errorIterator)
