@@ -12,17 +12,13 @@ internal static class CliHandler
     var repository = new VersionControl.Repository(options.Repository, options.Directory, options.Branch);
     var sut = new Application(repository.RootDirectory);
     
-    // Log number of source files under test
-    Log.Debug("Source file count: {SourceCount}", sut.GetSolutions()
-      .SelectMany(solution => 
-        solution.GetProjectsOfType<ProjectUnderTest>().Select(project => project.FileCount()))
-      .Sum());
-    
-    // Log number of testing files
-    Log.Debug("Test file count: {TestCount}", sut.GetSolutions()
-      .SelectMany(solution => 
-        solution.GetProjectsOfType<TestProject>().Select(project => project.FileCount()))
-      .Sum());
+    // Log number of source files under test / test files
+    foreach (var solution in sut.GetSolutions())
+    {
+      var sourceCount = solution.GetFilesOfType<FileUnderTest>().Count();
+      var testCount = solution.GetFilesOfType<TestFile>().Count();
+      Log.Information("{SolutionName}: {SourceCount} source file(s); {TestCount} test file(s)", solution.Name, sourceCount, testCount);
+    }
     
     // var mutants = Mutation.Mutator.DeclareMutants(project);
     // var representativeMutants = Mutator.SelectMutants(mutants);

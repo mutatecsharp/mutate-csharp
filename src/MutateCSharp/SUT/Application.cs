@@ -60,7 +60,12 @@ public class Solution
 
   public IEnumerable<Project> GetProjectsOfType<T>() where T: Project
   {
-    return _projectByName.Values.Where(project => project is T);
+    return _projectByName.Values.OfType<T>();
+  }
+
+  public IEnumerable<File> GetFilesOfType<T>() where T : File
+  {
+    return _projectByName.Values.SelectMany(project => project.GetFiles()).OfType<T>();
   }
 
   public override string ToString()
