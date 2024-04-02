@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Serilog;
 
 namespace MutateCSharp.SUT;
@@ -8,35 +9,66 @@ public static class ProjectFactory
   
   public static Project InspectProject(string name, string absolutePath)
   {
-    return TestProjectNamePatterns.Any(absolutePath.Contains) 
-      ? new ProjectTests(name, absolutePath) 
-      : new ProjectUnderTest(name, absolutePath);
+    var project = new Microsoft.Build.Evaluation.Project(absolutePath);
+    
+    if (TestProjectNamePatterns.Any(name.Contains))
+    {
+      var projectItems = project.Items.Where(item => item.ItemType is "Compile").ToList();
+      projectItems.ForEach(item => Log.Debug("\t\tTest File: {Filepath}", item.EvaluatedInclude));
+      return new TestProject(
+        name, absolutePath, project,
+        projectItems.Select(item => new TestFile(item.UnevaluatedInclude, item.EvaluatedInclude)).ToImmutableArray<File>()
+        );
+    }
+    else
+    {
+      var projectItems = project.Items
+        .Where(item => item.ItemType is "Compile" && item.EvaluatedInclude.EndsWith(".cs")).ToList();
+      projectItems.ForEach(item => Log.Debug("\t\tSource File: {Filepath}", item.EvaluatedInclude));
+      return new ProjectUnderTest(
+        name, absolutePath, project,
+        projectItems.Select(item => new FileUnderTest(item.UnevaluatedInclude, item.EvaluatedInclude)).ToImmutableArray<File>()
+        );
+    }
   }
 }
 
-public abstract class Project
+public abstract class Project: IDisposable
 {
   protected readonly Microsoft.Build.Evaluation.Project _project;
+  protected readonly IList<File> _files;
   public string Name { get; }
   public string AbsolutePath { get; }
 
-  protected Project(string name, string absolutePath)
+  protected Project(string name, string absolutePath, Microsoft.Build.Evaluation.Project project, IList<File> files)
   {
     Name = name;
     AbsolutePath = absolutePath;
-    _project = new Microsoft.Build.Evaluation.Project(absolutePath);
+    _project = project;
+    _files = files;
+  }
+
+  public int FileCount()
+  {
+    return _files.Count;
+  }
+
+  public IEnumerable<File> GetFiles()
+  {
+    return _files;
+  }
+
+  public void Dispose()
+  {
+    _project.ProjectCollection.Dispose();
+    GC.SuppressFinalize(this);
   }
 }
 
-public class ProjectTests : Project
+public class TestProject : Project
 {
-  private readonly IList<File> _files;
-  
-  public ProjectTests(string name, string absolutePath) : base(name, absolutePath)
+  public TestProject(string name, string absolutePath, Microsoft.Build.Evaluation.Project project, IList<File> files) : base(name, absolutePath, project, files)
   {
-    var projectItems = _project.Items.Where(item => item.ItemType is "Compile" && item.EvaluatedInclude.EndsWith(".cs")).ToList();
-    projectItems.ForEach(item => Log.Debug("\t\tTest File: {Filepath}", item.EvaluatedInclude));
-    _files = projectItems.Select(item => new TestFile(item.UnevaluatedInclude, item.EvaluatedInclude)).ToList<File>();
   }
 
   public override string ToString()
@@ -47,13 +79,8 @@ public class ProjectTests : Project
 
 public class ProjectUnderTest : Project
 {
-  private readonly IList<File> _files;
-  
-  public ProjectUnderTest(string name, string absolutePath) : base(name, absolutePath)
+  public ProjectUnderTest(string name, string absolutePath, Microsoft.Build.Evaluation.Project project, IList<File> files) : base(name, absolutePath, project, files)
   {
-    var projectItems = _project.Items.Where(item => item.ItemType is "Compile").ToList();
-    projectItems.ForEach(item => Log.Debug("\t\tSource File: {Filepath}", item.EvaluatedInclude));
-    _files = projectItems.Select(item => new FileUnderTest(item.UnevaluatedInclude, item.EvaluatedInclude)).ToList<File>();
   }
 
   public override string ToString()

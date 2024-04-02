@@ -27,6 +27,11 @@ public class Application
 
     _solutionByName = solutions.ToFrozenDictionary();
   }
+
+  public IEnumerable<Solution> GetSolutions()
+  {
+    return _solutionByName.Values;
+  }
 }
 
 public class Solution
@@ -51,6 +56,11 @@ public class Solution
     }
 
     _projectByName = projects.ToFrozenDictionary();
+  }
+
+  public IEnumerable<Project> GetProjectsOfType<T>() where T: Project
+  {
+    return _projectByName.Values.Where(project => project is T);
   }
 
   public override string ToString()
