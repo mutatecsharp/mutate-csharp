@@ -6,7 +6,7 @@ internal sealed class CliOptions
 {
   private readonly string _absolutePath = string.Empty;
 
-  [Option("file", Required = true, HelpText = "The path to .cs source file.")]
+  [Option("project", Required = true, HelpText = "The path to C# project file (.csproj).")]
   public required string AbsolutePath { 
     get => _absolutePath;
     init
@@ -14,10 +14,17 @@ internal sealed class CliOptions
       if (value.Intersect(Path.GetInvalidPathChars()).Any() ||
           value.Intersect(Path.GetInvalidFileNameChars()).Any())
       {
-        throw new ArgumentException("Unable to parse malformed directory");
+        throw new ArgumentException("Unable to parse malformed path.");
       }
 
-      _absolutePath = Path.GetFullPath(value);
+      var absolutePath = Path.GetFullPath(value);
+
+      if (File.Exists(absolutePath))
+      {
+        throw new ArgumentException("Project file does not exist.");
+      }
+
+      _absolutePath = absolutePath;
     }
   }
 }
