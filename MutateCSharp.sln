@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MutateCSharp", "src\MutateCSharp\MutateCSharp.csproj", "{47A25427-7152-4EF4-AC7F-2CC91D7FD71B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MutateCSharp.Tests", "tests\MutateCSharp.Tests\MutateCSharp.Tests.csproj", "{42ECE430-AFC6-472D-8BEF-B05AF7AE2421}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,9 +12,5 @@ Global
 		{47A25427-7152-4EF4-AC7F-2CC91D7FD71B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{47A25427-7152-4EF4-AC7F-2CC91D7FD71B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{47A25427-7152-4EF4-AC7F-2CC91D7FD71B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{42ECE430-AFC6-472D-8BEF-B05AF7AE2421}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{42ECE430-AFC6-472D-8BEF-B05AF7AE2421}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{42ECE430-AFC6-472D-8BEF-B05AF7AE2421}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{42ECE430-AFC6-472D-8BEF-B05AF7AE2421}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

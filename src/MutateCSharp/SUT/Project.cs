@@ -17,7 +17,7 @@ public static class ProjectFactory
       projectItems.ForEach(item => Log.Debug("\t\tTest File: {Filepath}", item.EvaluatedInclude));
       return new TestProject(
         name, absolutePath, project,
-        projectItems.Select(item => new TestFile(item.UnevaluatedInclude, item.EvaluatedInclude)).ToImmutableArray<File>()
+        projectItems.Select(item => new TestFile(string.Concat(item.UnevaluatedInclude, item.EvaluatedInclude))).ToImmutableArray<File>()
         );
     }
     else
@@ -27,7 +27,7 @@ public static class ProjectFactory
       projectItems.ForEach(item => Log.Debug("\t\tSource File: {Filepath}", item.EvaluatedInclude));
       return new ProjectUnderTest(
         name, absolutePath, project,
-        projectItems.Select(item => new FileUnderTest(item.UnevaluatedInclude, item.EvaluatedInclude)).ToImmutableArray<File>()
+        projectItems.Select(item => new FileUnderTest(string.Concat(item.UnevaluatedInclude, item.EvaluatedInclude))).ToImmutableArray<File>()
         );
     }
   }

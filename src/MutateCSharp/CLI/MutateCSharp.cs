@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 using Microsoft.Build.Locator;
-using MutateCSharp.Cli;
+using MutateCSharp.CLI;
 using Serilog;
 using Serilog.Events;
 
@@ -14,8 +14,6 @@ try
   
   // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
   MSBuildLocator.RegisterDefaults();
-  
-  Log.Debug("{Args}", args);
 
   var result = Parser.Default.ParseArguments<CliOptions>(args)
     .WithParsed(CliHandler.RunOptions)

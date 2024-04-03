@@ -2,36 +2,35 @@ namespace MutateCSharp.SUT;
 
 public abstract class File
 {
-  public string BasePath { get; }
-  public string RelativePath { get; }
+  public string AbsolutePath { get; }
 
-  protected File(string basePath, string relativePath)
+  protected File(string absolutePath)
   {
-    BasePath = basePath;
-    RelativePath = relativePath;
+    AbsolutePath = absolutePath;
   }
 }
 
 public class TestFile : File
 {
-  public TestFile(string basePath, string relativePath) : base(basePath, relativePath)
+  public TestFile(string absolutePath) : base(absolutePath)
   {
   }
 
   public override string ToString()
   {
-    return $"Test File: {RelativePath}";
+    return $"Test File: {AbsolutePath}";
   }
 }
 
 public class FileUnderTest : File
 {
-  public FileUnderTest(string basePath, string relativePath) : base(basePath, relativePath)
+
+  public FileUnderTest(string absolutePath) : base(absolutePath)
   {
   }
 
   public override string ToString()
   {
-    return $"Source File: {RelativePath}";
+    return $"Source File: {AbsolutePath}";
   }
 }

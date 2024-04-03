@@ -1,38 +1,7 @@
 using System.Collections.Frozen;
-using MethodTimer;
 using Serilog;
 
 namespace MutateCSharp.SUT;
-
-public class Application
-{
-  private readonly string _rootDirectory;
-  private readonly IDictionary<string, Solution> _solutionByName;
-  private static readonly string[] ExclusionPatterns = ["Jennisys"];
-
-  [Time("Discover project structure")]
-  public Application(string rootDirectory)
-  {
-    _rootDirectory = rootDirectory;
-    var solutionFilepaths = Directory.GetFiles(_rootDirectory, "*.sln", SearchOption.AllDirectories)
-      .Where(path => !ExclusionPatterns.Any(path.Contains));
-    var solutions = new Dictionary<string, Solution>();
-
-    foreach (var filepath in solutionFilepaths)
-    {
-      var name = Path.GetFileName(filepath);
-      Log.Debug("Solution {SolutionName}: {SolutionPath}", name, filepath);
-      solutions[name] = new Solution(name, filepath);
-    }
-
-    _solutionByName = solutions.ToFrozenDictionary();
-  }
-
-  public IEnumerable<Solution> GetSolutions()
-  {
-    return _solutionByName.Values;
-  }
-}
 
 public class Solution
 {

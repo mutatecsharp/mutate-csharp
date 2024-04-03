@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<Project>
-    <PropertyGroup>
-        <OutputPath>..\..\artifacts\MutateCSharp.Tests\bin\$(Configuration)</OutputPath>
-        <BaseIntermediateOutputPath>..\..\artifacts\MutateCSharp.Tests\obj</BaseIntermediateOutputPath>
-        <IntermediateOutputPath>$(BaseIntermediateOutputPath)\$(Configuration)</IntermediateOutputPath>
-        <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
-    </PropertyGroup>
-</Project>
