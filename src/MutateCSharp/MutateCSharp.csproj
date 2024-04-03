@@ -33,4 +33,11 @@
       <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     </ItemGroup>
 
+    <Target Name="PostClean" AfterTargets="Clean">
+        <!-- remove output (bin) -->
+        <RemoveDir Directories="$(BaseOutputPath)" />
+        <!-- remove intermediate files (obj) -->
+        <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
+    </Target>
+
 </Project>

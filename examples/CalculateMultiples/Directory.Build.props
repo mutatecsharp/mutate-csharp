@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <Project>
     <PropertyGroup>
-        <BaseOutputPath>..\..\artifacts\MutateCSharp\bin</BaseOutputPath>
+        <BaseOutputPath>..\..\artifacts\CalculateMultiples\bin</BaseOutputPath>
         <OutputPath>$(BaseOutputPath)\$(Configuration)</OutputPath>
-        <BaseIntermediateOutputPath>..\..\artifacts\MutateCSharp\obj</BaseIntermediateOutputPath>
+        <BaseIntermediateOutputPath>..\..\artifacts\CalculateMultiples\obj</BaseIntermediateOutputPath>
         <IntermediateOutputPath>$(BaseIntermediateOutputPath)\$(Configuration)</IntermediateOutputPath>
         <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
     </PropertyGroup>
