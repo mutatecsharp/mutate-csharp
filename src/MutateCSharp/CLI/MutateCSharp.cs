@@ -1,5 +1,4 @@
 ﻿using CommandLine;
-using Microsoft.Build.Locator;
 using MutateCSharp.CLI;
 using Serilog;
 using Serilog.Events;
@@ -11,9 +10,6 @@ try
     .WriteTo.File(path: "log.txt")
     .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
     .CreateLogger();
-  
-  // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
-  MSBuildLocator.RegisterDefaults();
 
   var result = Parser.Default.ParseArguments<CliOptions>(args)
     .WithParsed(CliHandler.RunOptions)

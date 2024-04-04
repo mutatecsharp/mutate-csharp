@@ -1,17 +1,24 @@
 using CommandLine;
-using MutateCSharp.SUT;
+using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.Build.Locator;
+using MutateCSharp.Mutation;
 using Serilog;
 
 namespace MutateCSharp.CLI;
 
 internal static class CliHandler
 {
-  internal static void RunOptions(CliOptions options)
+  internal static async void RunOptions(CliOptions options)
   {
-    var fileUnderTest = new FileUnderTest(options.AbsolutePath);
+    // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
+    MSBuildLocator.RegisterDefaults();
     
-    // var mutants = Mutation.Mutator.DeclareMutants(project);
-    // var representativeMutants = Mutator.SelectMutants(mutants);
+    using var workspace = MSBuildWorkspace.Create();
+    workspace.LoadMetadataForReferencedProjects = true;
+    workspace.SkipUnrecognizedProjects = true;
+
+    var solution = await workspace.OpenSolutionAsync(options.AbsolutePath);
+    var mutatedSolution = await Mutator.MutateSolution(workspace, solution);
   }
 
   internal static void HandleParseError(IEnumerable<Error> errorIterator)
