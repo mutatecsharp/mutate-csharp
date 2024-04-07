@@ -36,4 +36,10 @@ public static class SyntaxFactoryUtil
     return SyntaxFactory.InvocationExpression(methodIdentifier,
       argumentListSyntax);
   }
+
+  public static ParameterSyntax CreatePredefinedUnaryParameters(SyntaxKind kind)
+  {
+    return SyntaxFactory.Parameter(SyntaxFactory.Identifier("argument"))
+      .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(kind)));
+  }
 }
