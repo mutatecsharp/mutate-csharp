@@ -4,7 +4,7 @@ using Serilog;
 
 namespace MutateCSharp.Mutation;
 
-public static class Mutator
+public static class MutatorHarness
 {
   public static async Task<Solution> MutateSolution(MSBuildWorkspace workspace, Solution solution)
   {

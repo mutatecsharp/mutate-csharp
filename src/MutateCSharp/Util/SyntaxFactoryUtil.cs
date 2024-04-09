@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -5,6 +6,12 @@ namespace MutateCSharp.Util;
 
 public static class SyntaxFactoryUtil
 {
+  public static LiteralExpressionSyntax CreateNumericLiteral(dynamic value)
+  {
+    return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,
+      SyntaxFactory.Literal(value));
+  }
+  
   public static InvocationExpressionSyntax CreateMethodCall(
     string namespaceName,
     string className,
@@ -37,9 +44,9 @@ public static class SyntaxFactoryUtil
       argumentListSyntax);
   }
 
-  public static ParameterSyntax CreatePredefinedUnaryParameters(SyntaxKind kind)
+  public static ParameterSyntax CreatePredefinedUnaryParameters(string type)
   {
     return SyntaxFactory.Parameter(SyntaxFactory.Identifier("argument"))
-      .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(kind)));
+      .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.ParseToken(type)));
   }
 }

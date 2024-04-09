@@ -18,7 +18,7 @@ internal static class CliHandler
     workspace.SkipUnrecognizedProjects = true;
 
     var solution = await workspace.OpenSolutionAsync(options.AbsolutePath);
-    var mutatedSolution = await Mutator.MutateSolution(workspace, solution);
+    var mutatedSolution = await MutatorHarness.MutateSolution(workspace, solution);
   }
 
   internal static void HandleParseError(IEnumerable<Error> errorIterator)

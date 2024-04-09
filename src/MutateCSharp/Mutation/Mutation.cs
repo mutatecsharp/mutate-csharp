@@ -1,4 +1,6 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace MutateCSharp.Mutation;
 
@@ -13,17 +15,23 @@ public record Mutation
 {
   private static long _idGenerator;
   // For Roslyn use (original node may contain replacement children nodes)
-  public SyntaxNode RoslynOriginalNode { get; }
-  public SyntaxNode RoslynReplacementNode { get; }
+  public ExpressionSyntax RoslynOriginalNode { get; }
+  public ExpressionSyntax RoslynReplacementNode { get; }
   
   // For internal use
   public long Id { get; }
+  public SyntaxKind OriginalOperation { get; }
+  public SyntaxKind MutantOperation { get; }
+  public string OperandType { get; }
 
-  public Mutation(SyntaxNode originalNode, SyntaxNode replacementNode)
+  public Mutation(ExpressionSyntax originalNode, ExpressionSyntax replacementNode, TypeInfo operandType)
   {
     _idGenerator++;
     RoslynOriginalNode = originalNode;
     RoslynReplacementNode = replacementNode;
+    OriginalOperation = originalNode.Kind();
+    MutantOperation = replacementNode.Kind();
+    OperandType = operandType.ToString()!;
     Id = _idGenerator;
   }
 }
