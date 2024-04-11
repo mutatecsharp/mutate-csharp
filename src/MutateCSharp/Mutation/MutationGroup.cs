@@ -1,15 +1,27 @@
-using System.Diagnostics;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace MutateCSharp.Mutation;
 
-public record ExprInfo(TypeInfo Type, SyntaxKind Operation);
-
-public record MutationGroup
+public class MutationGroup
 {
-  public required ICollection<Mutation> Mutations { get; init; }
-  public required string SchemaBaseName { get; init; }
-  public required IList<ParameterSyntax> SchemaParameters { get; init; }
+  // For schema generation use (duck typing)
+  public required string SchemaReturnType { get; init; }
+  public required IList<string> SchemaParameterTypes { get; init; }
+  public required string SchemaOriginalExpressionTemplate { get; init; }
+  public required IList<string> SchemaMutantExpressionsTemplate { get; init; }
+  public required string SchemaName { get; init; }
+
+  public override int GetHashCode()
+  {
+    return HashCode.Combine(SchemaParameterTypes, SchemaReturnType,
+      SchemaMutantExpressionsTemplate);
+  }
+  public override bool Equals(object? other)
+  {
+    if (ReferenceEquals(this, other)) return true;
+    if (ReferenceEquals(this, null) || ReferenceEquals(other, null) ||
+        GetType() != other.GetType())
+      return false;
+    var otherGroup = (other as MutationGroup)!;
+    return SchemaName.Equals(otherGroup.SchemaName);
+  }
+  
 }

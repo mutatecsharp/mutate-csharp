@@ -5,6 +5,7 @@ namespace MutateCSharp.Mutation;
 
 using MutationId = long;
 
+// update base counter with mutation registry
 public class MutationRegistry
 {
   // Each entry records the unique mapping of original construct to all
@@ -27,13 +28,6 @@ public class MutationRegistry
   public void RegisterMutationGroup(MutationGroup mutationGroup)
   {
     _mutationGroups.Add(mutationGroup);
-    
-    // Register mutation(s)
-    foreach (var mutation in mutationGroup.Mutations)
-    {
-      Trace.Assert(!_mutations.ContainsKey(mutation.Id));
-      _mutations[mutation.Id] = mutation;
-    }
   }
 
   public Mutation GetMutation(MutationId id)

@@ -1,137 +1,79 @@
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using MutateCSharp.Util;
+using System.Text;
 
 namespace MutateCSharp.Mutation;
 
-public class MutantSchemataGenerator
+public static class MutantSchemataGenerator
 {
   private static string _namespaceName = "MutateCSharp";
   private static string _className = "Schemata";
 
-  private readonly IDictionary<string, int>
-    _schemaBasenameCounter = new Dictionary<string, int>();
+  // Hack to optimise template generation time 
+  private static readonly object?[] PredefinedParameterNames =
+    ["argument1", "argument2", "argument3", "argument4"];
 
-  private IDictionary<SchemaGroup, string>
-    _schemaNames = new Dictionary<SchemaGroup, string>();
-
-  // Many-to-one mapping
-  private IDictionary<MutationGroup, SchemaGroup>
-    _mutationGroupToSchemaGroup = new Dictionary<MutationGroup, SchemaGroup>();
+  private static ReadOnlySpan<object?> RequiredParameters(int count)
+  {
+    return new ReadOnlySpan<object?>(PredefinedParameterNames, 0, count);
+  }
   
-  public string GenerateSchemaName(MutationGroup mutationGroup)
+  // Method signature: public static <type> <method name> (int mutantId, <type1> <parameter1>, <type2> <parameter2>, ...)
+  private static StringBuilder GenerateSchemaMethodSignature(MutationGroup mutationGroup)
   {
-    var schemaGroup = RegisterSchemaGroup(mutationGroup);
-
-    // Return generated schema name if schema group already exists
-    if (_schemaNames.TryGetValue(schemaGroup, out var name)) return name;
-
-    // Append counter as suffix to schema base name, then increment counter
-    var newName =
-      $"{mutationGroup.SchemaBaseName}{_schemaBasenameCounter[mutationGroup.SchemaBaseName]}";
-    _schemaBasenameCounter[mutationGroup.SchemaBaseName]++;
-    return newName;
-  }
-
-  private SchemaGroup RegisterSchemaGroup(MutationGroup mutationGroup)
-  {
-    var operandType = mutationGroup.Mutations.First().OperandType;
-    var originalOperation = mutationGroup.Mutations.First().OriginalOperation;
-    var mutantOperations =
-      mutationGroup.Mutations.Select(m => m.MutantOperation).ToArray();
-    var schemaGroup = new SchemaGroup
-    {
-      OperandType = operandType,
-      OriginalOperation = originalOperation,
-      MutantOperations = mutantOperations
-    };
-
-    _mutationGroupToSchemaGroup[mutationGroup] = schemaGroup;
-    return schemaGroup;
-  }
-
-  private ParameterListSyntax GenerateSchemaParameters(SchemaGroup schemaGroup)
-  {
-    // Hack: type is predefined (assumption)
-    var type =
-      SyntaxFactory.PredefinedType(
-        SyntaxFactory.ParseToken(schemaGroup.OperandType));
-      
-    // Parameter: int mutantId 
-    var mutantIdParameter = SyntaxFactory
-      .Parameter(SyntaxFactory.Identifier("mutantId"))
-      .WithType(
-        SyntaxFactory.PredefinedType(
-          SyntaxFactory.Token(SyntaxKind.IntKeyword)));
-    // Hack: unary parameter = <type> argument
-    var parameter = SyntaxFactoryUtil.CreatePredefinedUnaryParameters(schemaGroup.OperandType);
-
-    // Parameters: int mutantId, ... arguments
-    return SyntaxFactory.ParameterList(
-      SyntaxFactory.SeparatedList(
-        ImmutableArray.Create(mutantIdParameter, parameter))
+    var result = new StringBuilder();
+    
+    result.AppendFormat("public static {0} {1}(int mutantId", 
+      mutationGroup.SchemaReturnType,
+      mutationGroup.SchemaName
     );
-  }
 
-  // Hack: unary operator result
-  // Returns "if (_activatedMutantId == mutantId + i) operator(... operand)"
-  private BlockSyntax GenerateSchemaCases(MutationGroup mutationGroup)
-  {
-    var schemaGroup = _mutationGroupToSchemaGroup[mutationGroup];
-    
-    var cases = mutationGroup.Mutations.Select((mutantOp, i) =>
+    for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
     {
-      // mutantId + i
-      var caseIdExpr = 
-        SyntaxFactory.BinaryExpression(SyntaxKind.AddExpression,
-        SyntaxFactory.IdentifierName("mutantId"),
-        SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,
-          SyntaxFactory.Literal(i)));
-      // _activatedMutantId == mutantId + i
-      var matchExpr =
-        SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression,
-          SyntaxFactory.IdentifierName("_activatedMutantId"),
-          caseIdExpr);
-        
-      // if (_activatedMutantId == mutantId + i) return operator(... operand);
-      return SyntaxFactory.IfStatement(matchExpr,
-        SyntaxFactory.ReturnStatement(mutantOp.RoslynReplacementNode));
-    });
+      result.AppendFormat(", {0} {1}", 
+        mutationGroup.SchemaParameterTypes[i], PredefinedParameterNames[i]);
+    }
 
-    var defaultCase = SyntaxFactory.ReturnStatement(mutationGroup.Mutations.First().RoslynOriginalNode);
-    var statements = cases.Append<StatementSyntax>(defaultCase);
-    return SyntaxFactory.Block(statements);
+    result.Append(')');
+    result.AppendLine();
+    return result;
   }
-
-  private MethodDeclarationSyntax GenerateIndividualSchema(
-    MutationGroup mutationGroup)
-  {
-    var schemaGroup = _mutationGroupToSchemaGroup[mutationGroup];
-    
-    // Type: assume input = output type
-    var type =
-      SyntaxFactory.PredefinedType(
-        SyntaxFactory.ParseToken(schemaGroup.OperandType));
-    
-    // Modifier: public static
-    var modifiers = SyntaxFactory.TokenList([
-      SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-      SyntaxFactory.Token(SyntaxKind.StaticKeyword)
-    ]);
-    
-    return SyntaxFactory.MethodDeclaration(returnType: type,
-      identifier: _schemaNames[schemaGroup])
-      .WithModifiers(modifiers)
-      .WithParameterList(GenerateSchemaParameters(schemaGroup))
-      .WithBody(GenerateSchemaCases(mutationGroup));
-  }
-
   
-  private static SyntaxTree GenerateInitialiseMethod()
+  private static StringBuilder GenerateSchemaCases(MutationGroup mutationGroup)
   {
-    return CSharpSyntaxTree.ParseText(
+    var result = new StringBuilder();
+    
+    // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) return originalExpression;
+    result.AppendFormat(
+      "if (!ActivatedInRange(mutantId, mutantId + {0})) return ",
+      mutationGroup.SchemaMutantExpressionsTemplate.Count - 1);
+    result.AppendFormat(null,
+      CompositeFormat.Parse(mutationGroup.SchemaOriginalExpressionTemplate),
+      RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
+    result.Append(';');
+    result.AppendLine();
+    
+    // Case: if (_activatedMutantId == mutantId + i) return mutatedExpression;
+    for (var i = 0; i < mutationGroup.SchemaMutantExpressionsTemplate.Count; i++)
+    {
+      result.AppendFormat(
+        "if (_activatedMutantId == mutantId + {0}) return ", i);
+      result.AppendFormat(null,
+        CompositeFormat.Parse(mutationGroup.SchemaMutantExpressionsTemplate[i]),
+        RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
+      result.Append(';');
+      result.AppendLine();
+    }
+    
+    // Default case: throw new System.Diagnostics.UnreachableException("Mutant ID out of range");
+    result.Append(
+      "throw new System.Diagnostics.UnreachableException(\"Mutant ID out of range\");");
+    result.AppendLine();
+
+    return result;
+  }
+
+  private static string GenerateInitialiseMethod()
+  {
+    return
       """
       private static void Initialise()
       {
@@ -146,25 +88,54 @@ public class MutantSchemataGenerator
         Initialise();
         return lowerBound <= _activatedMutantId && _activatedMutantId <= upperBound;
       }
-      """
-    );
+      """;
   }
+  
+  public static StringBuilder GenerateIndividualSchema(MutationGroup mutationGroup)
+  {
+    var result = new StringBuilder();
 
-  // public SyntaxTree GenerateSchemata()
-  // {
-  // }
+    result.Append(GenerateSchemaMethodSignature(mutationGroup));
+    result.Append('{');
+    result.AppendLine();
+    result.Append(GenerateSchemaCases(mutationGroup));
+    result.Append('}');
+    result.AppendLine();
 
+    return result;
+  }
+  
+  public static StringBuilder GenerateSchemata(IEnumerable<MutationGroup> mutationGroups)
+  {
+    var result = new StringBuilder();
+
+    result.AppendFormat("namespace {0}", _namespaceName);
+    result.AppendLine();
+    result.Append('{');
+    result.AppendLine();
+    result.AppendFormat("public static class {0}", _className);
+    result.AppendLine();
+    result.Append('{');
+    result.AppendLine();
+    result.Append(GenerateInitialiseMethod());
+    result.AppendLine();
+
+    foreach (var mutationGroup in mutationGroups)
+    {
+      result.Append(GenerateIndividualSchema(mutationGroup));
+      result.AppendLine();
+    }
+
+    result.Append('}');
+    result.AppendLine();
+    result.Append('}');
+    result.AppendLine();
+
+    return result;
+  }
 
   // // Use a document editor here
   // public SyntaxTree InjectSchemata(SyntaxTree tree)
   // {
   // }
-
-
-  private record SchemaGroup
-  {
-    public required string OperandType { get; init; }
-    public required SyntaxKind OriginalOperation { get; init; }
-    public required IList<SyntaxKind> MutantOperations { get; init; }
-  }
 }
