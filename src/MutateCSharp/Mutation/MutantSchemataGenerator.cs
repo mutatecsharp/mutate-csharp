@@ -4,8 +4,8 @@ namespace MutateCSharp.Mutation;
 
 public static class MutantSchemataGenerator
 {
-  private static string _namespaceName = "MutateCSharp";
-  private static string _className = "Schemata";
+  public const string Namespace = "MutateCSharp";
+  public const string Class = "Schemata";
 
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =
@@ -20,16 +20,15 @@ public static class MutantSchemataGenerator
   private static StringBuilder GenerateSchemaMethodSignature(MutationGroup mutationGroup)
   {
     var result = new StringBuilder();
-    
-    result.AppendFormat("public static {0} {1}(int mutantId", 
-      mutationGroup.SchemaReturnType,
-      mutationGroup.SchemaName
+
+    result.Append(
+      $"public static {mutationGroup.SchemaReturnType} {mutationGroup.SchemaName}(int mutantId"
     );
 
     for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
     {
-      result.AppendFormat(", {0} {1}", 
-        mutationGroup.SchemaParameterTypes[i], PredefinedParameterNames[i]);
+      result.Append(
+        $", {mutationGroup.SchemaParameterTypes[i]} {PredefinedParameterNames[i]}");
     }
 
     result.Append(')');
@@ -42,9 +41,8 @@ public static class MutantSchemataGenerator
     var result = new StringBuilder();
     
     // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) return originalExpression;
-    result.AppendFormat(
-      "if (!ActivatedInRange(mutantId, mutantId + {0})) return ",
-      mutationGroup.SchemaMutantExpressionsTemplate.Count - 1);
+    result.Append(
+      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressionsTemplate.Count - 1})) return ");
     result.AppendFormat(null,
       CompositeFormat.Parse(mutationGroup.SchemaOriginalExpressionTemplate),
       RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
@@ -54,8 +52,7 @@ public static class MutantSchemataGenerator
     // Case: if (_activatedMutantId == mutantId + i) return mutatedExpression;
     for (var i = 0; i < mutationGroup.SchemaMutantExpressionsTemplate.Count; i++)
     {
-      result.AppendFormat(
-        "if (_activatedMutantId == mutantId + {0}) return ", i);
+      result.Append($"if (_activatedMutantId == mutantId + {i}) return ");
       result.AppendFormat(null,
         CompositeFormat.Parse(mutationGroup.SchemaMutantExpressionsTemplate[i]),
         RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
@@ -109,11 +106,11 @@ public static class MutantSchemataGenerator
   {
     var result = new StringBuilder();
 
-    result.AppendFormat("namespace {0}", _namespaceName);
+    result.Append($"namespace {Namespace}");
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.AppendFormat("public static class {0}", _className);
+    result.Append($"public static class {Class}");
     result.AppendLine();
     result.Append('{');
     result.AppendLine();

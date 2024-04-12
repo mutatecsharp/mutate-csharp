@@ -1,10 +1,10 @@
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis;
 
 namespace MutateCSharp.Mutation;
 
 public interface IMutationOperator
 {
-  public bool CanBeApplied(ExpressionSyntax? originalNode);
+  public bool CanBeApplied(SyntaxNode? originalNode);
 
-  public MutationGroup? CreateMutationGroup(ExpressionSyntax? originalNode);
+  public MutationGroup? CreateMutationGroup(SyntaxNode? originalNode);
 }

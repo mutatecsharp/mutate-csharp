@@ -1,24 +1,23 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace MutateCSharp.Mutation;
 
 public abstract class AbstractMutationOperator<T>(SemanticModel semanticModel)
   : IMutationOperator 
-  where T : ExpressionSyntax
+  where T : SyntaxNode
 {
   protected readonly SemanticModel SemanticModel = semanticModel;
 
   // Check that mutation operator can be applied on currently visited node.
   // Should be run before other methods in this class are called.
-  public bool CanBeApplied(ExpressionSyntax? originalNode)
+  public bool CanBeApplied(SyntaxNode? originalNode)
   {
     // The type check guarantees originalNode cannot be null
     return originalNode is T node && CanBeApplied(node);
   }
 
-  public MutationGroup? CreateMutationGroup(ExpressionSyntax? originalNode)
+  public MutationGroup? CreateMutationGroup(SyntaxNode? originalNode)
   {
     // Guard against nullable values in the validation check
     if (!CanBeApplied(originalNode)) return null;

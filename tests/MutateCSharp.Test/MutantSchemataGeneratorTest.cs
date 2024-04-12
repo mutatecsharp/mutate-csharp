@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
-using MutateCSharp.Mutation.Operators;
+using MutateCSharp.Mutation.OperatorImplementation;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test;
@@ -25,7 +25,7 @@ public class MutantSchemataGeneratorTest
   {
     
     var compilation = CSharpCompilation.Create(CompilationName)
-      .AddReferences(MicrosoftCoreLibrary).AddSyntaxTrees(inputAst);
+      .WithReferences(MicrosoftCoreLibrary).AddSyntaxTrees(inputAst);
     var model = compilation.GetSemanticModel(inputAst);
     model.Should().NotBeNull();
     return model;

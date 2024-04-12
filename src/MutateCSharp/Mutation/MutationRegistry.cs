@@ -1,9 +1,8 @@
 using System.Collections.Frozen;
-using System.Diagnostics;
 
 namespace MutateCSharp.Mutation;
 
-using MutationId = long;
+using MutationId = int;
 
 // update base counter with mutation registry
 public class MutationRegistry
@@ -23,16 +22,28 @@ public class MutationRegistry
   // There is a many-to-one mapping between a mutation and a mutation group
   private IDictionary<Mutation, MutationGroup>
     _mutationToMutationGroup = new Dictionary<Mutation, MutationGroup>();
+
+  private MutationId _idCounter;
   
   // Precondition: None of the mutations are registered
   public void RegisterMutationGroup(MutationGroup mutationGroup)
   {
+    // Mutation groups may have existed since different nodes under mutation
+    // can generate an equivalent set of mutations
     _mutationGroups.Add(mutationGroup);
+    
+    // Update number of mutants created
+    _idCounter += mutationGroup.SchemaMutantExpressionsTemplate.Count;
   }
 
   public Mutation GetMutation(MutationId id)
   {
     return _mutations[id];
+  }
+
+  public MutationId GetMutationIdAssignment()
+  {
+    return _idCounter;
   }
 
   // Converts all underlying collections to frozen collections to optimise

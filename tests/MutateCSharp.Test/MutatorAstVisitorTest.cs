@@ -2,16 +2,23 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using MutateCSharp.Mutation;
 using FluentAssertions;
+using Xunit.Abstractions;
 
 namespace MutateCSharp.Test;
 
 public class MutatorAstVisitorTest
 {
+  private readonly ITestOutputHelper _testOutputHelper;
   private const string CompilationName = "AstTestCompilation";
 
   private static readonly PortableExecutableReference MicrosoftCoreLibrary =
     MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
-  
+
+  public MutatorAstVisitorTest(ITestOutputHelper testOutputHelper)
+  {
+    _testOutputHelper = testOutputHelper;
+  }
+
   private static void TestForSyntacticErrors(SyntaxTree tree)
   {
     // Check: Input should have a non-empty syntax tree.
@@ -24,25 +31,23 @@ public class MutatorAstVisitorTest
       .BeEmpty("because input should be syntactically valid");
   }
 
-  private static void TestMutation(string input, string expected)
+  private void TestMutation(string input, string expected)
   {
     // Sanity check: input should be syntactically and semantically valid
     var inputAst = CSharpSyntaxTree.ParseText(input);
     TestForSyntacticErrors(inputAst);
 
-    var compilation = CSharpCompilation.Create(
-      CompilationName,
-      syntaxTrees: new[] { inputAst },
-      references: new[] { MicrosoftCoreLibrary }
-    );
+    var compilation = CSharpCompilation.Create(CompilationName)
+      .WithReferences(MicrosoftCoreLibrary)
+      .AddSyntaxTrees(inputAst);
     var model = compilation.GetSemanticModel(inputAst);
     var visitor = new MutatorAstRewriter(model);
 
-    // Sanity check: actual output should be syntactically and semantically valid
+    // Sanity check: actual output should be syntactically valid
     var outputRoot = visitor.Visit(inputAst.GetRoot());
     TestForSyntacticErrors(outputRoot.SyntaxTree);
 
-    // Sanity check: expected output should be syntactically and semantically valid
+    // Sanity check: expected output should be syntactically valid
     var expectedAst = CSharpSyntaxTree.ParseText(expected);
     TestForSyntacticErrors(expectedAst);
 
@@ -51,6 +56,7 @@ public class MutatorAstVisitorTest
     // Hack: convert output AST to string and parse string back to AST
     var outputAst =
       CSharpSyntaxTree.ParseText(outputRoot.ToFullString());
+    _testOutputHelper.WriteLine(outputAst.ToString());
     outputAst.IsEquivalentTo(expectedAst).Should().BeTrue();
   }
 
@@ -69,7 +75,7 @@ public class MutatorAstVisitorTest
       """
       void f()
       {
-        int x = MutateCSharp.Schemata.ReplaceInt32Constant(0, 2);
+        int x = MutateCSharp.Schemata.ReplaceInt32Constant12345(0, 2);
       }
       """;
 
@@ -91,7 +97,7 @@ public class MutatorAstVisitorTest
       """
       void f()
       {
-        bool x = MutateCSharp.Schemata.ReplaceBooleanConstant(0, true);
+        bool x = MutateCSharp.Schemata.ReplaceBooleanConstant1(0, true);
       }
       """;
 
@@ -105,7 +111,7 @@ public class MutatorAstVisitorTest
       """
       void f()
       {
-        double x = 2.0;
+        double x = 2.0d;
       }
       """;
 
@@ -113,7 +119,7 @@ public class MutatorAstVisitorTest
       """
       void f()
       {
-        double x = MutateCSharp.Schemata.ReplaceDoubleConstant(0, 2.0);
+        double x = MutateCSharp.Schemata.ReplaceDoubleConstant12345(0, 2.0d);
       }
       """;
 
