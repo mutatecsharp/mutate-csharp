@@ -11,10 +11,6 @@ namespace MutateCSharp.Test;
 public class MutantSchemataGeneratorTest
 {
   private readonly ITestOutputHelper _testOutputHelper;
-  private const string CompilationName = "SchemaGeneratorTestCompilation";
-
-  private static readonly PortableExecutableReference MicrosoftCoreLibrary =
-    MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
 
   public MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
   {
@@ -23,9 +19,7 @@ public class MutantSchemataGeneratorTest
 
   private static SemanticModel GetSemanticModel(SyntaxTree inputAst)
   {
-    
-    var compilation = CSharpCompilation.Create(CompilationName)
-      .WithReferences(MicrosoftCoreLibrary).AddSyntaxTrees(inputAst);
+    var compilation = TestUtil.GetAstCompilation(inputAst);
     var model = compilation.GetSemanticModel(inputAst);
     model.Should().NotBeNull();
     return model;

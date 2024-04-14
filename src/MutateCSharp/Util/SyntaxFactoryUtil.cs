@@ -1,4 +1,3 @@
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -42,11 +41,5 @@ public static class SyntaxFactoryUtil
     // Return created method call expression
     return SyntaxFactory.InvocationExpression(methodIdentifier,
       argumentListSyntax);
-  }
-
-  public static ParameterSyntax CreatePredefinedUnaryParameters(string type)
-  {
-    return SyntaxFactory.Parameter(SyntaxFactory.Identifier("argument"))
-      .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.ParseToken(type)));
   }
 }

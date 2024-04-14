@@ -79,6 +79,7 @@ public class NumericConstantReplacer(SemanticModel semanticModel)
     result.Add((4, "{0} - 1"));
     // Mutation: value => value + 1
     result.Add((5, "{0} + 1"));
+    // (Todo) Mutation: value => ~value (unconditionally returns int)
 
     return result.ToImmutableArray();
   }

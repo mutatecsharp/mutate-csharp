@@ -5,13 +5,26 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-public partial class BinaryOperatorReplacer(SemanticModel semanticModel)
+/* https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/operator-overloading#overloadable-operators
+ An operator declaration must satisfy the following rules:
+
+ It includes both a public and a static modifier.
+ A unary operator has one input parameter.
+ A binary operator has two input parameters.
+ In each case, at least one parameter must have type T or T?,
+ where T is the type that contains the operator declaration.
+
+ ---
+ Note that user-defined operator overloading can return any type, including
+ types not related to the class overloading the operator.
+*/
+public partial class BinExprOpReplacer(SemanticModel semanticModel)
   : AbstractMutationOperator<BinaryExpressionSyntax>(semanticModel)
 {
   protected override bool CanBeApplied(BinaryExpressionSyntax originalNode)
   {
     ReadOnlySpan<ExpressionSyntax> children = [originalNode.Left, originalNode.Right];
-    return true;
+    return !originalNode.IsKind(SyntaxKind.StringLiteralExpression);
   }
 
   protected override string OriginalExpressionTemplate(
@@ -62,7 +75,7 @@ public partial class BinaryOperatorReplacer(SemanticModel semanticModel)
 }
 
 // Arithmetic operators
-public partial class BinaryOperatorReplacer
+public partial class BinExprOpReplacer
 {
   private static readonly ISet<SyntaxKind> ArithmeticOperators = new HashSet<SyntaxKind>
   {
@@ -73,7 +86,7 @@ public partial class BinaryOperatorReplacer
     SyntaxKind.DivideExpression
   }.ToFrozenSet();
   
-  private string ArithmeticOriginalExpressionTemplate(BinaryExpressionSyntax node)
+  private static string ArithmeticOriginalExpressionTemplate(BinaryExpressionSyntax node)
   {
     return node.Kind() switch
     {
@@ -84,10 +97,15 @@ public partial class BinaryOperatorReplacer
       SyntaxKind.ModuloExpression => "{0} % {1}",
     };
   }
+
+  private bool CanApplyArithmeticOperator(TypeInfo typeInfo, SyntaxKind operatorKind)
+  {
+    return true;
+  }
 }
 
 // (boolean and integral) bitwise operators
-public partial class BinaryOperatorReplacer
+public partial class BinExprOpReplacer
 {
   private static readonly ISet<SyntaxKind> BitwiseOperators =
     new HashSet<SyntaxKind>
@@ -115,7 +133,7 @@ public partial class BinaryOperatorReplacer
 }
 
 // boolean-only logical operators
-public partial class BinaryOperatorReplacer
+public partial class BinExprOpReplacer
 {
   private static readonly ISet<SyntaxKind> LogicalOperators =
     new HashSet<SyntaxKind>
@@ -135,7 +153,7 @@ public partial class BinaryOperatorReplacer
 }
 
 // integral-only relational operators
-public partial class BinaryOperatorReplacer
+public partial class BinExprOpReplacer
 {
   private static readonly ISet<SyntaxKind> RelationalOperators =
     new HashSet<SyntaxKind>
@@ -164,7 +182,7 @@ public partial class BinaryOperatorReplacer
 }
 
 // type-cast operators
-public partial class BinaryOperatorReplacer
+public partial class BinExprOpReplacer
 {
   private static readonly ISet<SyntaxKind> TypeCastOperators =
     new HashSet<SyntaxKind>
@@ -184,7 +202,7 @@ public partial class BinaryOperatorReplacer
 }
 
 // Null-coalesce operators
-public partial class BinaryOperatorReplacer
+public partial class BinExprOpReplacer
 {
   private string NullCoalesceOriginalExpressionTemplate(
     BinaryExpressionSyntax node) => "{0} ?? {1}";

@@ -9,47 +9,29 @@ namespace MutateCSharp.Test;
 public class MutatorAstVisitorTest
 {
   private readonly ITestOutputHelper _testOutputHelper;
-  private const string CompilationName = "AstTestCompilation";
-
-  private static readonly PortableExecutableReference MicrosoftCoreLibrary =
-    MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
 
   public MutatorAstVisitorTest(ITestOutputHelper testOutputHelper)
   {
     _testOutputHelper = testOutputHelper;
   }
-
-  private static void TestForSyntacticErrors(SyntaxTree tree)
-  {
-    // Check: Input should have a non-empty syntax tree.
-    tree.GetRoot().DescendantNodesAndSelf().Should()
-      .NotBeEmpty("because input should not be empty");
-
-    // Check: Input should not have syntax errors.
-    tree.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error)
-      .Should()
-      .BeEmpty("because input should be syntactically valid");
-  }
-
+  
   private void TestMutation(string input, string expected)
   {
     // Sanity check: input should be syntactically and semantically valid
     var inputAst = CSharpSyntaxTree.ParseText(input);
-    TestForSyntacticErrors(inputAst);
+    TestUtil.TestForSyntacticErrors(inputAst);
 
-    var compilation = CSharpCompilation.Create(CompilationName)
-      .WithReferences(MicrosoftCoreLibrary)
-      .AddSyntaxTrees(inputAst);
+    var compilation = TestUtil.GetAstCompilation(inputAst);
     var model = compilation.GetSemanticModel(inputAst);
     var visitor = new MutatorAstRewriter(model);
 
     // Sanity check: actual output should be syntactically valid
     var outputRoot = visitor.Visit(inputAst.GetRoot());
-    TestForSyntacticErrors(outputRoot.SyntaxTree);
+    TestUtil.TestForSyntacticErrors(outputRoot.SyntaxTree);
 
     // Sanity check: expected output should be syntactically valid
     var expectedAst = CSharpSyntaxTree.ParseText(expected);
-    TestForSyntacticErrors(expectedAst);
+    TestUtil.TestForSyntacticErrors(expectedAst);
 
     // Check: Actual output should be equivalent to the expected output
     // Comparison ignores trivia (whitespaces)
@@ -85,6 +67,13 @@ public class MutatorAstVisitorTest
   [Fact]
   public void MutateBooleanConstantAssignment_ShouldReplaceBooleanConstant()
   {
+    var t = typeof(int).GetMethods();
+
+    foreach (var m in t)
+    {
+      _testOutputHelper.WriteLine(m.Name);
+    }
+    
     const string input =
       """
       void f()
