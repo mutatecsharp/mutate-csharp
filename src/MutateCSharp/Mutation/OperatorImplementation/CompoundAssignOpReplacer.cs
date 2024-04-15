@@ -21,7 +21,7 @@ public sealed partial class CompoundAssignOpReplacer(
   AbstractMutationOperator<AssignmentExpressionSyntax>(semanticModel)
 {
   // TODO: refactor into records
-  private static readonly FrozenSet<SyntaxKind> supportedOperators
+  public static readonly FrozenSet<SyntaxKind> SupportedOperators
     = new HashSet<SyntaxKind>
     {
       SyntaxKind.AddAssignmentExpression,
@@ -37,12 +37,12 @@ public sealed partial class CompoundAssignOpReplacer(
       SyntaxKind.UnsignedRightShiftAssignmentExpression,
     }.ToFrozenSet();
 
-  private static readonly FrozenDictionary<SyntaxKind, int> operatorIds
-    = SyntaxKindUniqueIdGenerator.GenerateIds(supportedOperators).ToFrozenDictionary();
+  private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators).ToFrozenDictionary();
   
   // String types are not supported since it only supports += operator and cannot
   // be mutated
-  private static readonly FrozenSet<SpecialType> PredefinedTypes =
+  public static readonly FrozenSet<SpecialType> PredefinedTypes =
     new HashSet<SpecialType>
     {
       // Boolean type
@@ -62,14 +62,14 @@ public sealed partial class CompoundAssignOpReplacer(
       SpecialType.System_Double,
       SpecialType.System_Decimal,
       // Integral type (neither signed or unsigned)
-      SpecialType.System_Char,
+      SpecialType.System_Char
     }.ToFrozenSet();
 
   /*
    * Roslyn Syntax API documentation for compound assignment operators:
    * https://learn.microsoft.com/en-us/dotnet/api/microsoft.codeanalysis.csharp.syntax.assignmentexpressionsyntax?view=roslyn-dotnet-4.7.0
    */
-  private static readonly FrozenDictionary<SyntaxKind, string>
+  public static readonly FrozenDictionary<SyntaxKind, string>
     SupportedArithmeticOperators =
       new Dictionary<SyntaxKind, string>
       {
@@ -81,7 +81,7 @@ public sealed partial class CompoundAssignOpReplacer(
         // SyntaxKind.CoalesceAssignmentExpression // ??= (Supports reference or nullable types)
       }.ToFrozenDictionary();
 
-  private static readonly FrozenDictionary<SyntaxKind, string>
+  public static readonly FrozenDictionary<SyntaxKind, string>
     SupportedBitwiseOperators =
       new Dictionary<SyntaxKind, string>
       {
@@ -93,7 +93,7 @@ public sealed partial class CompoundAssignOpReplacer(
         { SyntaxKind.UnsignedRightShiftAssignmentExpression, ">>>=" }
       }.ToFrozenDictionary();
 
-  private static readonly FrozenDictionary<SyntaxKind, string> SupportedBooleanOperators =
+  public static readonly FrozenDictionary<SyntaxKind, string> SupportedBooleanOperators =
     new Dictionary<SyntaxKind, string>
     {
       {SyntaxKind.AndAssignmentExpression, "&="},
@@ -103,7 +103,7 @@ public sealed partial class CompoundAssignOpReplacer(
 
   protected override bool CanBeApplied(AssignmentExpressionSyntax originalNode)
   {
-    return supportedOperators.Contains(originalNode.Kind());
+    return SupportedOperators.Contains(originalNode.Kind());
   }
   
   private static string ExpressionTemplate(SyntaxKind kind)
@@ -133,7 +133,7 @@ public sealed partial class CompoundAssignOpReplacer(
     // Case 1: Predefined types
     if (type.SpecialType is not SpecialType.None)
     {
-      foreach (var op in supportedOperators)
+      foreach (var op in SupportedOperators)
       {
         if (op != originalNode.Kind() &&
             CanApplyReplacementOperatorForPredefinedTypes(type.SpecialType, op))
@@ -148,7 +148,7 @@ public sealed partial class CompoundAssignOpReplacer(
       var candidateOverloadedOperators =
         CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
 
-      foreach (var op in supportedOperators)
+      foreach (var op in SupportedOperators)
       {
         if (op != originalNode.Kind() &&
             CanApplyReplacementOperatorForUserDefinedTypes(
@@ -162,7 +162,7 @@ public sealed partial class CompoundAssignOpReplacer(
 
     // Assign id and sort to get unique ordering
     var idToOperators =
-      SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(operatorIds,
+      SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validOperators);
     
     // Return expression templates
@@ -180,10 +180,11 @@ public sealed partial class CompoundAssignOpReplacer(
       SemanticModel.GetTypeInfo(originalNode.Right).Type;
     return [$"ref {firstVariableType!.Name}", secondVariableType!.Name];
   }
-
+  
+  // Void type since operator updates value in place
   protected override string ReturnType(AssignmentExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode.Left).Type!.Name;
+    return "void";
   }
 
   protected override string SchemaBaseName(
