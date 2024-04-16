@@ -31,29 +31,7 @@ public class CompoundAssignOpReplacerTest
 
     return mutationOperator.CreateMutationGroup(constructUnderTest);
   }
-
-  private static IEnumerable<object[]>
-    GenerateMutationTestCases(IEnumerable<string> operators)
-  {
-    var opSet = operators.ToHashSet();
-    return opSet.Select(op => new object[]
-      { op, opSet.Except([op]).ToArray() });
-  }
-
-  private static IEnumerable<object[]>
-    GenerateTestCaseCombinationsBetweenTypeAndMutations(
-      IEnumerable<string> types, IEnumerable<string> operators)
-  {
-    var opSet = operators.ToHashSet();
-    var mutations = GenerateMutationTestCases(opSet);
-    
-    // Get unique pairs between types and operators
-    return types.SelectMany(type =>
-      mutations.Select(group => new[]
-        { type, group[0], group[1] }));
-  }
   
-
   // Set of supported boolean operators
   // [
   //   ["&", new []{"^", "|"}],
@@ -61,12 +39,11 @@ public class CompoundAssignOpReplacerTest
   //   ["^", new []{"&", "|"}],
   // ];
   public static IEnumerable<object[]> BooleanMutations =
-    GenerateMutationTestCases(["&", "^", "|"]);
+    TestUtil.GenerateMutationTestCases(["&", "^", "|"]);
 
   [Theory]
   [MemberData(nameof(BooleanMutations))]
-  public void
-    CompoundAssignmentReplacer_ShouldReplaceForBooleanTypes(
+  public void ShouldReplaceForBooleanTypes(
       string originalOperator, string[] expectedReplacementOperators)
   {
     var inputUnderMutation = $"bool b = true; b {originalOperator}= false;";
@@ -99,7 +76,7 @@ public class CompoundAssignOpReplacerTest
 
   private static ISet<string> IntegralTypes = new HashSet<string>
   {
-    "Char", "SByte", "Int32", "Int64", "Byte", "UInt16", "UInt32", "UInt64"
+    "Char", "Int16", "SByte", "Int32", "Int64", "Byte", "UInt16", "UInt32", "UInt64"
   };
 
   private static ISet<string> SupportedIntegralOperators =
@@ -108,13 +85,13 @@ public class CompoundAssignOpReplacerTest
       .ToHashSet();
   
   public static IEnumerable<object[]> IntegralTypedMutations =
-    GenerateTestCaseCombinationsBetweenTypeAndMutations(IntegralTypes,
+    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(IntegralTypes,
       SupportedIntegralOperators);
 
   [Theory]
   [MemberData(nameof(IntegralTypedMutations))]
   public void
-    CompoundAssignmentReplacer_ShouldReplaceArithmeticAndBitwiseOperatorsForIntegralTypes(
+    ShouldReplaceArithmeticAndBitwiseOperatorsForIntegralTypes(
       string numericType, string originalOperator,
       string[] expectedReplacementOperators)
   {
@@ -131,8 +108,7 @@ public class CompoundAssignOpReplacerTest
           }
         }
         """;
-
-    _testOutputHelper.WriteLine(inputUnderMutation);
+    
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
     // Sanity check
@@ -167,13 +143,13 @@ public class CompoundAssignOpReplacerTest
   };
 
   public static IEnumerable<object[]> FloatingPointTypedMutations
-    = GenerateTestCaseCombinationsBetweenTypeAndMutations(FloatingPointTypes,
+    = TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(FloatingPointTypes,
       CompoundAssignOpReplacer.SupportedArithmeticOperators.Values);
   
    [Theory]
    [MemberData(nameof(FloatingPointTypedMutations))]
    public void
-     CompoundAssignmentReplacer_ShouldReplaceArithmeticOperatorsForFloatingPointTypes(
+     ShouldReplaceArithmeticOperatorsForFloatingPointTypes(
        string numericType, string originalOperator,
        string[] expectedReplacementOperators)
    {
@@ -190,8 +166,7 @@ public class CompoundAssignOpReplacerTest
            }
          }
          """;
-
-     _testOutputHelper.WriteLine(inputUnderMutation);
+     
      var mutationGroup = GetMutationGroup(inputUnderMutation);
 
      // Sanity check
@@ -241,7 +216,7 @@ public class CompoundAssignOpReplacerTest
   [InlineData("^", "-")]
   [InlineData("*", "|")]
   public void
-    CompoundAssignmentReplacer_ShouldReplaceOperatorForUserDefinedClassIfReplacementOperatorExistsInClass(
+    ShouldReplaceOperatorForUserDefinedClassIfReplacementOperatorExistsInClass(
       string originalOperator, string replacementOperator)
   {
     var inputUnderMutation =
@@ -301,7 +276,7 @@ public class CompoundAssignOpReplacerTest
   [InlineData("^")]
   [InlineData("|")]
   public void
-    CompoundAssignmentReplacer_ShouldNotReplaceOperatorIfNoViableCandidatesExist(
+    ShouldNotReplaceOperatorIfNoViableCandidatesExist(
       string originalOperator)
   {
     var inputUnderMutation =
@@ -347,8 +322,7 @@ public class CompoundAssignOpReplacerTest
   [InlineData("&", "+")]
   [InlineData("^", "-")]
   [InlineData("*", "|")]
-  public void
-    CompoundAssignmentReplacer_ShouldNotReplaceOperatorIfReplacementOperatorReturnTypeDiffers(
+  public void ShouldNotReplaceOperatorIfReplacementOperatorReturnTypeDiffers(
       string originalOperator, string replacementOperator)
   {
     var inputUnderMutation =
@@ -380,6 +354,29 @@ public class CompoundAssignOpReplacerTest
     // a op1= b is equivalent to a = a op1 b which type checks,
     // but a op2= b is equivalent to a = a op2 b but op2 returns int instead of A
     // which is not assignable to A
+    mutationGroup.Should().BeNull();
+  }
+
+  [Theory]
+  [InlineData("string")]
+  [InlineData("object")]
+  public void ShouldNotReplaceUnsupportedPredefinedTypes(string predefinedType)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            {{predefinedType}} x = 42;
+            x += 42;
+          }
+        }
+        """;
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.Should().BeNull();
   }
 }

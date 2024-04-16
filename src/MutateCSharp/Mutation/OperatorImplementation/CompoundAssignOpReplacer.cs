@@ -130,8 +130,8 @@ public sealed partial class CompoundAssignOpReplacer(
     var type = SemanticModel.GetTypeInfo(originalNode).Type!;
     var validOperators = new List<SyntaxKind>();
     
-    // Case 1: Predefined types
-    if (type.SpecialType is not SpecialType.None)
+    // Case 1: Predefined value types
+    if (type.SpecialType != SpecialType.None)
     {
       foreach (var op in SupportedOperators)
       {
@@ -182,15 +182,14 @@ public sealed partial class CompoundAssignOpReplacer(
   }
   
   // Void type since operator updates value in place
-  protected override string ReturnType(AssignmentExpressionSyntax originalNode)
+  protected override string ReturnType(AssignmentExpressionSyntax _)
   {
     return "void";
   }
 
-  protected override string SchemaBaseName(
-    AssignmentExpressionSyntax originalNode)
+  protected override string SchemaBaseName(AssignmentExpressionSyntax _)
   {
-    return "ReplaceCompoundAssignmentConstant";
+    return "ReplaceCompoundAssignmentOperator";
   }
 }
 
@@ -259,14 +258,10 @@ public sealed partial class CompoundAssignOpReplacer
    * and a replacement operator op2 is proposed,
    * the following should hold:
    *
-   * 1) op2 should exist in A, or should exist in A's base type;
+   * 1) op2 should exist in A;
    * 2) op2 should take two parameters of type A/A? and B/B? respectively;
    * 3) op2 should return type A;
    */
-  // todo: handle inherited operators that are applicable
-  // todo: handle case where the variable is not the same type as the
-  // parameter type but variable type can be assigned to the parameter type
-  // as it either inherits the class or implements the interface
   private bool CanApplyReplacementOperatorForUserDefinedTypes(
     IDictionary<SyntaxKind, IMethodSymbol> overloadedOperators,
     AssignmentExpressionSyntax originalNode,

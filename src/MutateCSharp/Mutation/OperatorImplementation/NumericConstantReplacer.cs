@@ -6,7 +6,10 @@ using SemanticModel = Microsoft.CodeAnalysis.SemanticModel;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-
+/*
+ * More on value types in C#:
+ * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types
+ */
 public class NumericConstantReplacer(SemanticModel semanticModel)
   : AbstractMutationOperator<LiteralExpressionSyntax>(semanticModel)
 {

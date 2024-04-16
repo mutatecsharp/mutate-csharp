@@ -27,4 +27,25 @@ public static class TestUtil
       .Should()
       .BeEmpty("because input should be syntactically valid");
   }
+  
+  public static IEnumerable<object[]>
+    GenerateMutationTestCases(IEnumerable<string> operatorGroup)
+  {
+    var opSet = operatorGroup.ToHashSet();
+    return opSet.Select(op => new object[]
+      { op, opSet.Except([op]).ToArray() });
+  }
+
+  public static IEnumerable<object[]>
+    GenerateTestCaseCombinationsBetweenTypeAndMutations(
+      IEnumerable<string> types, IEnumerable<string> operatorGroup)
+  {
+    var opSet = operatorGroup.ToHashSet();
+    var mutations = GenerateMutationTestCases(opSet);
+    
+    // Get unique pairs between types and operators
+    return types.SelectMany(type =>
+      mutations.Select(group => new[]
+        { type, group[0], group[1] }));
+  }
 }

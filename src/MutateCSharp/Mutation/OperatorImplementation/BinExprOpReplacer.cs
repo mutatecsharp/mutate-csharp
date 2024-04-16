@@ -2,208 +2,350 @@ using System.Collections.Frozen;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-/* https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/operator-overloading#overloadable-operators
- An operator declaration must satisfy the following rules:
-
- It includes both a public and a static modifier.
- A unary operator has one input parameter.
- A binary operator has two input parameters.
- In each case, at least one parameter must have type T or T?,
- where T is the type that contains the operator declaration.
-
- ---
- Note that user-defined operator overloading can return any type, including
- types not related to the class overloading the operator.
-*/
-public partial class BinExprOpReplacer(SemanticModel semanticModel)
+public sealed partial class BinExprOpReplacer(SemanticModel semanticModel)
   : AbstractMutationOperator<BinaryExpressionSyntax>(semanticModel)
 {
   protected override bool CanBeApplied(BinaryExpressionSyntax originalNode)
   {
-    ReadOnlySpan<ExpressionSyntax> children = [originalNode.Left, originalNode.Right];
-    return !originalNode.IsKind(SyntaxKind.StringLiteralExpression);
+    return SupportedOperators.ContainsKey(originalNode.Kind());
+  }
+
+  private static string ExpressionTemplate(SyntaxKind kind)
+  {
+    return $"{{0}} {SupportedOperators[kind]} {{1}}";
   }
 
   protected override string OriginalExpressionTemplate(
     BinaryExpressionSyntax originalNode)
   {
-    if (ArithmeticOperators.Contains(originalNode.Kind()))
-      return ArithmeticOriginalExpressionTemplate(originalNode);
+    return ExpressionTemplate(originalNode.Kind());
+  }
 
-    if (BitwiseOperators.Contains(originalNode.Kind()))
-      return BitwiseOriginalExpressionTemplate(originalNode);
+  private IEnumerable<SyntaxKind> ValidMutants(
+    BinaryExpressionSyntax originalNode)
+  {
+    var type = SemanticModel.GetTypeInfo(originalNode).Type!;
+    
+    // Case 1: Predefined types
+    if (type.SpecialType != SpecialType.None)
+    {
+      return SupportedOperators
+        .Where(replacementOpEntry
+          => CanApplyOperatorForSpecialTypes(
+            originalNode, replacementOpEntry.Value))
+        .Select(replacementOpEntry => replacementOpEntry.Key);
+    }
 
-    if (LogicalOperators.Contains(originalNode.Kind()))
-      return LogicalOriginalExpressionTemplate(originalNode);
+    // Case 2: User-defined types (type.SpecialType == SpecialType.None)
+    if (type is INamedTypeSymbol customType)
+    {
+      var overloadedOperators =
+        CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
+      return overloadedOperators
+        .Where(replacementOpMethodEntry
+          => CanApplyOperatorForUserDefinedTypes(
+            originalNode, replacementOpMethodEntry.Value))
+        .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
+    }
 
-    if (RelationalOperators.Contains(originalNode.Kind()))
-      return RelationalOriginalExpressionTemplate(originalNode);
-
-    if (TypeCastOperators.Contains(originalNode.Kind()))
-      return TypeCastOriginalExpressionTemplate(originalNode);
-
-    if (originalNode.IsKind(SyntaxKind.CoalesceExpression))
-      return NullCoalesceOriginalExpressionTemplate(originalNode);
-
-    throw new NotSupportedException("Binary operator is unsupported.");
+    return Array.Empty<SyntaxKind>();
   }
 
   protected override IList<(int, string)> ValidMutantExpressionsTemplate(
     BinaryExpressionSyntax originalNode)
   {
-    throw new NotImplementedException();
+    var validMutants = ValidMutants(originalNode);
+    var attachIdToMutants =
+      SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
+        validMutants);
+    return attachIdToMutants.Select(entry =>
+        (entry.Item1, ExpressionTemplate(entry.Item2)))
+      .ToList();
   }
 
   protected override IList<string> ParameterTypes(
     BinaryExpressionSyntax originalNode)
   {
-    throw new NotImplementedException();
+    var firstVariableType =
+      SemanticModel.GetTypeInfo(originalNode.Left).Type!.ToDisplayString();
+    var secondVariableType =
+      SemanticModel.GetTypeInfo(originalNode.Right).Type!.ToDisplayString();
+    return [firstVariableType, secondVariableType];
   }
 
   protected override string ReturnType(BinaryExpressionSyntax originalNode)
   {
-    throw new NotImplementedException();
+    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
-  protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)
+  protected override string SchemaBaseName(BinaryExpressionSyntax _)
   {
-    throw new NotImplementedException();
-  }
-}
-
-// Arithmetic operators
-public partial class BinExprOpReplacer
-{
-  private static readonly ISet<SyntaxKind> ArithmeticOperators = new HashSet<SyntaxKind>
-  {
-    SyntaxKind.AddExpression,
-    SyntaxKind.SubtractExpression,
-    SyntaxKind.ModuloExpression,
-    SyntaxKind.MultiplyExpression,
-    SyntaxKind.DivideExpression
-  }.ToFrozenSet();
-  
-  private static string ArithmeticOriginalExpressionTemplate(BinaryExpressionSyntax node)
-  {
-    return node.Kind() switch
-    {
-      SyntaxKind.AddExpression => "{0} + {1}",
-      SyntaxKind.SubtractExpression => "{0} - {1}",
-      SyntaxKind.MultiplyExpression => "{0} * {1}",
-      SyntaxKind.DivideExpression => "{0} / {1}",
-      SyntaxKind.ModuloExpression => "{0} % {1}",
-    };
-  }
-
-  private bool CanApplyArithmeticOperator(TypeInfo typeInfo, SyntaxKind operatorKind)
-  {
-    return true;
+    return "ReplaceBinaryExpressionOperator";
   }
 }
 
-// (boolean and integral) bitwise operators
-public partial class BinExprOpReplacer
+/* Supported binary operators.
+ *
+ * More on C# operators and expressions:
+ * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/
+ */
+public sealed partial class BinExprOpReplacer
 {
-  private static readonly ISet<SyntaxKind> BitwiseOperators =
-    new HashSet<SyntaxKind>
-    {
-      SyntaxKind.BitwiseAndExpression,
-      SyntaxKind.BitwiseOrExpression,
-      SyntaxKind.ExclusiveOrExpression,
-      SyntaxKind.LeftShiftExpression,
-      SyntaxKind.RightShiftExpression,
-      SyntaxKind.UnsignedRightShiftExpression
-    }.ToFrozenSet();
+  // Both ExprKind and TokenKind represents the operator and are equivalent
+  // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
+  // TokenKind is used by the lexer and to retrieve the string representation
 
-  private string BitwiseOriginalExpressionTemplate(BinaryExpressionSyntax node)
-  {
-    return node.Kind() switch
+  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedOperators
+    = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
     {
-      SyntaxKind.BitwiseAndExpression => "{0} & {1}",
-      SyntaxKind.BitwiseOrExpression => "{0} | {1}",
-      SyntaxKind.ExclusiveOrExpression => "{0} ^ {1}",
-      SyntaxKind.LeftShiftExpression => "{0} << {1}",
-      SyntaxKind.RightShiftExpression => "{0} >> {1}",
-      SyntaxKind.UnsignedRightShiftExpression => "{0} >>> {1}"
-    };
-  }
+      // Supported arithmetic operations (+, -, *, /, %) -> returns integral type
+      {
+        SyntaxKind.AddExpression,
+        new(ExprKind: SyntaxKind.AddExpression, 
+          TokenKind: SyntaxKind.PlusToken,
+          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+      },
+      {
+        SyntaxKind.SubtractExpression,
+        new(ExprKind: SyntaxKind.SubtractExpression, 
+          TokenKind: SyntaxKind.MinusToken,
+          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+      },
+      {
+        SyntaxKind.MultiplyExpression,
+        new(ExprKind: SyntaxKind.MultiplyExpression, 
+          TokenKind: SyntaxKind.AsteriskToken,
+          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+      },
+      {
+        SyntaxKind.DivideExpression,
+        new(ExprKind: SyntaxKind.DivideExpression, 
+          TokenKind: SyntaxKind.SlashToken,
+          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+      },
+      {
+        SyntaxKind.ModuloExpression,
+        new(ExprKind: SyntaxKind.ModuloExpression, 
+          TokenKind: SyntaxKind.PercentToken,
+          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+      },
+      // Supported boolean/integral bitwise logical operations (&, |, ^)
+      {
+        SyntaxKind.BitwiseAndExpression,
+        new(ExprKind: SyntaxKind.BitwiseAndExpression, 
+          TokenKind: SyntaxKind.AmpersandToken,
+          TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+      },
+      {
+        SyntaxKind.BitwiseOrExpression,
+        new(ExprKind: SyntaxKind.BitwiseOrExpression, 
+          TokenKind: SyntaxKind.BarToken,
+          TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+      },
+      {
+        SyntaxKind.ExclusiveOrExpression,
+        new(ExprKind: SyntaxKind.ExclusiveOrExpression, 
+          TokenKind: SyntaxKind.CaretToken,
+          TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+      },
+      // Supported boolean logical operations (&&, ||)
+      {
+        SyntaxKind.LogicalAndExpression,
+        new(ExprKind: SyntaxKind.LogicalAndExpression, 
+          TokenKind: SyntaxKind.AmpersandAmpersandToken,
+          TypeSignatures: CodeAnalysisUtil.BooleanLogicalTypeSignature)
+      },
+      {
+        SyntaxKind.LogicalOrExpression,
+        new(ExprKind: SyntaxKind.LogicalOrExpression, 
+          TokenKind: SyntaxKind.BarBarToken,
+          TypeSignatures: CodeAnalysisUtil.BooleanLogicalTypeSignature)
+      },
+      // Supported integral bitwise shift operations (<<, >>, >>>)
+      {
+        SyntaxKind.LeftShiftExpression,
+        new(ExprKind: SyntaxKind.LeftShiftExpression,
+          TokenKind: SyntaxKind.LessThanLessThanToken,
+          TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+      },
+      {
+        SyntaxKind.RightShiftExpression,
+        new(ExprKind: SyntaxKind.RightShiftExpression,
+          TokenKind: SyntaxKind.GreaterThanGreaterThanToken,
+          TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+      },
+      {
+        SyntaxKind.UnsignedRightShiftExpression,
+        new(ExprKind: SyntaxKind.UnsignedRightShiftExpression,
+          TokenKind: SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+          TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+      },
+      // Supported equality comparison operators (==, !=)
+      {
+        SyntaxKind.EqualsExpression,
+        new(ExprKind: SyntaxKind.EqualsExpression, 
+          TokenKind: SyntaxKind.EqualsEqualsToken,
+          TypeSignatures: CodeAnalysisUtil.EqualityTypeSignature)
+      },
+      {
+        SyntaxKind.NotEqualsExpression,
+        new(ExprKind: SyntaxKind.NotEqualsExpression, 
+          TokenKind: SyntaxKind.ExclamationEqualsToken,
+          TypeSignatures: CodeAnalysisUtil.EqualityTypeSignature)
+      },
+      // Supported inequality comparison operators (<, <=, >, >=)
+      {
+        SyntaxKind.LessThanExpression,
+        new(ExprKind: SyntaxKind.LessThanExpression, 
+          TokenKind: SyntaxKind.LessThanToken,
+          TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
+      },
+      {
+        SyntaxKind.LessThanOrEqualExpression,
+        new(ExprKind: SyntaxKind.LessThanOrEqualExpression,
+          TokenKind: SyntaxKind.LessThanEqualsToken,
+          TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
+      },
+      {
+        SyntaxKind.GreaterThanExpression,
+        new(ExprKind: SyntaxKind.GreaterThanExpression, 
+          TokenKind: SyntaxKind.GreaterThanToken,
+          TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
+      },
+      {
+        SyntaxKind.GreaterThanOrEqualExpression,
+        new(ExprKind: SyntaxKind.GreaterThanOrEqualExpression,
+          TokenKind: SyntaxKind.GreaterThanOrEqualExpression,
+          TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
+      }
+    }.ToFrozenDictionary();
+
+  private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys)
+      .ToFrozenDictionary();
 }
 
-// boolean-only logical operators
-public partial class BinExprOpReplacer
-{
-  private static readonly ISet<SyntaxKind> LogicalOperators =
-    new HashSet<SyntaxKind>
-    {
-      SyntaxKind.LogicalAndExpression,
-      SyntaxKind.LogicalOrExpression
-    }.ToFrozenSet();
+/*
+ * Check if operator is applicable for a specific type.
+ *
+ *  https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/operator-overloading#overloadable-operators
+    An operator declaration must satisfy the following rules:
 
-  private string LogicalOriginalExpressionTemplate(BinaryExpressionSyntax node)
+    A binary operator has two input parameters.
+    In each case, at least one parameter must have type T or T?,
+    where T is the type that contains the operator declaration.
+
+    ---
+    Note that user-defined operator overloading can return any type, including
+    types not related to the class overloading the operator.
+ */
+public sealed partial class BinExprOpReplacer
+{
+  /*
+   * For an operator to be applicable to a special type:
+   * 1) The replacement operator must differ from the original operator;
+   * 2) The replacement operator must support the same parameter types as the original operator;
+   * 3) The return types must be assignable.
+   */
+  private bool CanApplyOperatorForSpecialTypes(
+    BinaryExpressionSyntax originalNode, CodeAnalysisUtil.BinOp replacementOp)
   {
-    return node.Kind() switch
-    {
-      SyntaxKind.LogicalAndExpression => "{0} && {1}",
-      SyntaxKind.LogicalOrExpression => "{0} || {1}"
-    };
+    // Operator checks
+    // Reject if the replacement candidate is the same as the original operator
+    if (originalNode.Kind() == replacementOp.ExprKind) return false;
+    // Reject if original operator is not supported
+    if (!SupportedOperators.ContainsKey(originalNode.Kind()))
+      return false;
+
+    // Type checks
+    var returnType = SemanticModel.GetTypeInfo(originalNode).Type!;
+    var variableType = SemanticModel.GetTypeInfo(originalNode.Left).Type!;
+
+    var returnTypeClassification =
+      CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
+    var variableTypeClassification =
+      CodeAnalysisUtil.GetSpecialTypeClassification(variableType.SpecialType);
+    // Reject if the replacement operator type group is not the same as the
+    // original operator type group
+    return replacementOp.TypeSignatures
+      .Any(signature =>
+        signature.OperandType.HasFlag(variableTypeClassification)
+        && signature.ReturnType.HasFlag(returnTypeClassification));
+
   }
-}
 
-// integral-only relational operators
-public partial class BinExprOpReplacer
-{
-  private static readonly ISet<SyntaxKind> RelationalOperators =
-    new HashSet<SyntaxKind>
-    {
-      SyntaxKind.EqualsExpression,
-      SyntaxKind.NotEqualsExpression,
-      SyntaxKind.LessThanExpression,
-      SyntaxKind.LessThanOrEqualExpression,
-      SyntaxKind.GreaterThanExpression,
-      SyntaxKind.GreaterThanOrEqualExpression
-    };
+  /*
+   * In C# it is possible to define operator overloads for user-defined types
+   * that return a different type from the user-defined type.
+   *
+   * Example:
+   * public class A
+     {
+       public static int operator +(A a1, B b1) => 0;
+     }
 
-  private string RelationalOriginalExpressionTemplate(
-    BinaryExpressionSyntax node)
+     public class B
+     {
+       public static int operator +(B b1, A a1) => 0;
+     }
+
+     public class C
+     {
+       public static void Main()
+       {
+         var a = new A();
+         var b = new B();
+         var c = a + b; // compiles with operator+ definition from A
+         var d = b + a; // compiles with operator+ definition from B
+       }
+     }
+   *
+   * Given the following statement:
+   * var c = a op1 b
+   * where:
+   * a is of type A or A?,
+   * b is of type B of B?,
+   * op1 is the original binary operator,
+   * op2 is the replacement binary operator,
+   * C is of return type of op1 that is overloaded in type A or type B.
+   *
+   * the following should hold:
+   * 1) op2 should exist in A or B;
+   * 2) op2 should take two parameters of type A/A? and type B/B? respectively;
+   * 3) op2 should return type C.
+   */
+  private bool CanApplyOperatorForUserDefinedTypes(
+    BinaryExpressionSyntax originalNode, IMethodSymbol replacementOpMethod)
   {
-    return node.Kind() switch
-    {
-      SyntaxKind.EqualsExpression => "{0} == {1}",
-      SyntaxKind.NotEqualsExpression => "{0} != {1}",
-      SyntaxKind.LessThanExpression => "{0} < {1}",
-      SyntaxKind.LessThanOrEqualExpression => "{0} <= {1}",
-      SyntaxKind.GreaterThanExpression => "{0} > {1}",
-      SyntaxKind.GreaterThanOrEqualExpression => "{0} >= {1}"
-    };
+    // 1) Get the parameter types for the replacement operator
+    if (replacementOpMethod.Parameters is not
+        [var firstParam, var secondParam]) return false;
+
+    // 2) Get the types of variables involved in the original binary operator
+    var firstVariableType = SemanticModel.GetTypeInfo(originalNode.Left).Type;
+    var secondVariableType = SemanticModel.GetTypeInfo(originalNode.Right).Type;
+    var originalReturnType = SemanticModel.GetTypeInfo(originalNode).Type;
+
+    // 3) Check that the types are assignable:
+    // First parameter type (original should be assignable to replacement)
+    var checkFirstTypeAssignable =
+      firstVariableType?.GetType().IsAssignableTo(firstParam.Type.GetType()) ??
+      false;
+
+    if (!checkFirstTypeAssignable) return false;
+
+    // Second parameter type (original should be assignable to replacement)
+    var checkSecondTypeAssignable = secondVariableType?.GetType()
+      .IsAssignableTo(secondParam.Type.GetType()) ?? false;
+
+    if (!checkSecondTypeAssignable) return false;
+
+    // Return type (replacement should be assignable to original)
+    return originalReturnType != null && replacementOpMethod.ReturnType
+      .GetType().IsAssignableTo(originalReturnType.GetType());
   }
-}
-
-// type-cast operators
-public partial class BinExprOpReplacer
-{
-  private static readonly ISet<SyntaxKind> TypeCastOperators =
-    new HashSet<SyntaxKind>
-    {
-      SyntaxKind.IsExpression,
-      SyntaxKind.AsExpression
-    }.ToFrozenSet();
-
-  private string TypeCastOriginalExpressionTemplate(BinaryExpressionSyntax node)
-  {
-    return node.Kind() switch
-    {
-      SyntaxKind.IsExpression => "{0} is {1}",
-      SyntaxKind.AsExpression => "{0} as {1}"
-    };
-  }
-}
-
-// Null-coalesce operators
-public partial class BinExprOpReplacer
-{
-  private string NullCoalesceOriginalExpressionTemplate(
-    BinaryExpressionSyntax node) => "{0} ?? {1}";
 }
