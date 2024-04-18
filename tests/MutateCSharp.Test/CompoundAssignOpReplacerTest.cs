@@ -7,15 +7,8 @@ using Xunit.Abstractions;
 
 namespace MutateCSharp.Test;
 
-public class CompoundAssignOpReplacerTest
+public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
-  private readonly ITestOutputHelper _testOutputHelper;
-
-  public CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
-  {
-    _testOutputHelper = testOutputHelper;
-  }
-
   private MutationGroup? GetMutationGroup(string inputUnderMutation)
   {
     var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
@@ -32,12 +25,6 @@ public class CompoundAssignOpReplacerTest
     return mutationOperator.CreateMutationGroup(constructUnderTest);
   }
   
-  // Set of supported boolean operators
-  // [
-  //   ["&", new []{"^", "|"}],
-  //   ["|", new []{"&", "^"}],
-  //   ["^", new []{"&", "|"}],
-  // ];
   public static IEnumerable<object[]> BooleanMutations =
     TestUtil.GenerateMutationTestCases(["&", "^", "|"]);
 

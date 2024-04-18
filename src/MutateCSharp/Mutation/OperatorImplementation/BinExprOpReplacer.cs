@@ -102,7 +102,7 @@ public sealed partial class BinExprOpReplacer
   public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedOperators
     = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
     {
-      // Supported arithmetic operations (+, -, *, /, %) -> returns integral type
+      // Supported arithmetic operations (+, -, *, /, %)
       {
         SyntaxKind.AddExpression,
         new(ExprKind: SyntaxKind.AddExpression, 
