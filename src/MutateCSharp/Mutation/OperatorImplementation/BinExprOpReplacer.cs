@@ -229,28 +229,9 @@ public sealed partial class BinExprOpReplacer
       .ToFrozenDictionary();
 }
 
-/*
- * Check if operator is applicable for a specific type.
- *
- *  https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/operator-overloading#overloadable-operators
-    An operator declaration must satisfy the following rules:
 
-    A binary operator has two input parameters.
-    In each case, at least one parameter must have type T or T?,
-    where T is the type that contains the operator declaration.
-
-    ---
-    Note that user-defined operator overloading can return any type, including
-    types not related to the class overloading the operator.
- */
 public sealed partial class BinExprOpReplacer
 {
-  /*
-   * For an operator to be applicable to a special type:
-   * 1) The replacement operator must differ from the original operator;
-   * 2) The replacement operator must support the same parameter types as the original operator;
-   * 3) The replacement return type must be assignable to the original return type.
-   */
   private bool CanApplyOperatorForSpecialTypes(
     BinaryExpressionSyntax originalNode, CodeAnalysisUtil.BinOp replacementOp)
   {
