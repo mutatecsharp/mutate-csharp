@@ -25,6 +25,15 @@ public static class CodeAnalysisUtil
     SupportedType OperandType,
     SupportedType ReturnType);
 
+  public static readonly TypeSignature[] IncrementOrDecrementTypeSignature
+    =
+    [
+      new TypeSignature(SupportedType.UnsignedIntegral, SupportedType.UnsignedIntegral),
+      new TypeSignature(SupportedType.SignedIntegral, SupportedType.SignedIntegral),
+      new TypeSignature(SupportedType.FloatingPoint, SupportedType.FloatingPoint),
+      new TypeSignature(SupportedType.Character, SupportedType.Character)
+    ];
+
   // char arithmetic operations return int type
   public static readonly TypeSignature[] ArithmeticTypeSignature
     =
@@ -54,19 +63,21 @@ public static class CodeAnalysisUtil
   public static readonly TypeSignature[] InequalityTypeSignature
     =
     [
-      new(SupportedType.Numeric | SupportedType.Character,
+      new TypeSignature(SupportedType.Numeric | SupportedType.Character,
         SupportedType.Boolean)
     ];
+
+  public record UnaryOp(SyntaxKind ExprKind, SyntaxKind TokenKind, ICollection<TypeSignature> TypeSignatures)
+  {
+    public override string ToString() => SyntaxFacts.GetText(TokenKind);
+  }
 
   public record BinOp(
     SyntaxKind ExprKind,
     SyntaxKind TokenKind,
     ICollection<TypeSignature> TypeSignatures)
   {
-    public override string ToString()
-    {
-      return SyntaxFacts.GetText(TokenKind);
-    }
+    public override string ToString() => SyntaxFacts.GetText(TokenKind);
   }
 
   public static SupportedType GetSpecialTypeClassification(SpecialType type)

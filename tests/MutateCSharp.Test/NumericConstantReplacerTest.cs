@@ -179,6 +179,7 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   }
   
   // C# does not treat the decimal.MinValue / decimal.MaxValue as a constant expression
+  // https://codeblog.jonskeet.uk/tag/csharp-2/
   [Fact]
   public void ShouldReplaceForDecimalAtBoundaries()
   {

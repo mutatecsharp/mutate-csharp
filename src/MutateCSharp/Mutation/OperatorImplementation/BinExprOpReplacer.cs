@@ -249,7 +249,7 @@ public sealed partial class BinExprOpReplacer
    * For an operator to be applicable to a special type:
    * 1) The replacement operator must differ from the original operator;
    * 2) The replacement operator must support the same parameter types as the original operator;
-   * 3) The return types must be assignable.
+   * 3) The replacement return type must be assignable to the original return type.
    */
   private bool CanApplyOperatorForSpecialTypes(
     BinaryExpressionSyntax originalNode, CodeAnalysisUtil.BinOp replacementOp)
