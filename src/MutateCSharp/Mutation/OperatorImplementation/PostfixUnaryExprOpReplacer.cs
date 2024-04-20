@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -7,8 +8,9 @@ using MutateCSharp.Util;
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
 public sealed partial class PostfixUnaryExprOpReplacer(
-  SemanticModel semanticModel)
-  : AbstractMutationOperator<PostfixUnaryExpressionSyntax>(semanticModel)
+  Assembly sutAssembly, SemanticModel semanticModel)
+  : AbstractMutationOperator<PostfixUnaryExpressionSyntax>(
+    sutAssembly, semanticModel)
 {
   protected override bool CanBeApplied(
     PostfixUnaryExpressionSyntax originalNode)
@@ -39,16 +41,16 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     }
     
     // Case 2: User-defined types (type.SpecialType == SpecialType.None)
-    if (type is INamedTypeSymbol customType)
-    {
-      var overloadedOperators =
-        CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
-      return overloadedOperators
-        .Where(replacementOpMethodEntry =>
-          CanApplyOperatorForUserDefinedTypes(originalNode,
-            replacementOpMethodEntry.Value))
-        .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
-    }
+    // if (type is INamedTypeSymbol customType)
+    // {
+    //   var overloadedOperators =
+    //     CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
+    //   return overloadedOperators
+    //     .Where(replacementOpMethodEntry =>
+    //       CanApplyOperatorForUserDefinedTypes(originalNode,
+    //         replacementOpMethodEntry.Value))
+    //     .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
+    // }
 
     return Array.Empty<SyntaxKind>();
   }

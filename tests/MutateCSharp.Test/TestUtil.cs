@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -10,11 +11,32 @@ public static class TestUtil
   private static readonly PortableExecutableReference MicrosoftCoreLibrary =
     MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
 
-  public static CSharpCompilation GetAstCompilation(SyntaxTree tree)
+  public static (SemanticModel model, Assembly sutAssembly) GetAstSemanticModelAndAssembly(SyntaxTree tree)
   { 
-    return CSharpCompilation.Create(Path.GetRandomFileName())
+    var compilation = CSharpCompilation.Create(Path.GetRandomFileName())
       .WithReferences(MicrosoftCoreLibrary)
       .AddSyntaxTrees(tree);
+    
+    // Obtain semantic model of input
+    var model = compilation.GetSemanticModel(tree);
+    model.Should().NotBeNull();
+    TestForSemanticErrors(model);
+    
+    // Get the compiled output containing type metadata of input
+    using var portableExecutableStream = new MemoryStream();
+    
+    var emitResult = compilation.Emit(portableExecutableStream);
+    emitResult.Success.Should().BeTrue();
+
+    portableExecutableStream.Flush();
+    portableExecutableStream.Seek(0, SeekOrigin.Begin);
+    
+    var sutAssembly =
+      System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(
+        portableExecutableStream);
+    sutAssembly.Should().NotBeNull();
+
+    return (model, sutAssembly);
   }
   
   public static void TestForSyntacticErrors(SyntaxTree tree)
@@ -37,20 +59,16 @@ public static class TestUtil
       .Should().BeFalse("because input should be semantically valid");
   }
 
-  public static void ShouldNotHaveValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+  public static void ShouldNotHaveValidMutationGroup<T, TU>(string inputUnderMutation)
   where T: IMutationOperator
   where TU: SyntaxNode
   {
     var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
     TestForSyntacticErrors(inputAst);
 
-    var compilation = GetAstCompilation(inputAst);
-    var model = compilation.GetSemanticModel(inputAst);
-    model.Should().NotBeNull();
-    TestForSemanticErrors(model);
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
 
-    var mutationOperator = (T)Activator.CreateInstance(typeof(T), model)!;
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T), compilation.sutAssembly, compilation.model)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
 
@@ -58,20 +76,16 @@ public static class TestUtil
     mutationGroup.Should().BeNull();
   }
 
-  public static MutationGroup GetValidMutationGroup<T, TU>(
-    string inputUnderMutation) 
+  public static MutationGroup GetValidMutationGroup<T, TU>(string inputUnderMutation) 
     where T: IMutationOperator
     where TU: SyntaxNode
   {
     var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
     TestForSyntacticErrors(inputAst);
 
-    var compilation = GetAstCompilation(inputAst);
-    var model = compilation.GetSemanticModel(inputAst);
-    model.Should().NotBeNull();
-    TestForSemanticErrors(model);
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
 
-    var mutationOperator = (T) Activator.CreateInstance(typeof(T), model)!;
+    var mutationOperator = (T) Activator.CreateInstance(typeof(T), compilation.sutAssembly, compilation.model)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
     constructUnderTest.Should().NotBeNull("because at least one construct of specified type exists");

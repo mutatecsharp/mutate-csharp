@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -6,8 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
 
-public class BooleanConstantReplacer(SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(semanticModel)
+public class BooleanConstantReplacer(Assembly sutAssembly, SemanticModel semanticModel)
+  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly, semanticModel)
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {

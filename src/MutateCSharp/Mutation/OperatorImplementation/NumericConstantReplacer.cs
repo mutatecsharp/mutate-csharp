@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -7,8 +8,8 @@ using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-public sealed partial class NumericConstantReplacer(SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(semanticModel)
+public sealed partial class NumericConstantReplacer(Assembly sutAssembly, SemanticModel semanticModel)
+  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly, semanticModel)
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {

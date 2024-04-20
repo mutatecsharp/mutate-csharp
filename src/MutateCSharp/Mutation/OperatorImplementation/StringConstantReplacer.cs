@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -6,8 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
 // Not to be confused with interpolated string instances
-public class StringConstantReplacer(SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(semanticModel)
+public class StringConstantReplacer(Assembly sutAssembly, SemanticModel semanticModel)
+  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly, semanticModel)
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {

@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,15 +12,15 @@ namespace MutateCSharp.Mutation;
 /*
  * Discover target nodes that are eligible to undergo mutation, and apply mutation.
  */
-public class MutatorAstRewriter(SemanticModel semanticModel)
+public class MutatorAstRewriter(Assembly sutAssembly, SemanticModel semanticModel)
   : CSharpSyntaxRewriter
 {
   private readonly ISet<IMutationOperator> _mutationOperators =
     new HashSet<IMutationOperator>
     {
-      new BooleanConstantReplacer(semanticModel),
-      new NumericConstantReplacer(semanticModel),
-      new StringConstantReplacer(semanticModel)
+      new BooleanConstantReplacer(sutAssembly, semanticModel),
+      new NumericConstantReplacer(sutAssembly, semanticModel),
+      new StringConstantReplacer(sutAssembly, semanticModel)
     }.ToFrozenSet();
 
   private readonly MutationRegistry _registry = new();

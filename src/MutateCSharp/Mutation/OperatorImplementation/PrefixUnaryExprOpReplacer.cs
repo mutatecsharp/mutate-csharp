@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,8 +13,10 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
  * user-defined types are passed by reference, we take care to pass value types
  * by reference instead
  */
-public sealed partial class PrefixUnaryExprOpReplacer(SemanticModel semanticModel)
-: AbstractUnaryMutationOperator<PrefixUnaryExpressionSyntax>(semanticModel)
+public sealed partial class PrefixUnaryExprOpReplacer(
+  Assembly sutAssembly, SemanticModel semanticModel)
+: AbstractUnaryMutationOperator<PrefixUnaryExpressionSyntax>(
+  sutAssembly, semanticModel)
 {
   protected override bool CanBeApplied(PrefixUnaryExpressionSyntax originalNode)
   {

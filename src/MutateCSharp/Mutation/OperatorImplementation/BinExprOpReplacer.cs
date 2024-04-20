@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -6,8 +7,8 @@ using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-public sealed partial class BinExprOpReplacer(SemanticModel semanticModel)
-  : AbstractMutationOperator<BinaryExpressionSyntax>(semanticModel)
+public sealed partial class BinExprOpReplacer(Assembly sutAssembly, SemanticModel semanticModel)
+  : AbstractBinaryMutationOperator<BinaryExpressionSyntax>(sutAssembly, semanticModel)
 {
   protected override bool CanBeApplied(BinaryExpressionSyntax originalNode)
   {
@@ -25,34 +26,9 @@ public sealed partial class BinExprOpReplacer(SemanticModel semanticModel)
     return ExpressionTemplate(originalNode.Kind());
   }
 
-  private IEnumerable<SyntaxKind> ValidMutants(
-    BinaryExpressionSyntax originalNode)
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedBinaryOperators()
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).Type!;
-    
-    // Case 1: Predefined types
-    if (type.SpecialType != SpecialType.None)
-    {
-      return SupportedOperators
-        .Where(replacementOpEntry
-          => CanApplyOperatorForSpecialTypes(
-            originalNode, replacementOpEntry.Value))
-        .Select(replacementOpEntry => replacementOpEntry.Key);
-    }
-
-    // Case 2: User-defined types (type.SpecialType == SpecialType.None)
-    if (type is INamedTypeSymbol customType)
-    {
-      var overloadedOperators =
-        CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
-      return overloadedOperators
-        .Where(replacementOpMethodEntry
-          => CanApplyOperatorForUserDefinedTypes(
-            originalNode, replacementOpMethodEntry.Value))
-        .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
-    }
-
-    return Array.Empty<SyntaxKind>();
+    return SupportedOperators;
   }
 
   protected override IList<(int, string)> ValidMutantExpressionsTemplate(
@@ -107,30 +83,35 @@ public sealed partial class BinExprOpReplacer
         SyntaxKind.AddExpression,
         new(ExprKind: SyntaxKind.AddExpression, 
           TokenKind: SyntaxKind.PlusToken,
+          MemberName: WellKnownMemberNames.AdditionOperatorName,
           TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
       },
       {
         SyntaxKind.SubtractExpression,
         new(ExprKind: SyntaxKind.SubtractExpression, 
           TokenKind: SyntaxKind.MinusToken,
+          MemberName: WellKnownMemberNames.SubtractionOperatorName,
           TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
       },
       {
         SyntaxKind.MultiplyExpression,
         new(ExprKind: SyntaxKind.MultiplyExpression, 
           TokenKind: SyntaxKind.AsteriskToken,
+          MemberName: WellKnownMemberNames.MultiplyOperatorName,
           TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
       },
       {
         SyntaxKind.DivideExpression,
         new(ExprKind: SyntaxKind.DivideExpression, 
           TokenKind: SyntaxKind.SlashToken,
+          MemberName: WellKnownMemberNames.DivisionOperatorName,
           TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
       },
       {
         SyntaxKind.ModuloExpression,
         new(ExprKind: SyntaxKind.ModuloExpression, 
           TokenKind: SyntaxKind.PercentToken,
+          MemberName: WellKnownMemberNames.ModulusOperatorName,
           TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
       },
       // Supported boolean/integral bitwise logical operations (&, |, ^)
@@ -138,18 +119,21 @@ public sealed partial class BinExprOpReplacer
         SyntaxKind.BitwiseAndExpression,
         new(ExprKind: SyntaxKind.BitwiseAndExpression, 
           TokenKind: SyntaxKind.AmpersandToken,
+          MemberName: WellKnownMemberNames.BitwiseAndOperatorName,
           TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
       },
       {
         SyntaxKind.BitwiseOrExpression,
         new(ExprKind: SyntaxKind.BitwiseOrExpression, 
           TokenKind: SyntaxKind.BarToken,
+          MemberName: WellKnownMemberNames.BitwiseOrOperatorName,
           TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
       },
       {
         SyntaxKind.ExclusiveOrExpression,
         new(ExprKind: SyntaxKind.ExclusiveOrExpression, 
           TokenKind: SyntaxKind.CaretToken,
+          MemberName: WellKnownMemberNames.ExclusiveOrOperatorName,
           TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
       },
       // Supported boolean logical operations (&&, ||)
@@ -157,12 +141,14 @@ public sealed partial class BinExprOpReplacer
         SyntaxKind.LogicalAndExpression,
         new(ExprKind: SyntaxKind.LogicalAndExpression, 
           TokenKind: SyntaxKind.AmpersandAmpersandToken,
+          MemberName: WellKnownMemberNames.LogicalAndOperatorName,
           TypeSignatures: CodeAnalysisUtil.BooleanLogicalTypeSignature)
       },
       {
         SyntaxKind.LogicalOrExpression,
         new(ExprKind: SyntaxKind.LogicalOrExpression, 
           TokenKind: SyntaxKind.BarBarToken,
+          MemberName: WellKnownMemberNames.LogicalOrOperatorName,
           TypeSignatures: CodeAnalysisUtil.BooleanLogicalTypeSignature)
       },
       // Supported integral bitwise shift operations (<<, >>, >>>)
@@ -170,18 +156,21 @@ public sealed partial class BinExprOpReplacer
         SyntaxKind.LeftShiftExpression,
         new(ExprKind: SyntaxKind.LeftShiftExpression,
           TokenKind: SyntaxKind.LessThanLessThanToken,
+          MemberName: WellKnownMemberNames.LeftShiftOperatorName,
           TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
       },
       {
         SyntaxKind.RightShiftExpression,
         new(ExprKind: SyntaxKind.RightShiftExpression,
           TokenKind: SyntaxKind.GreaterThanGreaterThanToken,
+          MemberName: WellKnownMemberNames.RightShiftOperatorName,
           TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
       },
       {
         SyntaxKind.UnsignedRightShiftExpression,
         new(ExprKind: SyntaxKind.UnsignedRightShiftExpression,
           TokenKind: SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+          MemberName: WellKnownMemberNames.UnsignedRightShiftOperatorName,
           TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
       },
       // Supported equality comparison operators (==, !=)
@@ -189,12 +178,14 @@ public sealed partial class BinExprOpReplacer
         SyntaxKind.EqualsExpression,
         new(ExprKind: SyntaxKind.EqualsExpression, 
           TokenKind: SyntaxKind.EqualsEqualsToken,
+          MemberName: WellKnownMemberNames.EqualityOperatorName,
           TypeSignatures: CodeAnalysisUtil.EqualityTypeSignature)
       },
       {
         SyntaxKind.NotEqualsExpression,
         new(ExprKind: SyntaxKind.NotEqualsExpression, 
           TokenKind: SyntaxKind.ExclamationEqualsToken,
+          MemberName: WellKnownMemberNames.InequalityOperatorName,
           TypeSignatures: CodeAnalysisUtil.EqualityTypeSignature)
       },
       // Supported inequality comparison operators (<, <=, >, >=)
@@ -202,24 +193,28 @@ public sealed partial class BinExprOpReplacer
         SyntaxKind.LessThanExpression,
         new(ExprKind: SyntaxKind.LessThanExpression, 
           TokenKind: SyntaxKind.LessThanToken,
+          MemberName: WellKnownMemberNames.LessThanOperatorName,
           TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
       },
       {
         SyntaxKind.LessThanOrEqualExpression,
         new(ExprKind: SyntaxKind.LessThanOrEqualExpression,
           TokenKind: SyntaxKind.LessThanEqualsToken,
+          MemberName: WellKnownMemberNames.LessThanOrEqualOperatorName,
           TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
       },
       {
         SyntaxKind.GreaterThanExpression,
         new(ExprKind: SyntaxKind.GreaterThanExpression, 
           TokenKind: SyntaxKind.GreaterThanToken,
+          MemberName: WellKnownMemberNames.GreaterThanOperatorName,
           TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
       },
       {
         SyntaxKind.GreaterThanOrEqualExpression,
         new(ExprKind: SyntaxKind.GreaterThanOrEqualExpression,
-          TokenKind: SyntaxKind.GreaterThanOrEqualExpression,
+          TokenKind: SyntaxKind.GreaterThanEqualsToken,
+          MemberName: WellKnownMemberNames.GreaterThanOrEqualOperatorName,
           TypeSignatures: CodeAnalysisUtil.InequalityTypeSignature)
       }
     }.ToFrozenDictionary();
@@ -227,106 +222,4 @@ public sealed partial class BinExprOpReplacer
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
     = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys)
       .ToFrozenDictionary();
-}
-
-
-public sealed partial class BinExprOpReplacer
-{
-  private bool CanApplyOperatorForSpecialTypes(
-    BinaryExpressionSyntax originalNode, CodeAnalysisUtil.BinOp replacementOp)
-  {
-    // Operator checks
-    // Reject if the replacement candidate is the same as the original operator
-    if (originalNode.Kind() == replacementOp.ExprKind) return false;
-    // Reject if original operator is not supported
-    if (!SupportedOperators.ContainsKey(originalNode.Kind()))
-      return false;
-
-    // Type checks
-    var returnType = SemanticModel.GetTypeInfo(originalNode).Type!;
-    var variableType = SemanticModel.GetTypeInfo(originalNode.Left).Type!;
-
-    var returnTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
-    var variableTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(variableType.SpecialType);
-    // Reject if the replacement operator type group is not the same as the
-    // original operator type group
-    return replacementOp.TypeSignatures
-      .Any(signature =>
-        signature.OperandType.HasFlag(variableTypeClassification)
-        && signature.ReturnType.HasFlag(returnTypeClassification));
-
-  }
-
-  /*
-   * In C# it is possible to define operator overloads for user-defined types
-   * that return a different type from the user-defined type.
-   *
-   * Example:
-   * public class A
-     {
-       public static int operator +(A a1, B b1) => 0;
-     }
-
-     public class B
-     {
-       public static int operator +(B b1, A a1) => 0;
-     }
-
-     public class C
-     {
-       public static void Main()
-       {
-         var a = new A();
-         var b = new B();
-         var c = a + b; // compiles with operator+ definition from A
-         var d = b + a; // compiles with operator+ definition from B
-       }
-     }
-   *
-   * Given the following statement:
-   * var c = a op1 b
-   * where:
-   * a is of type A or A?,
-   * b is of type B of B?,
-   * op1 is the original binary operator,
-   * op2 is the replacement binary operator,
-   * C is of return type of op1 that is overloaded in type A or type B.
-   *
-   * the following should hold:
-   * 1) op2 should exist in A or B;
-   * 2) op2 should take two parameters of type A/A? and type B/B? respectively;
-   * 3) op2 should return type C.
-   */
-  private bool CanApplyOperatorForUserDefinedTypes(
-    BinaryExpressionSyntax originalNode, IMethodSymbol replacementOpMethod)
-  {
-    // 1) Get the parameter types for the replacement operator
-    if (replacementOpMethod.Parameters is not
-        [var firstParam, var secondParam]) return false;
-
-    // 2) Get the types of variables involved in the original binary operator
-    var firstVariableType = SemanticModel.GetTypeInfo(originalNode.Left).Type;
-    var secondVariableType = SemanticModel.GetTypeInfo(originalNode.Right).Type;
-    var originalReturnType = SemanticModel.GetTypeInfo(originalNode).Type;
-
-    // 3) Check that the types are assignable:
-    // First parameter type (original should be assignable to replacement)
-    var checkFirstTypeAssignable =
-      firstVariableType?.GetType().IsAssignableTo(firstParam.Type.GetType()) ??
-      false;
-
-    if (!checkFirstTypeAssignable) return false;
-
-    // Second parameter type (original should be assignable to replacement)
-    var checkSecondTypeAssignable = secondVariableType?.GetType()
-      .IsAssignableTo(secondParam.Type.GetType()) ?? false;
-
-    if (!checkSecondTypeAssignable) return false;
-
-    // Return type (replacement should be assignable to original)
-    return originalReturnType != null && replacementOpMethod.ReturnType
-      .GetType().IsAssignableTo(originalReturnType.GetType());
-  }
 }

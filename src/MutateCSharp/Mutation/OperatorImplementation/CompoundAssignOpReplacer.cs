@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -17,8 +18,8 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
  * binary operator. (eg: += from +)
  */
 public sealed partial class CompoundAssignOpReplacer(
-  SemanticModel semanticModel) :
-  AbstractMutationOperator<AssignmentExpressionSyntax>(semanticModel)
+  Assembly sutAssembly, SemanticModel semanticModel) :
+  AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly, semanticModel)
 {
   // TODO: refactor into records
   public static readonly FrozenSet<SyntaxKind> SupportedOperators
@@ -143,22 +144,22 @@ public sealed partial class CompoundAssignOpReplacer(
       }
     }
     // Case 2: user-defined types
-    else if (type is INamedTypeSymbol customType)
-    {
-      var candidateOverloadedOperators =
-        CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
-
-      foreach (var op in SupportedOperators)
-      {
-        if (op != originalNode.Kind() &&
-            CanApplyReplacementOperatorForUserDefinedTypes(
-              candidateOverloadedOperators, originalNode, op)
-           )
-        {
-          validOperators.Add(op);
-        }
-      }
-    }
+    // else if (type is INamedTypeSymbol customType)
+    // {
+    //   var candidateOverloadedOperators =
+    //     CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
+    //
+    //   foreach (var op in SupportedOperators)
+    //   {
+    //     if (op != originalNode.Kind() &&
+    //         CanApplyReplacementOperatorForUserDefinedTypes(
+    //           candidateOverloadedOperators, originalNode, op)
+    //        )
+    //     {
+    //       validOperators.Add(op);
+    //     }
+    //   }
+    // }
 
     // Assign id and sort to get unique ordering
     var idToOperators =
@@ -190,6 +191,11 @@ public sealed partial class CompoundAssignOpReplacer(
   protected override string SchemaBaseName(AssignmentExpressionSyntax _)
   {
     return "ReplaceCompoundAssignmentOperator";
+  }
+
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedBinaryOperators()
+  {
+    throw new NotImplementedException();
   }
 }
 

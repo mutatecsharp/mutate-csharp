@@ -1,6 +1,9 @@
+using System.CodeDom;
 using System.Collections.Frozen;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CSharp;
 
 namespace MutateCSharp.Util;
 
@@ -75,6 +78,7 @@ public static class CodeAnalysisUtil
   public record BinOp(
     SyntaxKind ExprKind,
     SyntaxKind TokenKind,
+    string MemberName,
     ICollection<TypeSignature> TypeSignatures)
   {
     public override string ToString() => SyntaxFacts.GetText(TokenKind);
@@ -107,136 +111,45 @@ public static class CodeAnalysisUtil
     };
   }
 
-  public static readonly FrozenDictionary<string, SyntaxKind>
-    SupportedOverloadedOperators =
-      new Dictionary<string, SyntaxKind>
+  // For reflection use
+  public static readonly FrozenDictionary<string, string> FriendlyNameToClrName
+    = BuildDefinedTypeToClrType();
+  
+  private static FrozenDictionary<string, string> BuildDefinedTypeToClrType()
+  {
+    var mscorlib = Assembly.GetAssembly(typeof(int));
+    var definedTypes =
+      mscorlib!.DefinedTypes
+        .Where(type => type.Namespace?.Equals("System") ?? false);
+    using var provider = new CSharpCodeProvider();
+    var friendlyToClrName = new Dictionary<string, string>();
+
+    foreach (var type in definedTypes)
+    {
+      var typeRef = new CodeTypeReference(type);
+      var friendlyName = provider.GetTypeOutput(typeRef);
+      // Filter qualified types
+      if (!friendlyName.Contains('.'))
       {
-        {
-          WellKnownMemberNames.AdditionOperatorName,
-          SyntaxKind.AddAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.SubtractionOperatorName,
-          SyntaxKind.SubtractAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.MultiplyOperatorName,
-          SyntaxKind.MultiplyAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.DivisionOperatorName,
-          SyntaxKind.DivideAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.ModulusOperatorName,
-          SyntaxKind.ModuloAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.BitwiseAndOperatorName,
-          SyntaxKind.AndAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.BitwiseOrOperatorName,
-          SyntaxKind.OrAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.ExclusiveOrOperatorName,
-          SyntaxKind.ExclusiveOrAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.LeftShiftOperatorName,
-          SyntaxKind.LeftShiftAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.RightShiftOperatorName,
-          SyntaxKind.RightShiftAssignmentExpression
-        },
-        {
-          WellKnownMemberNames.UnsignedRightShiftOperatorName,
-          SyntaxKind.UnsignedRightShiftAssignmentExpression
-        }
-      }.ToFrozenDictionary();
+        friendlyToClrName[friendlyName] = type.FullName!;
+      }
+    }
+
+    return friendlyToClrName.ToFrozenDictionary();
+  }
+
+  public static string ToClrTypeName(this ITypeSymbol type)
+  {
+    return type.SpecialType != SpecialType.None
+      ? FriendlyNameToClrName[type.ToDisplayString()]
+      : type.ToDisplayString();
+  }
+  
 
   public static bool IsAString(this SyntaxNode node)
   {
     return node.IsKind(SyntaxKind.StringLiteralExpression) ||
            node.IsKind(SyntaxKind.Utf8StringLiteralExpression) ||
            node.IsKind(SyntaxKind.InterpolatedStringExpression);
-  }
-
-  public static IDictionary<SyntaxKind, IMethodSymbol>
-    GetOverloadedOperatorsInUserDefinedType(INamedTypeSymbol customType)
-  {
-    return customType
-      .GetMembers().OfType<IMethodSymbol>()
-      .Where(method => method.MethodKind == MethodKind.UserDefinedOperator)
-      .Where(method => SupportedOverloadedOperators.ContainsKey(method.Name))
-      .ToDictionary(method => SupportedOverloadedOperators[method.Name],
-        method => method);
-  }
-
-  public static dynamic GetNumericMinValue(SpecialType type)
-  {
-    return type switch
-    {
-      SpecialType.System_Char => char.MinValue,
-      SpecialType.System_SByte => sbyte.MinValue,
-      SpecialType.System_Int16 => short.MinValue,
-      SpecialType.System_Int32 => int.MinValue,
-      SpecialType.System_Int64 => long.MinValue,
-      SpecialType.System_Byte => byte.MinValue,
-      SpecialType.System_UInt16 => short.MinValue,
-      SpecialType.System_UInt32 => uint.MinValue,
-      SpecialType.System_UInt64 => ulong.MinValue,
-      SpecialType.System_Single => float.MinValue,
-      SpecialType.System_Double => double.MinValue,
-      SpecialType.System_Decimal => decimal.MinValue,
-      _ => throw new NotSupportedException(
-        $"{type} cannot be downcast to its numeric type.")
-    };
-  }
-
-  public static dynamic GetNumericMaxValue(SpecialType type)
-  {
-    return type switch
-    {
-      SpecialType.System_Char => char.MaxValue,
-      SpecialType.System_SByte => sbyte.MaxValue,
-      SpecialType.System_Int16 => short.MaxValue,
-      SpecialType.System_Int32 => int.MaxValue,
-      SpecialType.System_Int64 => long.MaxValue,
-      SpecialType.System_Byte => byte.MaxValue,
-      SpecialType.System_UInt16 => short.MaxValue,
-      SpecialType.System_UInt32 => uint.MaxValue,
-      SpecialType.System_UInt64 => ulong.MaxValue,
-      SpecialType.System_Single => float.MinValue,
-      SpecialType.System_Double => double.MinValue,
-      SpecialType.System_Decimal => decimal.MinValue,
-      _ => throw new NotSupportedException(
-        $"{type} cannot be downcast to its numeric type.")
-    };
-  }
-
-  public static dynamic ConvertNumber(object value, SpecialType type)
-  {
-    return type switch
-    {
-      SpecialType.System_Char => Convert.ToChar(value),
-      // Signed numeric types
-      SpecialType.System_Int16 => Convert.ToInt16(value),
-      SpecialType.System_Int32 => Convert.ToInt32(value),
-      SpecialType.System_Int64 => Convert.ToInt64(value),
-      // Unsigned numeric types
-      SpecialType.System_UInt16 => Convert.ToUInt16(value),
-      SpecialType.System_UInt32 => Convert.ToUInt32(value),
-      SpecialType.System_UInt64 => Convert.ToUInt64(value),
-      // Floating point types
-      SpecialType.System_Single => Convert.ToSingle(value),
-      SpecialType.System_Double => Convert.ToDouble(value),
-      SpecialType.System_Decimal => Convert.ToDecimal(value),
-      // Unhandled cases
-      _ => throw new NotSupportedException(
-        $"{type} cannot be downcast to its numeric type.")
-    };
   }
 }

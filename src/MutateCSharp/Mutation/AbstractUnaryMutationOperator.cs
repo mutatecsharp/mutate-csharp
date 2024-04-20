@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -6,8 +7,9 @@ using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation;
 
-public abstract class AbstractUnaryMutationOperator<T>(SemanticModel semanticModel)
-: AbstractMutationOperator<T>(semanticModel)
+public abstract class AbstractUnaryMutationOperator<T>(
+  Assembly sutAssembly, SemanticModel semanticModel)
+: AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T: ExpressionSyntax // currently support prefix or postfix unary expression
 {
   public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
@@ -15,7 +17,17 @@ public abstract class AbstractUnaryMutationOperator<T>(SemanticModel semanticMod
   
   protected IEnumerable<SyntaxKind> ValidMutants(T originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).Type!;
+    var operandNode =
+      originalNode switch
+      {
+        PrefixUnaryExpressionSyntax expr => expr.Operand,
+        PostfixUnaryExpressionSyntax expr => expr.Operand,
+        _ => null
+      };
+
+    if (operandNode == null) return Array.Empty<SyntaxKind>();
+    
+    var type = SemanticModel.GetTypeInfo(operandNode).Type!;
     
     // Case 1: Predefined types
     if (type.SpecialType != SpecialType.None)
@@ -28,16 +40,17 @@ public abstract class AbstractUnaryMutationOperator<T>(SemanticModel semanticMod
     }
     
     // Case 2: User-defined types (type.SpecialType == SpecialType.None)
-    if (type is INamedTypeSymbol customType)
-    {
-      var overloadedOperators =
-        CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
-      return overloadedOperators
-        .Where(replacementOpMethodEntry =>
-          CanApplyOperatorForUserDefinedTypes(originalNode,
-            replacementOpMethodEntry.Value))
-        .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
-    }
+    // if (type is INamedTypeSymbol customType)
+    // {
+    //   var overloadedOperators =
+    //     CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
+    //   return overloadedOperators
+    //     .Where(method =>
+    //       CanApplyOperatorForUserDefinedTypes(originalNode, method))
+    //     .Select(method =>
+    //       CodeAnalysisUtil.SupportedOverloadedOperators[method.Name])
+    //     .ToHashSet();
+    // }
 
     return Array.Empty<SyntaxKind>();
   }
@@ -129,8 +142,8 @@ public abstract class AbstractUnaryMutationOperator<T>(SemanticModel semanticMod
     var originalOperandType =
       originalNode switch
       {
-        PrefixUnaryExpressionSyntax expr => ModelExtensions.GetTypeInfo(SemanticModel, expr.Operand).Type,
-        PostfixUnaryExpressionSyntax expr => ModelExtensions.GetTypeInfo(SemanticModel, expr.Operand).Type,
+        PrefixUnaryExpressionSyntax expr => SemanticModel.GetTypeInfo(expr.Operand).Type,
+        PostfixUnaryExpressionSyntax expr => SemanticModel.GetTypeInfo(expr.Operand).Type,
         _ => null
       };
     var originalReturnType = ModelExtensions.GetTypeInfo(SemanticModel, originalNode).Type;

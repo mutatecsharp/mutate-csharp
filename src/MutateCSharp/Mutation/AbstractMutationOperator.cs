@@ -1,12 +1,15 @@
 using System.Collections.Immutable;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 
 namespace MutateCSharp.Mutation;
 
-public abstract class AbstractMutationOperator<T>(SemanticModel semanticModel)
+public abstract class AbstractMutationOperator<T>(
+  Assembly assembly, SemanticModel semanticModel)
   : IMutationOperator 
   where T : SyntaxNode
 {
+  protected readonly Assembly SutAssembly = assembly;
   protected readonly SemanticModel SemanticModel = semanticModel;
 
   // Check that mutation operator can be applied on currently visited node.
