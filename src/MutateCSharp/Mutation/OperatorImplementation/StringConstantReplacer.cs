@@ -12,8 +12,7 @@ public class StringConstantReplacer(Assembly sutAssembly, SemanticModel semantic
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
-    return originalNode.IsKind(SyntaxKind.StringLiteralExpression) &&
-           originalNode.Token.ValueText.Length > 0;
+    return originalNode.IsKind(SyntaxKind.StringLiteralExpression);
   }
 
   protected override string OriginalExpressionTemplate(
@@ -31,7 +30,7 @@ public class StringConstantReplacer(Assembly sutAssembly, SemanticModel semantic
     if (originalNode.Token.ValueText.Length > 0)
       result.Add((1, "string.Empty"));
 
-    return result.ToImmutableArray();
+    return result;
   }
 
   protected override IList<string> ParameterTypes(
