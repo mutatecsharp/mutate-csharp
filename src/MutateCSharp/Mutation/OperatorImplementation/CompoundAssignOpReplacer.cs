@@ -21,102 +21,19 @@ public sealed partial class CompoundAssignOpReplacer(
   Assembly sutAssembly, SemanticModel semanticModel) :
   AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly, semanticModel)
 {
-  // TODO: refactor into records
-  public static readonly FrozenSet<SyntaxKind> SupportedOperators
-    = new HashSet<SyntaxKind>
-    {
-      SyntaxKind.AddAssignmentExpression,
-      SyntaxKind.SubtractAssignmentExpression,
-      SyntaxKind.MultiplyAssignmentExpression,
-      SyntaxKind.DivideAssignmentExpression,
-      SyntaxKind.ModuloAssignmentExpression,
-      SyntaxKind.AndAssignmentExpression,
-      SyntaxKind.ExclusiveOrAssignmentExpression,
-      SyntaxKind.OrAssignmentExpression,
-      SyntaxKind.LeftShiftAssignmentExpression,
-      SyntaxKind.RightShiftAssignmentExpression,
-      SyntaxKind.UnsignedRightShiftAssignmentExpression,
-    }.ToFrozenSet();
-
-  private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
-    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators).ToFrozenDictionary();
-  
-  // String types are not supported since it only supports += operator and cannot
-  // be mutated
-  public static readonly FrozenSet<SpecialType> PredefinedTypes =
-    new HashSet<SpecialType>
-    {
-      // Boolean type
-      SpecialType.System_Boolean,
-      // Signed type(s)
-      SpecialType.System_SByte,
-      SpecialType.System_Int16,
-      SpecialType.System_Int32,
-      SpecialType.System_Int64,
-      // Unsigned type(s)
-      SpecialType.System_Byte,
-      SpecialType.System_UInt16,
-      SpecialType.System_UInt32,
-      SpecialType.System_UInt64,
-      // Floating point type(s)
-      SpecialType.System_Single,
-      SpecialType.System_Double,
-      SpecialType.System_Decimal,
-      // Integral type (neither signed or unsigned)
-      SpecialType.System_Char
-    }.ToFrozenSet();
-
-  /*
-   * Roslyn Syntax API documentation for compound assignment operators:
-   * https://learn.microsoft.com/en-us/dotnet/api/microsoft.codeanalysis.csharp.syntax.assignmentexpressionsyntax?view=roslyn-dotnet-4.7.0
-   */
-  public static readonly FrozenDictionary<SyntaxKind, string>
-    SupportedArithmeticOperators =
-      new Dictionary<SyntaxKind, string>
-      {
-        { SyntaxKind.AddAssignmentExpression, "+=" },
-        { SyntaxKind.SubtractAssignmentExpression, "-=" },
-        { SyntaxKind.MultiplyAssignmentExpression, "*=" },
-        { SyntaxKind.DivideAssignmentExpression, "/=" },
-        { SyntaxKind.ModuloAssignmentExpression, "%=" }
-        // SyntaxKind.CoalesceAssignmentExpression // ??= (Supports reference or nullable types)
-      }.ToFrozenDictionary();
-
-  public static readonly FrozenDictionary<SyntaxKind, string>
-    SupportedBitwiseOperators =
-      new Dictionary<SyntaxKind, string>
-      {
-        { SyntaxKind.AndAssignmentExpression, "&=" },
-        { SyntaxKind.ExclusiveOrAssignmentExpression, "^=" },
-        { SyntaxKind.OrAssignmentExpression, "|=" },
-        { SyntaxKind.LeftShiftAssignmentExpression, "<<=" },
-        { SyntaxKind.RightShiftAssignmentExpression, ">>=" },
-        { SyntaxKind.UnsignedRightShiftAssignmentExpression, ">>>=" }
-      }.ToFrozenDictionary();
-
-  public static readonly FrozenDictionary<SyntaxKind, string> SupportedBooleanOperators =
-    new Dictionary<SyntaxKind, string>
-    {
-      {SyntaxKind.AndAssignmentExpression, "&="},
-      {SyntaxKind.ExclusiveOrAssignmentExpression, "^="},
-      {SyntaxKind.OrAssignmentExpression, "|="}
-    }.ToFrozenDictionary();
-
   protected override bool CanBeApplied(AssignmentExpressionSyntax originalNode)
   {
-    return SupportedOperators.Contains(originalNode.Kind());
+    return SupportedOperators.ContainsKey(originalNode.Kind());
   }
   
   private static string ExpressionTemplate(SyntaxKind kind)
   {
-    if (!SupportedArithmeticOperators.TryGetValue(kind, out var op)
-        && !SupportedBitwiseOperators.TryGetValue(kind, out op)
-        && !SupportedBooleanOperators.TryGetValue(kind, out op))
-    {
-      throw new NotSupportedException("Operator is not supported.");
-    }
-
-    return $"{{0}} {op} {{1}}";
+    return $"{{0}} {SupportedOperators[kind]} {{1}}";
+  }
+  
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedBinaryOperators()
+  {
+    return SupportedOperators;
   }
 
   protected override string OriginalExpressionTemplate(
@@ -128,58 +45,23 @@ public sealed partial class CompoundAssignOpReplacer(
   protected override IList<(int, string)> ValidMutantExpressionsTemplate(
     AssignmentExpressionSyntax originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).Type!;
-    var validOperators = new List<SyntaxKind>();
-    
-    // Case 1: Predefined value types
-    if (type.SpecialType != SpecialType.None)
-    {
-      foreach (var op in SupportedOperators)
-      {
-        if (op != originalNode.Kind() &&
-            CanApplyReplacementOperatorForPredefinedTypes(type.SpecialType, op))
-        {
-          validOperators.Add(op);
-        } 
-      }
-    }
-    // Case 2: user-defined types
-    // else if (type is INamedTypeSymbol customType)
-    // {
-    //   var candidateOverloadedOperators =
-    //     CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
-    //
-    //   foreach (var op in SupportedOperators)
-    //   {
-    //     if (op != originalNode.Kind() &&
-    //         CanApplyReplacementOperatorForUserDefinedTypes(
-    //           candidateOverloadedOperators, originalNode, op)
-    //        )
-    //     {
-    //       validOperators.Add(op);
-    //     }
-    //   }
-    // }
-
-    // Assign id and sort to get unique ordering
-    var idToOperators =
+    var validMutants = ValidMutants(originalNode);
+    var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
-        validOperators);
-    
-    // Return expression templates
-    return idToOperators
-        .Select(entry => (entry.Item1, ExpressionTemplate(entry.Item2)))
-        .ToList();
+        validMutants);
+    return attachIdToMutants.Select(entry =>
+        (entry.Item1, ExpressionTemplate(entry.Item2)))
+      .ToList();
   }
 
   protected override IList<string> ParameterTypes(
     AssignmentExpressionSyntax originalNode)
   {
     var firstVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Left).Type;
+      SemanticModel.GetTypeInfo(originalNode.Left).Type!.ToDisplayString();
     var secondVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Right).Type;
-    return [$"ref {firstVariableType!.Name}", secondVariableType!.Name];
+      SemanticModel.GetTypeInfo(originalNode.Right).Type!.ToDisplayString();
+    return [$"ref {firstVariableType}", secondVariableType];
   }
   
   // Void type since operator updates value in place
@@ -192,122 +74,117 @@ public sealed partial class CompoundAssignOpReplacer(
   {
     return "ReplaceCompoundAssignmentOperator";
   }
-
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedBinaryOperators()
-  {
-    throw new NotImplementedException();
-  }
 }
 
-// Validation checks
+/* Supported compound assignment operators.
+ *
+ * More on C# operators and expressions:
+ * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/
+ * https://learn.microsoft.com/en-us/dotnet/api/microsoft.codeanalysis.csharp.syntax.assignmentexpressionsyntax?view=roslyn-dotnet-4.7.0
+ */
 public sealed partial class CompoundAssignOpReplacer
 {
-  private static bool CanApplyReplacementOperatorForPredefinedTypes(
-    SpecialType type, SyntaxKind replacementOpKind)
-  {
-    if (PredefinedTypes.Contains(type))
-    {
-      return type switch
+  // Both ExprKind and TokenKind represents the operator and are equivalent
+  // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
+  // TokenKind is used by the lexer and to retrieve the string representation
+  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+    SupportedOperators
+      = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
       {
-        // Boolean type supports &=, ^=, |= operators
-        SpecialType.System_Boolean
-          =>
-          SupportedBooleanOperators.ContainsKey(replacementOpKind),
-        // Integral types support arithmetic and bitwise operators 
-        SpecialType.System_Char
-          or SpecialType.System_SByte
-          or SpecialType.System_Int16
-          or SpecialType.System_Int32
-          or SpecialType.System_Int64
-          or SpecialType.System_Byte
-          or SpecialType.System_UInt16
-          or SpecialType.System_UInt32
-          or SpecialType.System_UInt64
-          =>
-          SupportedArithmeticOperators.ContainsKey(replacementOpKind) ||
-          SupportedBitwiseOperators.ContainsKey(replacementOpKind),
-        // Floating-point types support arithmetic operators
-        SpecialType.System_Single
-          or SpecialType.System_Double
-          or SpecialType.System_Decimal
-          =>
-          SupportedArithmeticOperators.ContainsKey(replacementOpKind),
-        _ => false
-      };
-    }
-
-    return false; // Predefined type not supported
-  }
-
-  /*
-   * In C# it is possible to define operator overloads for user-defined types
-   * that return different types:
-   *
-   * class C {
-   *   public static bool operator+(C first, C second) => true;
-   * }
-   *
-   * is a valid definition, but this means the following code:
-   * var c1 = new C();
-   * var c2 = new C();
-   * c1 += c2; // will not compile, since c1 + c2 returns bool and cannot be cast to C
-   *
-   * as such, we need to infer the type if it can be assignable to C before replacing
-   * the operator.
-   *
-   * assuming the following statement:
-   * a op1 b;
-   * where:
-   * a is of type A or A?,
-   * b is of type B or B?,
-   * op1 is the original compound assignment operator,
-   * and a replacement operator op2 is proposed,
-   * the following should hold:
-   *
-   * 1) op2 should exist in A;
-   * 2) op2 should take two parameters of type A/A? and B/B? respectively;
-   * 3) op2 should return type A;
-   */
-  private bool CanApplyReplacementOperatorForUserDefinedTypes(
-    IDictionary<SyntaxKind, IMethodSymbol> overloadedOperators,
-    AssignmentExpressionSyntax originalNode,
-    SyntaxKind replacementOpKind
-  )
-  {
-    // 1) replacement operator should have an existing definition in A
-    if (!overloadedOperators.TryGetValue(replacementOpKind, out var opMethod))
-      return false;
-
-    // 2) Get the parameter types for the replacement operator
-    if (opMethod.Parameters is not
-        [var firstParam, var secondParam]) return false;
-
-    // 3) Get the types of variables involved in the compound assignment operator
-    var firstVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Left).Type;
-    var secondVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Right).Type;
-
-    // 4) Check that the types match:
-    // First parameter
-    var checkFirstTypeMatches = firstVariableType?.Equals(firstParam.Type,
-      SymbolEqualityComparer.Default) ?? false;
-
-    if (!checkFirstTypeMatches) return false;
-
-    // Second parameter
-    var checkSecondTypeMatches =
-      secondVariableType?.Equals(secondParam.Type,
-        SymbolEqualityComparer.Default) ?? false;
-
-    if (!checkSecondTypeMatches) return false;
-
-    // Result (Given a += b and -= as replacement, -= should return the same
-    // type as +=, which is type representing a)
-    var checkResultTypeMatches =
-      opMethod.ReturnType.Equals(firstVariableType,
-        SymbolEqualityComparer.Default);
-
-    return checkResultTypeMatches;
-  }
+        // Supported arithmetic assignment operations (+=, -=, *=, /=, %=)
+        {
+          SyntaxKind.AddAssignmentExpression,
+          new(ExprKind: SyntaxKind.AddAssignmentExpression,
+          TokenKind: SyntaxKind.PlusEqualsToken,
+          MemberName: WellKnownMemberNames.AdditionOperatorName,
+          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+        },
+        {
+          SyntaxKind.SubtractAssignmentExpression,
+          new(ExprKind: SyntaxKind.SubtractAssignmentExpression,
+            TokenKind: SyntaxKind.MinusEqualsToken,
+            MemberName: WellKnownMemberNames.SubtractionOperatorName,
+            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+        },
+        {
+          SyntaxKind.MultiplyAssignmentExpression,
+          new(ExprKind: SyntaxKind.MultiplyAssignmentExpression,
+            TokenKind: SyntaxKind.AsteriskEqualsToken,
+            MemberName: WellKnownMemberNames.MultiplyOperatorName,
+            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+        },
+        {
+          SyntaxKind.DivideAssignmentExpression,
+          new(ExprKind: SyntaxKind.DivideAssignmentExpression,
+            TokenKind: SyntaxKind.SlashEqualsToken,
+            MemberName: WellKnownMemberNames.DivisionOperatorName,
+            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+        },
+        {
+          SyntaxKind.ModuloAssignmentExpression,
+          new(ExprKind: SyntaxKind.ModuloAssignmentExpression,
+            TokenKind: SyntaxKind.PercentEqualsToken,
+            MemberName: WellKnownMemberNames.ModulusOperatorName,
+            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+        },
+        // Supported boolean/integral bitwise logical operations (&=, |=, ^=)
+        {
+          SyntaxKind.AndAssignmentExpression,
+          new(ExprKind: SyntaxKind.AndAssignmentExpression,
+            TokenKind: SyntaxKind.AmpersandEqualsToken,
+            MemberName: WellKnownMemberNames.BitwiseAndOperatorName,
+            TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+        },
+        {
+          SyntaxKind.OrAssignmentExpression,
+          new(ExprKind: SyntaxKind.OrAssignmentExpression,
+            TokenKind: SyntaxKind.BarEqualsToken,
+            MemberName: WellKnownMemberNames.BitwiseOrOperatorName,
+            TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+        },
+        {
+          SyntaxKind.ExclusiveOrAssignmentExpression,
+          new(ExprKind: SyntaxKind.ExclusiveOrAssignmentExpression,
+            TokenKind: SyntaxKind.CaretEqualsToken,
+            MemberName: WellKnownMemberNames.ExclusiveOrOperatorName,
+            TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+        },
+        // Supported integral bitwise shift operations (<<=, >>=, >>>=)
+        {
+          SyntaxKind.LeftShiftAssignmentExpression,
+          new(ExprKind: SyntaxKind.LeftShiftAssignmentExpression,
+            TokenKind: SyntaxKind.LessThanLessThanEqualsToken,
+            MemberName: WellKnownMemberNames.LeftShiftOperatorName,
+            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+        },
+        {
+          SyntaxKind.RightShiftAssignmentExpression,
+          new(ExprKind: SyntaxKind.RightShiftAssignmentExpression,
+            TokenKind: SyntaxKind.GreaterThanGreaterThanEqualsToken,
+            MemberName: WellKnownMemberNames.RightShiftOperatorName,
+            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+        },
+        {
+          SyntaxKind.UnsignedRightShiftAssignmentExpression,
+          new(ExprKind: SyntaxKind.UnsignedRightShiftAssignmentExpression,
+            TokenKind: SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+            MemberName: WellKnownMemberNames.UnsignedRightShiftOperatorName,
+            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+        }
+      }.ToFrozenDictionary();
+  
+  private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys).ToFrozenDictionary();
 }
+
+// SyntaxKind.AddAssignmentExpression,
+// SyntaxKind.SubtractAssignmentExpression,
+// SyntaxKind.MultiplyAssignmentExpression,
+// SyntaxKind.DivideAssignmentExpression,
+// SyntaxKind.ModuloAssignmentExpression,
+// SyntaxKind.AndAssignmentExpression,
+// SyntaxKind.ExclusiveOrAssignmentExpression,
+// SyntaxKind.OrAssignmentExpression,
+// SyntaxKind.LeftShiftAssignmentExpression,
+// SyntaxKind.RightShiftAssignmentExpression,
+// SyntaxKind.UnsignedRightShiftAssignmentExpression,

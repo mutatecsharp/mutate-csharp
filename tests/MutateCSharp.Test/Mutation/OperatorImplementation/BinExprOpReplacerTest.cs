@@ -4,23 +4,16 @@ using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
 using Xunit.Abstractions;
 
-namespace MutateCSharp.Test;
+namespace MutateCSharp.Test.Mutation.OperatorImplementation;
 
-public class BinExprOpReplacerTest
+public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
-  private readonly ITestOutputHelper _testOutputHelper;
-
-  public BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
-  {
-    _testOutputHelper = testOutputHelper;
-  }
-
-  private MutationGroup GetMutationGroup(string inputUnderMutation)
+  private static MutationGroup GetMutationGroup(string inputUnderMutation)
     => TestUtil
       .GetValidMutationGroup<BinExprOpReplacer, BinaryExpressionSyntax>(
         inputUnderMutation);
 
-  private void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
+  private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
   {
     TestUtil.ShouldNotHaveValidMutationGroup<BinExprOpReplacer, BinaryExpressionSyntax>(inputUnderMutation);
   }
@@ -59,7 +52,8 @@ public class BinExprOpReplacerTest
   
   private static IDictionary<string, string> IntegralTypes = new Dictionary<string, string>
   {
-    {"char", "'a'"}, 
+    {"char", "'a'"},
+    {"short", "((short) 12)"},
     {"sbyte", "((sbyte) 1)"}, 
     {"int", "1"}, 
     {"long", "42l"}, 
@@ -97,7 +91,7 @@ public class BinExprOpReplacerTest
         }
         """;
     
-    _testOutputHelper.WriteLine(inputUnderMutation);
+    testOutputHelper.WriteLine(inputUnderMutation);
     
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
@@ -247,7 +241,7 @@ public class BinExprOpReplacerTest
         }
         """;
     
-    _testOutputHelper.WriteLine(inputUnderMutation);
+    testOutputHelper.WriteLine(inputUnderMutation);
     
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
@@ -264,24 +258,185 @@ public class BinExprOpReplacerTest
     mutationGroup.SchemaMutantExpressionsTemplate.Should()
       .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
   }
+  
+  [Theory]
+  // Arithmetic operators
+  [InlineData("+")]
+  [InlineData("-")]
+  [InlineData("/")]
+  [InlineData("*")]
+  [InlineData("%")]
+  // Bitwise/boolean operators
+  [InlineData(">>")]
+  [InlineData("<<")]
+  [InlineData(">>>")]
+  [InlineData("&")]
+  [InlineData("^")]
+  [InlineData("|")]
+  public void
+    ShouldNotReplaceOperatorIfNoViableCandidatesExist(
+      string originalOperator)
+  {
+    var inputUnderMutation =
+      $$"""
+        public class A
+        {
+          public static A operator{{originalOperator}}(A a1, int b)
+          {
+            return a1;
+          }
+          
+          public static void Main()
+          {
+            var a = new A();
+            var a2 = a {{originalOperator}} 1;
+          }
+        }
+        """;
+
+        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+  }
+  
+  [Theory]
+  // Arithmetic operators
+  [InlineData("+", "-")]
+  [InlineData("-", "+")]
+  [InlineData("/", "*")]
+  [InlineData("%", "*")]
+  // Bitwise operators
+  [InlineData("<<", ">>")]
+  [InlineData("<<", ">>>")]
+  [InlineData(">>", "<<")]
+  [InlineData("&", "^")]
+  [InlineData("^", "&")]
+  // Boolean operators
+  [InlineData("&", "|")]
+  [InlineData("|", "&")]
+  // Replacement operators from different operator group
+  // (user defined types may have custom semantics)
+  [InlineData("&", "+")]
+  [InlineData("^", "-")]
+  [InlineData("*", "|")]
+  public void ShouldNotReplaceOperatorIfReplacementOperatorReturnTypeDiffers(
+    string originalOperator, string replacementOperator)
+  {
+    var inputUnderMutation =
+      $$"""
+        public class A
+        {
+          public static A operator{{originalOperator}}(A a1, int b)
+          {
+            return a1;
+          }
+          
+          public static int operator{{replacementOperator}}(A a1, int b)
+          {
+            return b;
+          }
+          
+          public static void Main()
+          {
+            var a = new A();
+            var a2 = a {{originalOperator}} 1;
+          }
+        }
+        """;
+
+        // No mutation groups should be generated since return type of
+        // replacement operator is not assignable to original return type
+        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+  }
+  
+  [Fact]
+  public void ShouldNotReplaceIfReplacementOperatorAssignmentAmbiguous()
+  {
+    const string inputUnderMutation =
+      """
+      public class D {}
+
+      public class A {}
+
+      public class B: D
+      {
+        public static A operator +(B b, A a) => new A();
+        public static A operator -(B b, D d) => new A();
+      }
+
+      public class C: A
+      {
+        public static A operator +(D d, C c) => new A();
+      }
+
+      public class E
+      {
+        public static void Main()
+        {
+          var b = new B();
+          var d = new D();
+          var x = b - d;
+        }
+      }
+      """;
+
+        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+  }
 
   [Fact]
-  public void ShouldNotReplaceUnsupportedPredefinedTypes_String()
+  public void ShouldReplaceAndResolveOverloadedReplacementOperator()
   {
     var inputUnderMutation =
       """
+      public class A
+      {
+        public static A operator -(A a, B b) => new B();
+        public static A operator +(A a, A b) => new A();
+      }
+      
+      public class B: A
+      {
+        public static B operator +(A a, B b) => new B();
+      }
+      
+      public class C
+      {
+        public static void Main()
+        { 
+          var a = new A();
+          var b = new B();
+          var c = a - b; // Returns instance of type A
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+
+    // Return type A is the original return type
+    // mutant expression qualifies as return type B is assignable to A 
+    mutationGroup.SchemaReturnType.Should().Be("A");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A", "B");
+    mutationGroup.SchemaOriginalExpressionTemplate.Should().Be("{0} - {1}");
+    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+      .BeEquivalentTo(["{0} + {1}"]);
+  }
+
+  [Theory]
+  [InlineData("String")]
+  public void ShouldNotReplaceUnsupportedPredefinedTypes(string predefinedType)
+  {
+    var inputUnderMutation =
+      $$"""
         using System;
 
         public class A
         {
           public static void Main()
           {
-            var x = "abc" + "def";
+            var x = Convert.To{{predefinedType}}(42) + Convert.To{{predefinedType}}(42);
           }
         }
         """;
-    
-    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+
+        ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
 }
 
