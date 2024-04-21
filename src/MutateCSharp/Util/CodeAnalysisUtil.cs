@@ -70,7 +70,11 @@ public static class CodeAnalysisUtil
         SupportedType.Boolean)
     ];
 
-  public record UnaryOp(SyntaxKind ExprKind, SyntaxKind TokenKind, ICollection<TypeSignature> TypeSignatures)
+  public record UnaryOp(
+    SyntaxKind ExprKind, 
+    SyntaxKind TokenKind, 
+    string MemberName,
+    TypeSignature[] TypeSignatures)
   {
     public override string ToString() => SyntaxFacts.GetText(TokenKind);
   }
@@ -79,7 +83,7 @@ public static class CodeAnalysisUtil
     SyntaxKind ExprKind,
     SyntaxKind TokenKind,
     string MemberName,
-    ICollection<TypeSignature> TypeSignatures)
+    TypeSignature[] TypeSignatures)
   {
     public override string ToString() => SyntaxFacts.GetText(TokenKind);
   }
@@ -144,7 +148,18 @@ public static class CodeAnalysisUtil
       ? FriendlyNameToClrName[type.ToDisplayString()]
       : type.ToDisplayString();
   }
-  
+
+  public static bool IsSymbolVariable(this ISymbol symbol)
+  {
+    return symbol switch
+    {
+      IFieldSymbol fieldSymbol => fieldSymbol is { IsConst: false, IsReadOnly: false },
+      IPropertySymbol propertySymbol => propertySymbol is { IsReadOnly: false, SetMethod: not null },
+      IParameterSymbol paramSymbol => paramSymbol.RefKind is RefKind.Ref or RefKind.Out,
+      ILocalSymbol localSymbol => localSymbol is { IsConst: false },
+      _ => false
+    };
+  }
 
   public static bool IsAString(this SyntaxNode node)
   {

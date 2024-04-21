@@ -15,7 +15,9 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
   private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
   {
-    TestUtil.ShouldNotHaveValidMutationGroup<BinExprOpReplacer, BinaryExpressionSyntax>(inputUnderMutation);
+    TestUtil
+      .ShouldNotHaveValidMutationGroup<BinExprOpReplacer,
+        BinaryExpressionSyntax>(inputUnderMutation);
   }
 
   public static IEnumerable<object[]> BooleanMutations =
@@ -23,14 +25,28 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
   [Theory]
   [MemberData(nameof(BooleanMutations))]
-  public void ShouldReplaceBitwiseLogicalAndEqualityOperatorsForBooleanExpressions(string originalOperator, string[] expectedReplacementOperators)
+  public void
+    ShouldReplaceBitwiseLogicalAndEqualityOperatorsForBooleanExpressions(
+      string originalOperator, string[] expectedReplacementOperators)
   {
-    var inputUnderMutation = $"bool b = true; b = b {originalOperator} false;";
+    var inputUnderMutation = 
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            bool b = true;
+            var c = b {{originalOperator}} false;
+          }
+        }
+       """;
     var mutationGroup = GetMutationGroup(inputUnderMutation);
-    
+
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
-      .BeEquivalentTo(["bool", "bool"]);
+      .Equal("bool", "bool");
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("bool");
 
     // Expression template checks
@@ -49,25 +65,28 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressionsTemplate.ToHashSet()
       .SetEquals(validMutantExpressionsTemplate).Should().BeTrue();
   }
-  
-  private static IDictionary<string, string> IntegralTypes = new Dictionary<string, string>
-  {
-    {"char", "'a'"},
-    {"short", "((short) 12)"},
-    {"sbyte", "((sbyte) 1)"}, 
-    {"int", "1"}, 
-    {"long", "42l"}, 
-    {"byte", "((byte) 0b11)"}, 
-    {"ushort", "((ushort) 11)"}, 
-    {"uint", "((uint) 10)"}, 
-    {"ulong", "11ul"}
-  };
+
+  private static IDictionary<string, string> IntegralTypes =
+    new Dictionary<string, string>
+    {
+      { "char", "'a'" },
+      { "short", "((short) 12)" },
+      { "sbyte", "((sbyte) 1)" },
+      { "int", "1" },
+      { "long", "42l" },
+      { "byte", "((byte) 0b11)" },
+      { "ushort", "((ushort) 11)" },
+      { "uint", "((uint) 10)" },
+      { "ulong", "11ul" }
+    };
 
   private static ISet<string> SupportedIntegralOperators =
-    new HashSet<string> { "+", "-", "*", "/", "%", ">>", "<<", ">>>", "^", "&", "|" };
+    new HashSet<string>
+      { "+", "-", "*", "/", "%", ">>", "<<", ">>>", "^", "&", "|" };
 
   public static IEnumerable<object[]> IntegralTypedMutations =
-    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(IntegralTypes.Keys,
+    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+      IntegralTypes.Keys,
       SupportedIntegralOperators);
 
   [Theory]
@@ -86,19 +105,19 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
           public static void Main()
           {
             {{integralType}} x = {{IntegralTypes[integralType]}};
-            {{integralType}} y = x {{originalOperator}} {{IntegralTypes[integralType]}};
+            var y = x {{originalOperator}} {{IntegralTypes[integralType]}};
           }
         }
         """;
-    
+
     testOutputHelper.WriteLine(inputUnderMutation);
-    
+
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
       .BeEquivalentTo([integralType, integralType]);
-    
+
     // Note: we omit checking return type due to the complicated binary
     // numeric promotion rules set by the C# language specification:
     // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12473-binary-numeric-promotions
@@ -127,23 +146,25 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}")
         .ToHashSet();
-    
+
     mutationGroup.SchemaMutantExpressionsTemplate.ToHashSet()
       .SetEquals(validMutantExpressionsTemplate).Should().BeTrue();
   }
-  
-  private static IDictionary<string, string> FloatingPointTypes = new Dictionary<string, string>
-  {
-    {"float", "10.0f"},
-    {"double", "10.0d"},
-    {"decimal", "2323.232323m"}
-  };
-  
+
+  private static IDictionary<string, string> FloatingPointTypes =
+    new Dictionary<string, string>
+    {
+      { "float", "10.0f" },
+      { "double", "10.0d" },
+      { "decimal", "2323.232323m" }
+    };
+
   private static ISet<string> SupportedFloatingPointOperators =
-      new HashSet<string> { "+", "-", "*", "/", "%" };
-  
+    new HashSet<string> { "+", "-", "*", "/", "%" };
+
   public static IEnumerable<object[]> FloatingPointTypedMutations =
-    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(FloatingPointTypes.Keys,
+    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+      FloatingPointTypes.Keys,
       SupportedFloatingPointOperators);
 
   [Theory]
@@ -167,7 +188,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         """;
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
-    
+
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
       .BeEquivalentTo([numericType, numericType]);
@@ -190,7 +211,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressionsTemplate.Should()
       .BeEquivalentTo(validMutantExpressionsTemplate);
   }
-  
+
   [Theory]
   // Arithmetic operators
   [InlineData("+", "-")]
@@ -218,9 +239,9 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var inputUnderMutation =
       $$"""
         using System;
-        
+
         public class B {}
-        
+
         public class A
         {
           public static B operator{{originalOperator}}(A a1, int b)
@@ -240,9 +261,9 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
           }
         }
         """;
-    
+
     testOutputHelper.WriteLine(inputUnderMutation);
-    
+
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
     // Type checks
@@ -258,7 +279,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressionsTemplate.Should()
       .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
   }
-  
+
   [Theory]
   // Arithmetic operators
   [InlineData("+")]
@@ -294,9 +315,9 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         }
         """;
 
-        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
-  
+
   [Theory]
   // Arithmetic operators
   [InlineData("+", "-")]
@@ -342,11 +363,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         }
         """;
 
-        // No mutation groups should be generated since return type of
-        // replacement operator is not assignable to original return type
-        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    // No mutation groups should be generated since return type of
+    // replacement operator is not assignable to original return type
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
-  
+
   [Fact]
   public void ShouldNotReplaceIfReplacementOperatorAssignmentAmbiguous()
   {
@@ -378,7 +399,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       }
       """;
 
-        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
 
   [Fact]
@@ -391,16 +412,16 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         public static A operator -(A a, B b) => new B();
         public static A operator +(A a, A b) => new A();
       }
-      
+
       public class B: A
       {
         public static B operator +(A a, B b) => new B();
       }
-      
+
       public class C
       {
         public static void Main()
-        { 
+        {
           var a = new A();
           var b = new B();
           var c = a - b; // Returns instance of type A
@@ -436,8 +457,6 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         }
         """;
 
-        ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
 }
-
-

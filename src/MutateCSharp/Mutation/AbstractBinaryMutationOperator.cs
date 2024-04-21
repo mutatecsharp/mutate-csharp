@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Diagnostics;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -98,31 +97,19 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // Operator checks
     // Reject if the replacement candidate is the same as the original operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
-    // Reject if original operator is not supported
-    if (!SupportedBinaryOperators().ContainsKey(originalNode.Kind()))
-      return false;
 
     // Type checks
     // TODO: checking only one of both variables is a heuristic, verify later
     // TODO: may be acceptable to only check return type
+    var leftOperand = GetLeftOperand(originalNode);
+    if (leftOperand == null) return false;
     var returnType = SemanticModel.GetTypeInfo(originalNode).Type!;
-
-    var variableType =
-      originalNode switch
-      {
-        BinaryExpressionSyntax expr =>
-          SemanticModel.GetTypeInfo(expr.Left).Type,
-        AssignmentExpressionSyntax expr => SemanticModel.GetTypeInfo(expr.Right)
-          .Type,
-        _ => null
-      };
-
-    if (variableType == null) return false;
+    var operandType = SemanticModel.GetTypeInfo(leftOperand).Type!;
 
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
     var variableTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(variableType.SpecialType);
+      CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
     // Reject if the replacement operator type group is not the same as the
     // original operator type group
     return replacementOp.TypeSignatures

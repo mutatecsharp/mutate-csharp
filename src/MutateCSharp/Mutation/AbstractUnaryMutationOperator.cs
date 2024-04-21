@@ -14,23 +14,26 @@ public abstract class AbstractUnaryMutationOperator<T>(
 {
   public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
     SupportedUnaryOperators();
+
+  public static ExpressionSyntax? GetOperand(T originalNode)
+  {
+    return originalNode switch
+    {
+      PrefixUnaryExpressionSyntax expr => expr.Operand,
+      PostfixUnaryExpressionSyntax expr => expr.Operand,
+      _ => null
+    };
+  }
   
   protected IEnumerable<SyntaxKind> ValidMutants(T originalNode)
   {
-    var operandNode =
-      originalNode switch
-      {
-        PrefixUnaryExpressionSyntax expr => expr.Operand,
-        PostfixUnaryExpressionSyntax expr => expr.Operand,
-        _ => null
-      };
-
+    var operandNode = GetOperand(originalNode);
     if (operandNode == null) return Array.Empty<SyntaxKind>();
     
-    var type = SemanticModel.GetTypeInfo(operandNode).Type!;
+    var operandType = SemanticModel.GetTypeInfo(operandNode).Type!;
     
     // Case 1: Predefined types
-    if (type.SpecialType != SpecialType.None)
+    if (operandType.SpecialType != SpecialType.None)
     {
       return SupportedUnaryOperators()
         .Where(replacementOpEntry =>
@@ -40,19 +43,11 @@ public abstract class AbstractUnaryMutationOperator<T>(
     }
     
     // Case 2: User-defined types (type.SpecialType == SpecialType.None)
-    // if (type is INamedTypeSymbol customType)
-    // {
-    //   var overloadedOperators =
-    //     CodeAnalysisUtil.GetOverloadedOperatorsInUserDefinedType(customType);
-    //   return overloadedOperators
-    //     .Where(method =>
-    //       CanApplyOperatorForUserDefinedTypes(originalNode, method))
-    //     .Select(method =>
-    //       CodeAnalysisUtil.SupportedOverloadedOperators[method.Name])
-    //     .ToHashSet();
-    // }
-
-    return Array.Empty<SyntaxKind>();
+    return SupportedUnaryOperators()
+      .Where(replacementOpEntry =>
+        CanApplyOperatorForUserDefinedTypes(originalNode,
+          replacementOpEntry.Value))
+      .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
   }
 
   
@@ -63,37 +58,28 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 3) The replacement return type must be assignable to the original return type.
    */
   protected bool CanApplyOperatorForSpecialTypes(
-    T originalNode,
-    CodeAnalysisUtil.UnaryOp replacementOp)
+    T originalNode, CodeAnalysisUtil.UnaryOp replacementOp)
   {
-    // Operator checks
     // Reject if the replacement candidate is the same as the original operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
-    // Reject if the original operator is not supported
-    if (!SupportedUnaryOperators().ContainsKey(originalNode.Kind())) return false;
     
-    // Type checks
-    var returnType = ModelExtensions.GetTypeInfo(SemanticModel, originalNode).Type!;
-    var operandType = 
-      originalNode switch
-      {
-        PrefixUnaryExpressionSyntax expr => ModelExtensions.GetTypeInfo(SemanticModel, expr.Operand).Type,
-        PostfixUnaryExpressionSyntax expr => ModelExtensions.GetTypeInfo(SemanticModel, expr.Operand).Type,
-        _ => null
-      };
+    // 1) Get the operand type name and return type name
+    var operand = GetOperand(originalNode);
+    if (operand == null) return false;
+    var operandType = SemanticModel.GetTypeInfo(operand).Type!;
+    var returnType = SemanticModel.GetTypeInfo(originalNode).Type!;
 
-    if (operandType == null) return false;
-
-    var returnTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
     var operandTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
-    
-    // Reject if the replacement operator type group is not the same as the
-    // original operator type group
-    return replacementOp.TypeSignatures.Any(
-      signature => signature.OperandType.HasFlag(operandTypeClassification)
-                   && signature.ReturnType.HasFlag(returnTypeClassification));
+    var returnTypeClassification =
+      CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
+
+    // 2) Replacement operator is valid if its return type is in the same
+    // type group as the original operator type group
+    return replacementOp.TypeSignatures
+      .Any(signature => signature.OperandType.HasFlag(operandTypeClassification)
+                        && signature.ReturnType.HasFlag(
+                          returnTypeClassification));
   }
   
   /*
@@ -133,31 +119,36 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 3) op2 should return type B.
    */
   protected bool CanApplyOperatorForUserDefinedTypes(T originalNode,
-    IMethodSymbol replacementOpMethod)
+    CodeAnalysisUtil.UnaryOp replacementOp)
   {
-    // 1) Get the parameter types for the replacement operator
-    if (replacementOpMethod.Parameters is not [var replacementOperand]) return false;
-
-    // 2) Get the types of variables involved in the original unary operator
-    var originalOperandType =
-      originalNode switch
-      {
-        PrefixUnaryExpressionSyntax expr => SemanticModel.GetTypeInfo(expr.Operand).Type,
-        PostfixUnaryExpressionSyntax expr => SemanticModel.GetTypeInfo(expr.Operand).Type,
-        _ => null
-      };
-    var originalReturnType = ModelExtensions.GetTypeInfo(SemanticModel, originalNode).Type;
-
-    // 3) Check that the types are assignable:
-    // Operand type (original should be assignable to replacement)
-    var checkOperandAssignable =
-      originalOperandType?.GetType().IsAssignableTo(replacementOperand.Type.GetType()) ??
-      false;
-
-    if (!checkOperandAssignable) return false;
+    // Reject if the replacement candidate is the same as the original operator
+    if (originalNode.Kind() == replacementOp.ExprKind) return false;
     
-    // Return type (replacement should be assignable to original)
-    return originalReturnType != null && replacementOpMethod.ReturnType
-      .GetType().IsAssignableTo(originalReturnType.GetType());
+    // 1) Get the operand type name and return type name
+    var operand = GetOperand(originalNode);
+    if (operand == null) return false;
+    var operandTypeName =
+      SemanticModel.GetTypeInfo(operand).Type!.ToClrTypeName();
+    var returnTypeName =
+      SemanticModel.GetTypeInfo(originalNode).Type!.ToClrTypeName();
+
+    // 2) Get operand type and return type in runtime
+    // If we cannot locate the type from the assembly of SUT, this means we
+    // are looking for types defined in the core library: we defer to the
+    // current assembly to get the type's runtime type
+    var operandType = SutAssembly.GetType(operandTypeName) ??
+                      Type.GetType(operandTypeName);
+    var returnType = SutAssembly.GetType(returnTypeName) ??
+                     Type.GetType(returnTypeName);
+    if (operandType == null || returnType == null) return false;
+    
+    // 3) Get replacement operator method
+    var replacementOpMethod =
+      operandType.GetMethod(replacementOp.MemberName, [operandType]);
+    
+    // 4) Replacement operator is valid if its return type is assignable to
+    // the original operator return type
+    return replacementOpMethod != null &&
+           replacementOpMethod.ReturnType.IsAssignableTo(returnType);
   }
 }

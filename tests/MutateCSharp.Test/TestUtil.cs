@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -54,10 +55,20 @@ public static class TestUtil
 
   public static void TestForSemanticErrors(SemanticModel model)
   {
+    var sb = new StringBuilder();
+    
+    foreach (var diagnostic in model.Compilation.GetDiagnostics())
+    {
+      if (diagnostic.Severity == DiagnosticSeverity.Error)
+      {
+        sb.AppendLine(diagnostic.GetMessage());
+      }
+    }
+    
     // Check: Input should not have semantic errors.
     model.Compilation.GetDiagnostics()
       .Any(d => d.Severity == DiagnosticSeverity.Error)
-      .Should().BeFalse("because input should be semantically valid");
+      .Should().BeFalse($"because input should be semantically valid\n{sb}");
   }
 
   public static void ShouldNotHaveValidMutationGroup<T, TU>(
