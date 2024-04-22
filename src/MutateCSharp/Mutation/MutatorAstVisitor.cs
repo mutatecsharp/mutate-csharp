@@ -61,6 +61,24 @@ public class MutatorAstRewriter(
       "There should be at most one qualifying mutation operator.");
     return mutationOperator.FirstOrDefault();
   }
+
+  // A file cannot contain both file scoped namespace declaration and
+  // ordinary namespace declaration; we convert the file scoped namespace
+  // declaration to allow injection of mutant schemata
+  public override SyntaxNode VisitFileScopedNamespaceDeclaration(
+    FileScopedNamespaceDeclarationSyntax node)
+  {
+    // 1: Mutate all children nodes
+    var nodeWithMutatedChildren =
+      (FileScopedNamespaceDeclarationSyntax)base
+        .VisitFileScopedNamespaceDeclaration(node)!;
+    
+    // 2: Replace file scoped namespace with ordinary namespace
+    return SyntaxFactory.NamespaceDeclaration(nodeWithMutatedChildren.Name)
+      .WithMembers(nodeWithMutatedChildren.Members)
+      .WithLeadingTrivia(nodeWithMutatedChildren.GetLeadingTrivia())
+      .WithTrailingTrivia(nodeWithMutatedChildren.GetTrailingTrivia());
+  }
   
   public override SyntaxNode VisitLiteralExpression(
     LiteralExpressionSyntax node)
