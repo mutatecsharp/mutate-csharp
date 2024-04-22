@@ -45,6 +45,8 @@ public class MutatorAstRewriter(
 
   private readonly MutationRegistry _registry = new();
 
+  public MutationRegistry GetRegistry() => _registry;
+
   // There should be at most one mutation operator that can be applied to the
   // current node, since each mutation operator apply to a disjoint set of nodes
   private IMutationOperator? LocateMutationOperator(SyntaxNode currentNode)

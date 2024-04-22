@@ -36,16 +36,11 @@ public class MutationRegistry
     return baseId;
   }
 
+  public IReadOnlySet<MutationGroup> GetAllMutationGroups()
+    => _mutationGroups.ToFrozenSet();
+
   public Mutation GetMutation(MutationId id)
   {
     return _mutations[id];
-  }
-
-  // Converts all underlying collections to frozen collections to optimise
-  // for read-only throughput.
-  public void MakeImmutable()
-  {
-    _mutationGroups = _mutationGroups.ToFrozenSet();
-    _mutations = _mutations.ToFrozenDictionary();
   }
 }

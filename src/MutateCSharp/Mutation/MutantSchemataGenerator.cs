@@ -1,4 +1,6 @@
 using System.Text;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace MutateCSharp.Mutation;
 
@@ -131,8 +133,17 @@ public static class MutantSchemataGenerator
     return result;
   }
 
-  // // Use a document editor here
-  // public SyntaxTree InjectSchemata(SyntaxTree tree)
-  // {
-  // }
+  
+  public static NamespaceDeclarationSyntax? GenerateSchemataSyntax(MutationRegistry registry)
+  {
+    var mutationGroups = registry.GetAllMutationGroups();
+    if (mutationGroups.Count == 0) return null;
+    
+    var schemata = GenerateSchemata(registry.GetAllMutationGroups());
+    var ast = CSharpSyntaxTree.ParseText(schemata.ToString());
+    var syntax = ast.GetCompilationUnitRoot().Members
+      .OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+    
+    return syntax;
+  }
 }
