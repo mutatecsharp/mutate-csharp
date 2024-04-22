@@ -23,7 +23,7 @@ public class MutationRegistry
   private IDictionary<Mutation, MutationGroup>
     _mutationToMutationGroup = new Dictionary<Mutation, MutationGroup>();
 
-  private MutationId _idGenerator;
+  private MutationId _idGenerator = 1;
   
   public MutationId RegisterMutationGroupAndGetIdAssignment(MutationGroup mutationGroup)
   {
