@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentAssertions.Formatting;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -6,6 +7,7 @@ using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
 using MutateCSharp.Util;
 using Xunit.Abstractions;
+using Formatter = Microsoft.CodeAnalysis.Formatting.Formatter;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
 

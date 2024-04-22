@@ -12,7 +12,7 @@ namespace MutateCSharp.Mutation;
 /*
  * Discover target nodes that are eligible to undergo mutation, and apply mutation.
  */
-public class MutatorAstRewriter(
+public sealed partial class MutatorAstRewriter(
   Assembly sutAssembly,
   SemanticModel semanticModel)
   : CSharpSyntaxRewriter
@@ -205,5 +205,57 @@ public class MutatorAstRewriter(
       SyntaxFactory.Argument(baseMutantIdLiteral),
       operand
     );
+  }
+}
+
+/*
+ * Special cases to handle programming constructs that should not be mutated,
+ * as the values need to be known at compile-time.
+ */
+public sealed partial class MutatorAstRewriter
+{
+  public override SyntaxNode VisitEnumMemberDeclaration(
+    EnumMemberDeclarationSyntax node) => node;
+
+  public override SyntaxNode VisitCaseSwitchLabel(CaseSwitchLabelSyntax node) =>
+    node;
+
+  public override SyntaxNode VisitAttributeList(AttributeListSyntax node) =>
+    node;
+
+  public override SyntaxNode VisitParameterList(ParameterListSyntax node) =>
+    node;
+
+  public override SyntaxNode VisitBracketedParameterList(
+    BracketedParameterListSyntax node) => node;
+
+  public override SyntaxNode VisitTypeParameterList(
+    TypeParameterListSyntax node) => node;
+
+  public override SyntaxNode VisitCrefParameterList(
+    CrefParameterListSyntax node) => node;
+
+  public override SyntaxNode VisitCrefBracketedParameterList(
+    CrefBracketedParameterListSyntax node) => node;
+
+  public override SyntaxNode VisitFunctionPointerParameterList(
+    FunctionPointerParameterListSyntax node) => node;
+  
+  public override SyntaxNode
+    VisitRecursivePattern(RecursivePatternSyntax node) => node;
+
+  public override SyntaxNode VisitUsingDirective(UsingDirectiveSyntax node) =>
+    node;
+
+  public override SyntaxNode VisitFieldDeclaration(FieldDeclarationSyntax node)
+  {
+    return node.Modifiers.Any(modifier =>
+      modifier.IsKind(SyntaxKind.ConstKeyword)) ? node : base.VisitFieldDeclaration(node)!;
+  }
+
+  public override SyntaxNode VisitLocalDeclarationStatement(
+    LocalDeclarationStatementSyntax node)
+  {
+    return node.IsConst ? node : base.VisitLocalDeclarationStatement(node)!;
   }
 }
