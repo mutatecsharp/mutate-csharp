@@ -72,7 +72,7 @@ public sealed partial class CompoundAssignOpReplacer(
 
   protected override string SchemaBaseName(AssignmentExpressionSyntax _)
   {
-    return "ReplaceCompoundAssignmentOperator";
+    return "ReplaceCompoundAssignOp";
   }
 }
 
@@ -176,15 +176,3 @@ public sealed partial class CompoundAssignOpReplacer
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
     = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys).ToFrozenDictionary();
 }
-
-// SyntaxKind.AddAssignmentExpression,
-// SyntaxKind.SubtractAssignmentExpression,
-// SyntaxKind.MultiplyAssignmentExpression,
-// SyntaxKind.DivideAssignmentExpression,
-// SyntaxKind.ModuloAssignmentExpression,
-// SyntaxKind.AndAssignmentExpression,
-// SyntaxKind.ExclusiveOrAssignmentExpression,
-// SyntaxKind.OrAssignmentExpression,
-// SyntaxKind.LeftShiftAssignmentExpression,
-// SyntaxKind.RightShiftAssignmentExpression,
-// SyntaxKind.UnsignedRightShiftAssignmentExpression,

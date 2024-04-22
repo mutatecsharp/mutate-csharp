@@ -68,7 +68,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   protected override string SchemaBaseName(
     PrefixUnaryExpressionSyntax originalNode)
   {
-    return "ReplacePrefixUnaryExpressionOperator";
+    return $"ReplacePrefixUnaryExprOpReturn{ReturnType(originalNode)}";
   }
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>

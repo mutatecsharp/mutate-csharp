@@ -58,9 +58,9 @@ public sealed partial class BinExprOpReplacer(Assembly sutAssembly, SemanticMode
     return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
-  protected override string SchemaBaseName(BinaryExpressionSyntax _)
+  protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)
   {
-    return "ReplaceBinaryExpressionOperator";
+    return $"ReplaceBinExprOpReturn{ReturnType(originalNode)}";
   }
 }
 

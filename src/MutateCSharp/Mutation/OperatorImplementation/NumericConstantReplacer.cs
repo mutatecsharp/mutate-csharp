@@ -58,8 +58,7 @@ public sealed partial class NumericConstantReplacer(Assembly sutAssembly, Semant
   protected override string
     SchemaBaseName(LiteralExpressionSyntax originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
-    return $"ReplaceNumericConstant_{type}";
+    return $"ReplaceNumericConstantReturn{ReturnType(originalNode)}";
   }
 }
 

@@ -59,7 +59,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   protected override string SchemaBaseName(
     PostfixUnaryExpressionSyntax originalNode)
   {
-    return "ReplacePostfixUnaryExpressionOperator";
+    return $"ReplacePostfixUnaryExprOpReturn{ReturnType(originalNode)}";
   }
 }
 
