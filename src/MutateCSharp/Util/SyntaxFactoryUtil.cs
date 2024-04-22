@@ -42,4 +42,32 @@ public static class SyntaxFactoryUtil
     return SyntaxFactory.InvocationExpression(methodIdentifier,
       argumentListSyntax);
   }
+
+  public static InvocationExpressionSyntax CreateMethodCallWithFormedArguments(
+    string namespaceName, string className, string methodName,
+    params ArgumentSyntax[] arguments)
+  {
+    // Create the method identifier
+    var memberIdentifier = SyntaxFactory.MemberAccessExpression(
+      SyntaxKind.SimpleMemberAccessExpression,
+      SyntaxFactory.IdentifierName(namespaceName),
+      SyntaxFactory.IdentifierName(className)
+    );
+
+    var methodIdentifier = SyntaxFactory.MemberAccessExpression(
+      SyntaxKind.SimpleMemberAccessExpression,
+      memberIdentifier,
+      SyntaxFactory.IdentifierName(methodName)
+    );
+
+    // Create the argument list
+    var argumentList = SyntaxFactory.SeparatedList(arguments);
+
+    // Create the argument list syntax
+    var argumentListSyntax = SyntaxFactory.ArgumentList(argumentList);
+
+    // Return created method call expression
+    return SyntaxFactory.InvocationExpression(methodIdentifier,
+      argumentListSyntax);
+  }
 }

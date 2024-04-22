@@ -23,27 +23,22 @@ public class MutationRegistry
   private IDictionary<Mutation, MutationGroup>
     _mutationToMutationGroup = new Dictionary<Mutation, MutationGroup>();
 
-  private MutationId _idCounter;
+  private MutationId _idGenerator;
   
-  // Precondition: None of the mutations are registered
-  public void RegisterMutationGroup(MutationGroup mutationGroup)
+  public MutationId RegisterMutationGroupAndGetIdAssignment(MutationGroup mutationGroup)
   {
     // Mutation groups may have existed since different nodes under mutation
     // can generate an equivalent set of mutations
     _mutationGroups.Add(mutationGroup);
-    
-    // Update number of mutants created
-    _idCounter += mutationGroup.SchemaMutantExpressionsTemplate.Count;
+
+    var baseId = _idGenerator;
+    _idGenerator += mutationGroup.SchemaMutantExpressionsTemplate.Count;
+    return baseId;
   }
 
   public Mutation GetMutation(MutationId id)
   {
     return _mutations[id];
-  }
-
-  public MutationId GetMutationIdAssignment()
-  {
-    return _idCounter;
   }
 
   // Converts all underlying collections to frozen collections to optimise
