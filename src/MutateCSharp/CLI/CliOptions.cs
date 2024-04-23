@@ -11,8 +11,7 @@ internal sealed class CliOptions
     get => _absolutePath;
     init
     {
-      if (value.Intersect(Path.GetInvalidPathChars()).Any() ||
-          value.Intersect(Path.GetInvalidFileNameChars()).Any())
+      if (value.Intersect(Path.GetInvalidPathChars()).Any())
       {
         throw new ArgumentException("Unable to parse malformed path.");
       }
