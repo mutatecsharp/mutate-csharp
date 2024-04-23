@@ -1,14 +1,21 @@
-﻿Console.WriteLine(SumOfMultiplesOf3And5());
-return;
+﻿namespace CalculateMultiples;
 
-static long SumOfMultiplesOf3And5()
+class Example
 {
-  long sum = 0;
-  
-  for (var i = 0; i < 1000; i++)
+  public static long SumOfMultiplesOf3And5()
   {
-    if (i % 3 == 0 || i % 5 == 0) sum += i;
-  }
+    long sum = 0;
+  
+    for (var i = 0; i < 1000; i++)
+    {
+      if (i % 3 == 0 || i % 5 == 0) sum += i;
+    }
 
-  return sum;
+    return sum;
+  }
+  
+  public static void Main()
+  {
+    Console.WriteLine(SumOfMultiplesOf3And5());
+  }
 }
