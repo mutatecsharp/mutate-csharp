@@ -9,19 +9,17 @@ namespace MutateCSharp.CLI;
 
 internal static class CliHandler
 {
-  internal static async void RunOptions(CliOptions options)
+  internal static async Task RunOptions(CliOptions options)
   {
-    using var backup = new DirectoryBackup(Path.GetDirectoryName(options.AbsolutePath)!);
+    using var backup = new DirectoryBackup(Path.GetDirectoryName(options.AbsoluteSolutionPath)!);
     // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
     MSBuildLocator.RegisterDefaults();
     
     using var workspace = MSBuildWorkspace.Create();
     workspace.LoadMetadataForReferencedProjects = true;
     workspace.SkipUnrecognizedProjects = true;
-    
-    var solution = await workspace.OpenSolutionAsync(options.AbsolutePath);
-    var mutatedSolution =
-      await MutatorHarness.MutateSolution(workspace, solution);
+    var solution = await workspace.OpenSolutionAsync(options.AbsoluteSolutionPath);
+    _ = await MutatorHarness.MutateSolution(workspace, solution);
   }
 
   internal static void HandleParseError(IEnumerable<Error> errorIterator)
