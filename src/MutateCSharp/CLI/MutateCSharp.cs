@@ -11,9 +11,9 @@ try
     .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
     .CreateLogger();
 
-  var result = Parser.Default.ParseArguments<CliOptions>(args)
-    .WithParsed(CliHandler.RunOptions)
-    .WithNotParsed(CliHandler.HandleParseError);
+  var result = await Parser.Default.ParseArguments<CliOptions>(args)
+    .WithNotParsed(CliHandler.HandleParseError)
+    .WithParsedAsync(CliHandler.RunOptions);
 
   return (result.Tag is ParserResultType.Parsed) ? 0 : 1;
 }
