@@ -74,6 +74,9 @@ public static class MutantSchemataGenerator
   {
     return
       """
+      private static bool _initialised;
+      private static int _activatedMutantId;
+      
       private static void Initialise()
       {
         if (_initialised) return;
