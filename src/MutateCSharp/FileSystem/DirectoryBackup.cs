@@ -16,9 +16,15 @@ public sealed class DirectoryBackup : IDisposable
   {
     _originalDirectoryPath = directoryPath;
     _backupDirectoryPath = Path.Combine(directoryPath, BackupFolderName);
-    Log.Information("Temporary backup directory: {BackupDirectory}", _backupDirectoryPath);
     Directory.CreateDirectory(_backupDirectoryPath);
     CopyDirectoryContentsExceptBackup(_originalDirectoryPath, _backupDirectoryPath);
+  }
+
+  public static DirectoryBackup? BackupDirectoryIfNecessary(string directoryPath, bool necessary)
+  {
+    if (!necessary) return null;
+    Log.Information("Temporary backup directory: {BackupDirectory}", directoryPath);
+    return new DirectoryBackup(directoryPath);
   }
 
   public void Dispose()

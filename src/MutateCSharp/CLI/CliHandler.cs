@@ -11,7 +11,10 @@ internal static class CliHandler
 {
   internal static async Task RunOptions(CliOptions options)
   {
-    using var backup = new DirectoryBackup(Path.GetDirectoryName(options.AbsoluteSolutionPath)!);
+    using var backup = DirectoryBackup.BackupDirectoryIfNecessary(
+      Path.GetDirectoryName(options.AbsoluteSolutionPath)!,
+      options.Backup);
+      
     // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
     MSBuildLocator.RegisterDefaults();
     
