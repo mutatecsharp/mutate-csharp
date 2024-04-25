@@ -11,8 +11,7 @@ public class MutationGroup
 
   public override int GetHashCode()
   {
-    return HashCode.Combine(SchemaParameterTypes, SchemaReturnType,
-      SchemaMutantExpressionsTemplate);
+    return HashCode.Combine(SchemaName);
   }
   public override bool Equals(object? other)
   {
