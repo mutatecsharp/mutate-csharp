@@ -17,9 +17,10 @@ public static class MutantSchemataGenerator
   {
     return new ReadOnlySpan<object?>(PredefinedParameterNames, 0, count);
   }
-  
+
   // Method signature: public static <type> <method name> (int mutantId, <type1> <parameter1>, <type2> <parameter2>, ...)
-  private static StringBuilder GenerateSchemaMethodSignature(MutationGroup mutationGroup)
+  private static StringBuilder GenerateSchemaMethodSignature(
+    MutationGroup mutationGroup)
   {
     var result = new StringBuilder();
 
@@ -28,40 +29,38 @@ public static class MutantSchemataGenerator
     );
 
     for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
-    {
       result.Append(
         $", {mutationGroup.SchemaParameterTypes[i]} {PredefinedParameterNames[i]}");
-    }
 
     result.Append(')');
     result.AppendLine();
     return result;
   }
-  
+
   private static StringBuilder GenerateSchemaCases(MutationGroup mutationGroup)
   {
     var result = new StringBuilder();
-    
+
     // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) return originalExpression;
     result.Append(
-      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressionsTemplate.Count - 1})) return ");
+      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Count - 1})) return ");
     result.AppendFormat(null,
-      CompositeFormat.Parse(mutationGroup.SchemaOriginalExpressionTemplate),
+      CompositeFormat.Parse(mutationGroup.SchemaOriginalExpression.ExpressionTemplate),
       RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
     result.Append(';');
     result.AppendLine();
-    
+
     // Case: if (_activatedMutantId == mutantId + i) return mutatedExpression;
-    for (var i = 0; i < mutationGroup.SchemaMutantExpressionsTemplate.Count; i++)
+    for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Count; i++)
     {
       result.Append($"if (_activatedMutantId == mutantId + {i}) return ");
       result.AppendFormat(null,
-        CompositeFormat.Parse(mutationGroup.SchemaMutantExpressionsTemplate[i]),
+        CompositeFormat.Parse(mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate),
         RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
       result.Append(';');
       result.AppendLine();
     }
-    
+
     // Default case: throw new System.Diagnostics.UnreachableException("Mutant ID out of range");
     result.Append(
       "throw new System.Diagnostics.UnreachableException(\"Mutant ID out of range\");");
@@ -76,7 +75,7 @@ public static class MutantSchemataGenerator
       """
       private static bool _initialised;
       private static int _activatedMutantId;
-      
+
       private static void Initialise()
       {
         if (_initialised) return;
@@ -92,8 +91,9 @@ public static class MutantSchemataGenerator
       }
       """;
   }
-  
-  public static StringBuilder GenerateIndividualSchema(MutationGroup mutationGroup)
+
+  public static StringBuilder GenerateIndividualSchema(
+    MutationGroup mutationGroup)
   {
     var result = new StringBuilder();
 
@@ -106,8 +106,9 @@ public static class MutantSchemataGenerator
 
     return result;
   }
-  
-  public static StringBuilder GenerateSchemata(IEnumerable<MutationGroup> mutationGroups)
+
+  public static StringBuilder GenerateSchemata(
+    IEnumerable<MutationGroup> mutationGroups)
   {
     var result = new StringBuilder();
 
@@ -136,17 +137,18 @@ public static class MutantSchemataGenerator
     return result;
   }
 
-  
-  public static NamespaceDeclarationSyntax? GenerateSchemataSyntax(MutationRegistry registry)
+
+  public static NamespaceDeclarationSyntax? GenerateSchemataSyntax(
+    MutantSchemaRegistry registry)
   {
     var mutationGroups = registry.GetAllMutationGroups();
     if (mutationGroups.Count == 0) return null;
-    
+
     var schemata = GenerateSchemata(registry.GetAllMutationGroups());
     var ast = CSharpSyntaxTree.ParseText(schemata.ToString());
     var syntax = ast.GetCompilationUnitRoot().Members
       .OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
-    
+
     return syntax;
   }
 }

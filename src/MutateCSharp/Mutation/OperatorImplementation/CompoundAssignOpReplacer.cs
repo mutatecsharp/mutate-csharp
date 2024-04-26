@@ -18,40 +18,47 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
  * binary operator. (eg: += from +)
  */
 public sealed partial class CompoundAssignOpReplacer(
-  Assembly sutAssembly, SemanticModel semanticModel) :
-  AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly, semanticModel)
+  Assembly sutAssembly,
+  SemanticModel semanticModel) :
+  AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly,
+    semanticModel)
 {
   protected override bool CanBeApplied(AssignmentExpressionSyntax originalNode)
   {
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
-  
+
   private static string ExpressionTemplate(SyntaxKind kind)
   {
     return $"{{0}} {SupportedOperators[kind]} {{1}}";
   }
-  
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp> SupportedBinaryOperators()
+
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+    SupportedBinaryOperators()
   {
     return SupportedOperators;
   }
 
-  protected override string OriginalExpressionTemplate(
+  protected override ExpressionRecord OriginalExpression(
     AssignmentExpressionSyntax originalNode)
   {
-    return ExpressionTemplate(originalNode.Kind());
+    return new ExpressionRecord(originalNode.Kind(),
+      ExpressionTemplate(originalNode.Kind()));
   }
 
-  protected override IList<(int, string)> ValidMutantExpressionsTemplate(
-    AssignmentExpressionSyntax originalNode)
+  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(
+      AssignmentExpressionSyntax originalNode)
   {
     var validMutants = ValidMutants(originalNode);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
     return attachIdToMutants.Select(entry =>
-        (entry.Item1, ExpressionTemplate(entry.Item2)))
-      .ToList();
+      (entry.Item1,
+        new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+      )
+    ).ToList();
   }
 
   protected override IList<string> ParameterTypes(
@@ -63,7 +70,7 @@ public sealed partial class CompoundAssignOpReplacer(
       SemanticModel.GetTypeInfo(originalNode.Right).Type!.ToDisplayString();
     return [$"ref {firstVariableType}", secondVariableType];
   }
-  
+
   // Void type since operator updates value in place
   protected override string ReturnType(AssignmentExpressionSyntax _)
   {
@@ -94,85 +101,86 @@ public sealed partial class CompoundAssignOpReplacer
         // Supported arithmetic assignment operations (+=, -=, *=, /=, %=)
         {
           SyntaxKind.AddAssignmentExpression,
-          new(ExprKind: SyntaxKind.AddAssignmentExpression,
-          TokenKind: SyntaxKind.PlusEqualsToken,
-          MemberName: WellKnownMemberNames.AdditionOperatorName,
-          TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.AddAssignmentExpression,
+            SyntaxKind.PlusEqualsToken,
+            WellKnownMemberNames.AdditionOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.SubtractAssignmentExpression,
-          new(ExprKind: SyntaxKind.SubtractAssignmentExpression,
-            TokenKind: SyntaxKind.MinusEqualsToken,
-            MemberName: WellKnownMemberNames.SubtractionOperatorName,
-            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.SubtractAssignmentExpression,
+            SyntaxKind.MinusEqualsToken,
+            WellKnownMemberNames.SubtractionOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.MultiplyAssignmentExpression,
-          new(ExprKind: SyntaxKind.MultiplyAssignmentExpression,
-            TokenKind: SyntaxKind.AsteriskEqualsToken,
-            MemberName: WellKnownMemberNames.MultiplyOperatorName,
-            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.MultiplyAssignmentExpression,
+            SyntaxKind.AsteriskEqualsToken,
+            WellKnownMemberNames.MultiplyOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.DivideAssignmentExpression,
-          new(ExprKind: SyntaxKind.DivideAssignmentExpression,
-            TokenKind: SyntaxKind.SlashEqualsToken,
-            MemberName: WellKnownMemberNames.DivisionOperatorName,
-            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.DivideAssignmentExpression,
+            SyntaxKind.SlashEqualsToken,
+            WellKnownMemberNames.DivisionOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.ModuloAssignmentExpression,
-          new(ExprKind: SyntaxKind.ModuloAssignmentExpression,
-            TokenKind: SyntaxKind.PercentEqualsToken,
-            MemberName: WellKnownMemberNames.ModulusOperatorName,
-            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.ModuloAssignmentExpression,
+            SyntaxKind.PercentEqualsToken,
+            WellKnownMemberNames.ModulusOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         // Supported boolean/integral bitwise logical operations (&=, |=, ^=)
         {
           SyntaxKind.AndAssignmentExpression,
-          new(ExprKind: SyntaxKind.AndAssignmentExpression,
-            TokenKind: SyntaxKind.AmpersandEqualsToken,
-            MemberName: WellKnownMemberNames.BitwiseAndOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+          new(SyntaxKind.AndAssignmentExpression,
+            SyntaxKind.AmpersandEqualsToken,
+            WellKnownMemberNames.BitwiseAndOperatorName,
+            CodeAnalysisUtil.BitwiseLogicalTypeSignature)
         },
         {
           SyntaxKind.OrAssignmentExpression,
-          new(ExprKind: SyntaxKind.OrAssignmentExpression,
-            TokenKind: SyntaxKind.BarEqualsToken,
-            MemberName: WellKnownMemberNames.BitwiseOrOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+          new(SyntaxKind.OrAssignmentExpression,
+            SyntaxKind.BarEqualsToken,
+            WellKnownMemberNames.BitwiseOrOperatorName,
+            CodeAnalysisUtil.BitwiseLogicalTypeSignature)
         },
         {
           SyntaxKind.ExclusiveOrAssignmentExpression,
-          new(ExprKind: SyntaxKind.ExclusiveOrAssignmentExpression,
-            TokenKind: SyntaxKind.CaretEqualsToken,
-            MemberName: WellKnownMemberNames.ExclusiveOrOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+          new(SyntaxKind.ExclusiveOrAssignmentExpression,
+            SyntaxKind.CaretEqualsToken,
+            WellKnownMemberNames.ExclusiveOrOperatorName,
+            CodeAnalysisUtil.BitwiseLogicalTypeSignature)
         },
         // Supported integral bitwise shift operations (<<=, >>=, >>>=)
         {
           SyntaxKind.LeftShiftAssignmentExpression,
-          new(ExprKind: SyntaxKind.LeftShiftAssignmentExpression,
-            TokenKind: SyntaxKind.LessThanLessThanEqualsToken,
-            MemberName: WellKnownMemberNames.LeftShiftOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+          new(SyntaxKind.LeftShiftAssignmentExpression,
+            SyntaxKind.LessThanLessThanEqualsToken,
+            WellKnownMemberNames.LeftShiftOperatorName,
+            CodeAnalysisUtil.BitwiseShiftTypeSignature)
         },
         {
           SyntaxKind.RightShiftAssignmentExpression,
-          new(ExprKind: SyntaxKind.RightShiftAssignmentExpression,
-            TokenKind: SyntaxKind.GreaterThanGreaterThanEqualsToken,
-            MemberName: WellKnownMemberNames.RightShiftOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+          new(SyntaxKind.RightShiftAssignmentExpression,
+            SyntaxKind.GreaterThanGreaterThanEqualsToken,
+            WellKnownMemberNames.RightShiftOperatorName,
+            CodeAnalysisUtil.BitwiseShiftTypeSignature)
         },
         {
           SyntaxKind.UnsignedRightShiftAssignmentExpression,
-          new(ExprKind: SyntaxKind.UnsignedRightShiftAssignmentExpression,
-            TokenKind: SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
-            MemberName: WellKnownMemberNames.UnsignedRightShiftOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+          new(SyntaxKind.UnsignedRightShiftAssignmentExpression,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+            WellKnownMemberNames.UnsignedRightShiftOperatorName,
+            CodeAnalysisUtil.BitwiseShiftTypeSignature)
         }
       }.ToFrozenDictionary();
-  
+
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
-    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys).ToFrozenDictionary();
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys)
+      .ToFrozenDictionary();
 }

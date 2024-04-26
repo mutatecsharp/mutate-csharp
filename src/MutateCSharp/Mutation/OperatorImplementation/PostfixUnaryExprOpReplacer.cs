@@ -8,7 +8,8 @@ using MutateCSharp.Util;
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
 public sealed partial class PostfixUnaryExprOpReplacer(
-  Assembly sutAssembly, SemanticModel semanticModel)
+  Assembly sutAssembly,
+  SemanticModel semanticModel)
   : AbstractUnaryMutationOperator<PostfixUnaryExpressionSyntax>(
     sutAssembly, semanticModel)
 {
@@ -17,28 +18,39 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   {
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
-  
+
   public static string ExpressionTemplate(SyntaxKind kind)
-    => $"{{0}}{SupportedOperators[kind]}";
+  {
+    return $"{{0}}{SupportedOperators[kind]}";
+  }
 
-  protected override string OriginalExpressionTemplate(
+  protected override ExpressionRecord OriginalExpression(
     PostfixUnaryExpressionSyntax originalNode)
-    => ExpressionTemplate(originalNode.Kind());
+  {
+    return new ExpressionRecord(originalNode.Kind(),
+      ExpressionTemplate(originalNode.Kind()));
+  }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp> SupportedUnaryOperators()
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+    SupportedUnaryOperators()
   {
     return SupportedOperators;
   }
-  
-  protected override IList<(int, string)> ValidMutantExpressionsTemplate(PostfixUnaryExpressionSyntax originalNode)
+
+  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(PostfixUnaryExpressionSyntax originalNode)
   {
     var validMutants = ValidMutants(originalNode);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
     return attachIdToMutants.Select(entry =>
-      (entry.Item1, ExpressionTemplate(entry.Item2))).ToList();
+      (entry.Item1,
+        new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+      )
+    ).ToList();
   }
+
   protected override IList<string> ParameterTypes(
     PostfixUnaryExpressionSyntax originalNode)
   {
@@ -46,7 +58,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     // postincrement or postdecrement, they are guaranteed to be updatable
     var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).Type!
       .ToDisplayString();
-    
+
     return [$"ref {operandType}"];
   }
 
@@ -71,17 +83,17 @@ public sealed partial class PostfixUnaryExprOpReplacer
       {
         {
           SyntaxKind.PostIncrementExpression, // x++
-          new(ExprKind: SyntaxKind.PostIncrementExpression,
-            TokenKind: SyntaxKind.PlusPlusToken,
-            MemberName: WellKnownMemberNames.IncrementOperatorName,
-            TypeSignatures: CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+          new(SyntaxKind.PostIncrementExpression,
+            SyntaxKind.PlusPlusToken,
+            WellKnownMemberNames.IncrementOperatorName,
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
         },
         {
           SyntaxKind.PostDecrementExpression, //x--
-          new(ExprKind: SyntaxKind.PostDecrementExpression,
-            TokenKind: SyntaxKind.MinusMinusToken,
-            MemberName: WellKnownMemberNames.DecrementOperatorName,
-            TypeSignatures: CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+          new(SyntaxKind.PostDecrementExpression,
+            SyntaxKind.MinusMinusToken,
+            WellKnownMemberNames.DecrementOperatorName,
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
         }
       }.ToFrozenDictionary();
 

@@ -11,16 +11,19 @@ public enum FileExtension
 
 public static class FileExtensionConstants
 {
-  private static readonly FrozenDictionary<FileExtension, string> FileExtensions = 
-    new Dictionary<FileExtension, string>
-  {
-    [FileExtension.Solution] = ".sln",
-    [FileExtension.Project] = ".csproj",
-    [FileExtension.CSharpSourceFile] = ".cs",
-  }.ToFrozenDictionary();
+  private static readonly FrozenDictionary<FileExtension, string>
+    FileExtensions =
+      new Dictionary<FileExtension, string>
+      {
+        [FileExtension.Solution] = ".sln",
+        [FileExtension.Project] = ".csproj",
+        [FileExtension.CSharpSourceFile] = ".cs"
+      }.ToFrozenDictionary();
 
   public static string ToFriendlyString(this FileExtension fileExtension)
   {
-    return FileExtensions.TryGetValue(fileExtension, out var extension) ? extension : string.Empty;
+    return FileExtensions.TryGetValue(fileExtension, out var extension)
+      ? extension
+      : string.Empty;
   }
 }

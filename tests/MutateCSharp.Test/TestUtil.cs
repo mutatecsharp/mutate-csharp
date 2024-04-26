@@ -144,6 +144,11 @@ public static class TestUtil
     return mutationGroups;
   }
 
+  public static IEnumerable<string> GetMutantExpressionTemplates(
+    MutationGroup group)
+    => group.SchemaMutantExpressions.Select(mutant =>
+      mutant.ExpressionTemplate);
+
   public static IEnumerable<object[]>
     GenerateMutationTestCases(IEnumerable<string> operatorGroup)
   {

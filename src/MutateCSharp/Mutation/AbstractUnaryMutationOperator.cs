@@ -8,9 +8,10 @@ using MutateCSharp.Util;
 namespace MutateCSharp.Mutation;
 
 public abstract class AbstractUnaryMutationOperator<T>(
-  Assembly sutAssembly, SemanticModel semanticModel)
-: AbstractMutationOperator<T>(sutAssembly, semanticModel)
-  where T: ExpressionSyntax // currently support prefix or postfix unary expression
+  Assembly sutAssembly,
+  SemanticModel semanticModel)
+  : AbstractMutationOperator<T>(sutAssembly, semanticModel)
+  where T : ExpressionSyntax // currently support prefix or postfix unary expression
 {
   public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
     SupportedUnaryOperators();
@@ -24,24 +25,22 @@ public abstract class AbstractUnaryMutationOperator<T>(
       _ => null
     };
   }
-  
+
   protected IEnumerable<SyntaxKind> ValidMutants(T originalNode)
   {
     var operandNode = GetOperand(originalNode);
     if (operandNode == null) return Array.Empty<SyntaxKind>();
-    
+
     var operandType = SemanticModel.GetTypeInfo(operandNode).Type!;
-    
+
     // Case 1: Predefined types
     if (operandType.SpecialType != SpecialType.None)
-    {
       return SupportedUnaryOperators()
         .Where(replacementOpEntry =>
           CanApplyOperatorForSpecialTypes(originalNode,
             replacementOpEntry.Value))
         .Select(replacementOpEntry => replacementOpEntry.Key);
-    }
-    
+
     // Case 2: User-defined types (type.SpecialType == SpecialType.None)
     return SupportedUnaryOperators()
       .Where(replacementOpEntry =>
@@ -50,7 +49,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
       .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
   }
 
-  
+
   /*
    * For an operator to be applicable to a special type:
    * 1) The replacement operator must differ from the original operator;
@@ -62,7 +61,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
   {
     // Reject if the replacement candidate is the same as the original operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
-    
+
     // 1) Get the operand type name and return type name
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
@@ -81,7 +80,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
                         && signature.ReturnType.HasFlag(
                           returnTypeClassification));
   }
-  
+
   /*
    * In C# the overloaded increment/decrement operator must have the
    * parameter type and the return type the same as the class type.
@@ -123,7 +122,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
   {
     // Reject if the replacement candidate is the same as the original operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
-    
+
     // 1) Get the operand type name and return type name
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
@@ -141,11 +140,11 @@ public abstract class AbstractUnaryMutationOperator<T>(
     var returnType = SutAssembly.GetType(returnTypeName) ??
                      Type.GetType(returnTypeName);
     if (operandType == null || returnType == null) return false;
-    
+
     // 3) Get replacement operator method
     var replacementOpMethod =
       operandType.GetMethod(replacementOp.MemberName, [operandType]);
-    
+
     // 4) Replacement operator is valid if its return type is assignable to
     // the original operator return type
     return replacementOpMethod != null &&

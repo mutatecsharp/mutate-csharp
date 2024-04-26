@@ -51,9 +51,9 @@ public class BooleanConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo(["bool"]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("bool");
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["!{0}"]);
   }
 
@@ -108,9 +108,9 @@ public class BooleanConstantReplacerTest(ITestOutputHelper testOutputHelper)
     {
       mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo(["bool"]);
       mutationGroup.SchemaReturnType.Should().BeEquivalentTo("bool");
-      mutationGroup.SchemaOriginalExpressionTemplate.Should()
+      mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
         .BeEquivalentTo("{0}");
-      mutationGroup.SchemaMutantExpressionsTemplate.Should()
+      TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
         .BeEquivalentTo(["!{0}"]);
     }
   }

@@ -106,18 +106,18 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be(integralType);
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{originalOperator}{{0}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .NotContain(originalOperator);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{op}{{0}}");
 
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(validMutantExpressionsTemplate);
   }
   
@@ -160,18 +160,18 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be(integralType);
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{originalOperator}{{0}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .NotContain(originalOperator);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{op}{{0}}");
 
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(validMutantExpressionsTemplate);
   }
   
@@ -221,18 +221,18 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be(fpType);
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{originalOperator}{{0}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .NotContain(originalOperator);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{op}{{0}}");
 
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(validMutantExpressionsTemplate);
   }
 
@@ -275,19 +275,19 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be(fpType);
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{originalOperator}{{0}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
-      .NotContain(originalOperator);
+    var mutantExpressions =
+      TestUtil.GetMutantExpressionTemplates(mutationGroup).ToHashSet();
+    mutantExpressions.Should().NotContain(originalOperator);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{op}{{0}}");
 
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
-      .BeEquivalentTo(validMutantExpressionsTemplate);
+    mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
   
   [Theory]
@@ -338,11 +338,11 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("B");
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{originalOperator}{{0}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo([$"{replacementOperator}{{0}}"]);
   }
   
@@ -380,8 +380,8 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     // mutant expression qualifies as return type B is assignable to A 
     mutationGroup.SchemaReturnType.Should().Be("A");
     mutationGroup.SchemaParameterTypes.Should().Equal("A");
-    mutationGroup.SchemaOriginalExpressionTemplate.Should().Be("+{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be("+{0}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["-{0}"]);
   }
 
@@ -416,8 +416,9 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     foreach (var group in mutationGroups)
     {
       group.SchemaParameterTypes.Should().Equal("ref int");
-      group.SchemaMutantExpressionsTemplate.Should().Contain("++{0}");
-      group.SchemaMutantExpressionsTemplate.Should().Contain("--{0}");
+      var mutantExpressions = TestUtil.GetMutantExpressionTemplates(group).ToHashSet();
+      mutantExpressions.Should().Contain("++{0}");
+      mutantExpressions.Should().Contain("--{0}");
     }
   }
   
@@ -452,8 +453,9 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     foreach (var group in mutationGroups)
     {
       group.SchemaParameterTypes.Should().Equal("int");
-      group.SchemaMutantExpressionsTemplate.Should().NotContain("++{0}");
-      group.SchemaMutantExpressionsTemplate.Should().NotContain("--{0}");
+      var mutantExpressions = TestUtil.GetMutantExpressionTemplates(group).ToHashSet();
+      mutantExpressions.Should().Contain("++{0}");
+      mutantExpressions.Should().Contain("--{0}");
     }
   }
 }

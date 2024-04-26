@@ -10,7 +10,7 @@ public static class SyntaxFactoryUtil
     return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,
       SyntaxFactory.Literal(value));
   }
-  
+
   public static InvocationExpressionSyntax CreateMethodCall(
     string namespaceName,
     string className,

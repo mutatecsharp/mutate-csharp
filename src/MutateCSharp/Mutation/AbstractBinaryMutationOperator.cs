@@ -8,7 +8,8 @@ using MutateCSharp.Util;
 namespace MutateCSharp.Mutation;
 
 public abstract class AbstractBinaryMutationOperator<T>(
-  Assembly sutAssembly, SemanticModel semanticModel)
+  Assembly sutAssembly,
+  SemanticModel semanticModel)
   : AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T : ExpressionSyntax // currently support binary expression and assignment expression
 {
@@ -49,13 +50,11 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // necessity to check the operand type
     if (leftType.SpecialType != SpecialType.None
         && rightType.SpecialType != SpecialType.None)
-    {
       return SupportedBinaryOperators()
         .Where(replacementOpEntry
           => CanApplyOperatorForSpecialTypes(
             originalNode, replacementOpEntry.Value))
         .Select(replacementOpEntry => replacementOpEntry.Key);
-    }
 
     // Case 2: User-defined types
     // At this point, either the left or right operand is user-defined
@@ -167,15 +166,18 @@ public abstract class AbstractBinaryMutationOperator<T>(
   {
     // Reject if the original operator is the same as the replacement operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
-    
+
     // 1) Get the types of variables involved in the original binary operator
     var left = GetLeftOperand(originalNode);
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return false;
 
-    var leftOperandTypeName = SemanticModel.GetTypeInfo(left).Type!.ToClrTypeName();
-    var rightOperandTypeName = SemanticModel.GetTypeInfo(right).Type!.ToClrTypeName();
-    var originalReturnTypeName = SemanticModel.GetTypeInfo(originalNode).Type!.ToClrTypeName();
+    var leftOperandTypeName =
+      SemanticModel.GetTypeInfo(left).Type!.ToClrTypeName();
+    var rightOperandTypeName =
+      SemanticModel.GetTypeInfo(right).Type!.ToClrTypeName();
+    var originalReturnTypeName =
+      SemanticModel.GetTypeInfo(originalNode).Type!.ToClrTypeName();
 
     var leftOperandType = SutAssembly.GetType(leftOperandTypeName) ??
                           Type.GetType(leftOperandTypeName);
@@ -185,12 +187,10 @@ public abstract class AbstractBinaryMutationOperator<T>(
                              Type.GetType(originalReturnTypeName);
 
     // Type information not available in SUT assembly and mscorlib assembly
-    if (leftOperandType == null 
+    if (leftOperandType == null
         || rightOperandType == null
         || originalReturnType == null)
-    {
       return false;
-    }
 
     // 2) Get overloaded operator methods from operand user-defined types
     //
@@ -205,23 +205,21 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // No match for the overloaded operator from both operand types is found
     if (leftReplacementOpMethod == null && rightReplacementOpMethod == null)
       return false;
-    
+
     // If one of the methods are null, we trivially select the non-null method
     // as the replacement operator method
     var replacementOpMethod =
-      leftReplacementOpMethod == null ? rightReplacementOpMethod 
-        : rightReplacementOpMethod == null ? leftReplacementOpMethod : null;
+      leftReplacementOpMethod == null ? rightReplacementOpMethod
+      : rightReplacementOpMethod == null ? leftReplacementOpMethod : null;
 
     // 3) Apply tiebreaks by selecting operator with more specific parameter types
     if (replacementOpMethod == null)
-    {
       replacementOpMethod = DetermineBetterFunctionMember(
         leftReplacementOpMethod!, rightReplacementOpMethod!);
-    }
 
     // Tiebreak failed
     if (replacementOpMethod == null) return false;
-    
+
     // 4) Check if replacement operator method return type is assignable to
     // original operator method return type
     return replacementOpMethod.ReturnType.IsAssignableTo(

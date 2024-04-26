@@ -7,15 +7,15 @@ try
 {
   Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
-    .WriteTo.File(path: "log.txt")
-    .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
+    .WriteTo.File("log.txt")
+    .WriteTo.Console(LogEventLevel.Information)
     .CreateLogger();
 
   var result = await Parser.Default.ParseArguments<CliOptions>(args)
     .WithNotParsed(CliHandler.HandleParseError)
     .WithParsedAsync(CliHandler.RunOptions);
 
-  return (result.Tag is ParserResultType.Parsed) ? 0 : 1;
+  return result.Tag is ParserResultType.Parsed ? 0 : 1;
 }
 catch (Exception e)
 {

@@ -70,9 +70,9 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["-{0}", "0", "{0} - 1", "{0} + 1"]);
   }
 
@@ -104,9 +104,9 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["0", "{0} - 1", "{0} + 1"]);
   }
   
@@ -137,9 +137,9 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["0", "{0} - 1", "{0} + 1"]);
   }
   
@@ -177,9 +177,9 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["0", "-{0}", "{0} - 1", "{0} + 1"]);
   }
   
@@ -219,9 +219,9 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
       var mutationGroup = GetValidMutationGroup(input);
       mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo(["decimal"]);
       mutationGroup.SchemaReturnType.Should().BeEquivalentTo("decimal");
-      mutationGroup.SchemaOriginalExpressionTemplate.Should()
+      mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
         .BeEquivalentTo("{0}");
-      mutationGroup.SchemaMutantExpressionsTemplate.Should()
+      TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
         .BeEquivalentTo(["0", "-{0}", "{0} - 1", "{0} + 1"]);
     }
   }

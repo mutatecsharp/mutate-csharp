@@ -50,11 +50,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("bool");
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Count.Should()
+    mutationGroup.SchemaMutantExpressions.Count.Should()
       .Be(expectedReplacementOperators.Length);
 
     // The expressions should match (regardless of order)
@@ -62,8 +62,8 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}")
         .ToHashSet();
 
-    mutationGroup.SchemaMutantExpressionsTemplate.ToHashSet()
-      .SetEquals(validMutantExpressionsTemplate).Should().BeTrue();
+    TestUtil.GetMutantExpressionTemplates(mutationGroup)
+      .Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
 
   private static IDictionary<string, string> IntegralTypes =
@@ -133,22 +133,22 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     // applicable
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
-      .NotContain(originalOperator);
-    mutationGroup.SchemaMutantExpressionsTemplate.Count.Should()
-      .Be(expectedReplacementOperators.Length);
+    var mutantExpressions =
+      mutationGroup.SchemaMutantExpressions.Select(mutant =>
+        mutant.ExpressionTemplate).ToHashSet();
+    
+    mutantExpressions.Should().NotContain(originalOperator);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}")
         .ToHashSet();
 
-    mutationGroup.SchemaMutantExpressionsTemplate.ToHashSet()
-      .SetEquals(validMutantExpressionsTemplate).Should().BeTrue();
+    mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
 
   private static IDictionary<string, string> FloatingPointTypes =
@@ -195,21 +195,22 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
-      .NotContain(originalOperator);
-    mutationGroup.SchemaMutantExpressionsTemplate.Count.Should()
+    var mutantExpressions =
+      mutationGroup.SchemaMutantExpressions.Select(mutant =>
+        mutant.ExpressionTemplate).ToHashSet();
+    mutantExpressions.Should().NotContain(originalOperator);
+    mutantExpressions.Count.Should()
       .Be(expectedReplacementOperators.Length);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
 
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
-      .BeEquivalentTo(validMutantExpressionsTemplate);
+    mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
 
   [Theory]
@@ -272,11 +273,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("B");
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
   }
 
@@ -435,8 +436,8 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     // mutant expression qualifies as return type B is assignable to A 
     mutationGroup.SchemaReturnType.Should().Be("A");
     mutationGroup.SchemaParameterTypes.Should().Equal("A", "B");
-    mutationGroup.SchemaOriginalExpressionTemplate.Should().Be("{0} - {1}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be("{0} - {1}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["{0} + {1}"]);
   }
 

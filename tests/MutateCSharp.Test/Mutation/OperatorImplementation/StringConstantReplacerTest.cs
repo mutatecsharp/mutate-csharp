@@ -49,9 +49,9 @@ public class StringConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo(["string"]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("string");
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["string.Empty"]);
   }
 
@@ -108,9 +108,9 @@ public class StringConstantReplacerTest(ITestOutputHelper testOutputHelper)
     {
       mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo(["string"]);
       mutationGroup.SchemaReturnType.Should().BeEquivalentTo("string");
-      mutationGroup.SchemaOriginalExpressionTemplate.Should()
+      mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
         .BeEquivalentTo("{0}");
-      mutationGroup.SchemaMutantExpressionsTemplate.Should()
+      TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
         .BeEquivalentTo(["string.Empty"]);
     }
   }

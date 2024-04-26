@@ -5,12 +5,13 @@ using Microsoft.CodeAnalysis;
 namespace MutateCSharp.Mutation;
 
 public abstract class AbstractMutationOperator<T>(
-  Assembly assembly, SemanticModel semanticModel)
-  : IMutationOperator 
+  Assembly assembly,
+  SemanticModel semanticModel)
+  : IMutationOperator
   where T : SyntaxNode
 {
-  protected readonly Assembly SutAssembly = assembly;
   protected readonly SemanticModel SemanticModel = semanticModel;
+  protected readonly Assembly SutAssembly = assembly;
 
   // Check that mutation operator can be applied on currently visited node.
   // Should be run before other methods in this class are called.
@@ -26,34 +27,34 @@ public abstract class AbstractMutationOperator<T>(
     if (!CanBeApplied(originalNode)) return null;
     var node = (T)originalNode!;
 
-    var mutationsWithId = ValidMutantExpressionsTemplate(node);
+    var mutationsWithId = ValidMutantExpressions(node);
     if (mutationsWithId.Count == 0) return null;
 
-    var mutations = mutationsWithId.Select(entry => entry.Item2);
+    var mutations = mutationsWithId.Select(entry => entry.expr);
     var uniqueMutantsId =
-      string.Join("", mutationsWithId.Select(entry => entry.Item1));
+      string.Join("", mutationsWithId.Select(entry => entry.exprIdInMutator));
 
     return new MutationGroup
     {
       SchemaName = $"{SchemaBaseName(node)}{uniqueMutantsId}",
       SchemaParameterTypes = ParameterTypes(node),
       SchemaReturnType = ReturnType(node),
-      SchemaOriginalExpressionTemplate =
-        OriginalExpressionTemplate(node),
-      SchemaMutantExpressionsTemplate = mutations.ToImmutableArray()
+      SchemaOriginalExpression = OriginalExpression(node),
+      SchemaMutantExpressions = mutations.ToImmutableArray(),
+      OriginalLocation = node.GetLocation()
     };
   }
 
   protected abstract bool CanBeApplied(T originalNode);
 
-  protected abstract string OriginalExpressionTemplate(T originalNode);
+  protected abstract ExpressionRecord OriginalExpression(T originalNode);
 
   // Generate list of valid mutations for the currently visited node, in the
   // form of string template to be formatted later to insert arguments.
-  // Each valid name is given an ID that is unique within the context of the
-  // mutation operator class.
-  protected abstract IList<(int, string)> ValidMutantExpressionsTemplate(
-    T originalNode);
+  // Each valid candidate is statically assigned an ID that is unique within
+  // the context of the mutation operator class.
+  protected abstract IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(T originalNode);
 
   // Parameter type of the programming construct.
   protected abstract IList<string> ParameterTypes(T originalNode);

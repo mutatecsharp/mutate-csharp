@@ -49,18 +49,18 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("void");
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Count.Should()
-      .Be(expectedReplacementOperators.Length);
+    var mutantExpressions = TestUtil.GetMutantExpressionTemplates(mutationGroup).ToArray();
+    mutantExpressions.Length.Should().Be(expectedReplacementOperators.Length);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
 
-    mutationGroup.SchemaMutantExpressionsTemplate.Should().BeEquivalentTo(validMutantExpressionsTemplate);
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
 
   private static IDictionary<string, string> IntegralTypes = new Dictionary<string, string>
@@ -113,17 +113,17 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("void");
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Count.Should()
-      .Be(expectedReplacementOperators.Length);
+    var mutantExpressions = TestUtil.GetMutantExpressionTemplates(mutationGroup).ToArray();
+    mutantExpressions.Length.Should().Be(expectedReplacementOperators.Length);
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
-    mutationGroup.SchemaMutantExpressionsTemplate.Should().BeEquivalentTo(validMutantExpressionsTemplate);
+    mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
   
   private static IDictionary<string, string> FloatingPointTypes = new Dictionary<string, string>
@@ -169,18 +169,19 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
      mutationGroup.SchemaReturnType.Should().BeEquivalentTo("void");
 
      // Expression template checks
-     mutationGroup.SchemaOriginalExpressionTemplate.Should()
+     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
        .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
      // The mutation operator should not be able to mutate the compound assignment
      // operator to itself
-     mutationGroup.SchemaMutantExpressionsTemplate.Count.Should()
-       .Be(expectedReplacementOperators.Length);
+     var mutantExpressions =
+       TestUtil.GetMutantExpressionTemplates(mutationGroup).ToArray();
+     mutantExpressions.Length.Should().Be(expectedReplacementOperators.Length);
 
      // The expressions should match (regardless of order)
      var validMutantExpressionsTemplate
        = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
 
-     mutationGroup.SchemaMutantExpressionsTemplate.Should().BeEquivalentTo(validMutantExpressionsTemplate);
+     mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
    }
 
   [Theory]
@@ -237,11 +238,11 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("void");
 
     // Expression template checks
-    mutationGroup.SchemaOriginalExpressionTemplate.Should()
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator}= {{1}}");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressionsTemplate.Should()
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo([$"{{0}} {replacementOperator}= {{1}}"]);
   }
 

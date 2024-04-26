@@ -25,14 +25,20 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   }
 
   public static string ExpressionTemplate(SyntaxKind kind)
-    => $"{SupportedOperators[kind]}{{0}}";
+  {
+    return $"{SupportedOperators[kind]}{{0}}";
+  }
 
-  protected override string OriginalExpressionTemplate(
+  protected override ExpressionRecord OriginalExpression(
     PrefixUnaryExpressionSyntax originalNode)
-    => ExpressionTemplate(originalNode.Kind());
+  {
+    return new ExpressionRecord(originalNode.Kind(),
+      ExpressionTemplate(originalNode.Kind()));
+  }
 
-  protected override IList<(int, string)> ValidMutantExpressionsTemplate(
-    PrefixUnaryExpressionSyntax originalNode)
+  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(
+      PrefixUnaryExpressionSyntax originalNode)
   {
     // Perform additional filtering for assignable variables
     var validMutants = ValidMutants(originalNode).ToHashSet();
@@ -46,7 +52,10 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
     return attachIdToMutants.Select(entry =>
-      (entry.Item1, ExpressionTemplate(entry.Item2))).ToList();
+      (entry.Item1,
+        new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+      )
+    ).ToList();
   }
 
   protected override IList<string> ParameterTypes(
@@ -57,7 +66,8 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
     // Check if operand is updatable
     return IsOperandAssignable(originalNode)
-      ? [$"ref {operandType}"] : [operandType];
+      ? [$"ref {operandType}"]
+      : [operandType];
   }
 
   protected override string ReturnType(PrefixUnaryExpressionSyntax originalNode)
@@ -95,45 +105,45 @@ public sealed partial class PrefixUnaryExprOpReplacer
       {
         {
           SyntaxKind.UnaryPlusExpression, // +x
-          new(ExprKind: SyntaxKind.UnaryPlusExpression,
-            TokenKind: SyntaxKind.PlusToken,
-            MemberName: WellKnownMemberNames.AdditionOperatorName,
-            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.UnaryPlusExpression,
+            SyntaxKind.PlusToken,
+            WellKnownMemberNames.AdditionOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.UnaryMinusExpression, // -x
-          new(ExprKind: SyntaxKind.UnaryMinusExpression,
-            TokenKind: SyntaxKind.MinusToken,
-            MemberName: WellKnownMemberNames.SubtractionOperatorName,
-            TypeSignatures: CodeAnalysisUtil.ArithmeticTypeSignature)
+          new(SyntaxKind.UnaryMinusExpression,
+            SyntaxKind.MinusToken,
+            WellKnownMemberNames.SubtractionOperatorName,
+            CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.BitwiseNotExpression, // ~x
-          new(ExprKind: SyntaxKind.BitwiseNotExpression,
-            TokenKind: SyntaxKind.TildeToken,
-            MemberName: WellKnownMemberNames.OnesComplementOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BitwiseShiftTypeSignature)
+          new(SyntaxKind.BitwiseNotExpression,
+            SyntaxKind.TildeToken,
+            WellKnownMemberNames.OnesComplementOperatorName,
+            CodeAnalysisUtil.BitwiseShiftTypeSignature)
         },
         {
           SyntaxKind.LogicalNotExpression, // !x
-          new(ExprKind: SyntaxKind.LogicalNotExpression,
-            TokenKind: SyntaxKind.ExclamationToken,
-            MemberName: WellKnownMemberNames.LogicalNotOperatorName,
-            TypeSignatures: CodeAnalysisUtil.BooleanLogicalTypeSignature)
+          new(SyntaxKind.LogicalNotExpression,
+            SyntaxKind.ExclamationToken,
+            WellKnownMemberNames.LogicalNotOperatorName,
+            CodeAnalysisUtil.BooleanLogicalTypeSignature)
         },
         {
           SyntaxKind.PreIncrementExpression, // ++x
-          new(ExprKind: SyntaxKind.PreIncrementExpression,
-            TokenKind: SyntaxKind.PlusPlusToken,
-            MemberName: WellKnownMemberNames.IncrementOperatorName,
-            TypeSignatures: CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+          new(SyntaxKind.PreIncrementExpression,
+            SyntaxKind.PlusPlusToken,
+            WellKnownMemberNames.IncrementOperatorName,
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
         },
         {
           SyntaxKind.PreDecrementExpression, // --x
-          new(ExprKind: SyntaxKind.PreDecrementExpression,
-            TokenKind: SyntaxKind.MinusMinusToken,
-            MemberName: WellKnownMemberNames.DecrementOperatorName,
-            TypeSignatures: CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+          new(SyntaxKind.PreDecrementExpression,
+            SyntaxKind.MinusMinusToken,
+            WellKnownMemberNames.DecrementOperatorName,
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
         }
       }.ToFrozenDictionary();
 

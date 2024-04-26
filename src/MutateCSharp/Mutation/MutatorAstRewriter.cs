@@ -14,38 +14,27 @@ namespace MutateCSharp.Mutation;
  */
 public sealed partial class MutatorAstRewriter(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  MutantSchemaRegistry registry)
   : CSharpSyntaxRewriter
 {
   private readonly FrozenDictionary<Type, IMutationOperator[]>
     _mutationOperators
       = new Dictionary<Type, IMutationOperator[]>
       {
-        {
-          typeof(LiteralExpressionSyntax),
-          [
-            new BooleanConstantReplacer(sutAssembly, semanticModel),
-            new StringConstantReplacer(sutAssembly, semanticModel),
-            new NumericConstantReplacer(sutAssembly, semanticModel)
-          ]
-        },
-        {
-          typeof(PrefixUnaryExpressionSyntax),
-          [new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel)]
-        },
-        {
-          typeof(PostfixUnaryExpressionSyntax),
-          [new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel)]
-        },
-        {
-          typeof(BinaryExpressionSyntax),
+        [typeof(LiteralExpressionSyntax)] =
+        [
+          new BooleanConstantReplacer(sutAssembly, semanticModel),
+          new StringConstantReplacer(sutAssembly, semanticModel),
+          new NumericConstantReplacer(sutAssembly, semanticModel)
+        ],
+        [typeof(PrefixUnaryExpressionSyntax)] =
+          [new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel)],
+        [typeof(PostfixUnaryExpressionSyntax)] =
+          [new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel)],
+        [typeof(BinaryExpressionSyntax)] =
           [new BinExprOpReplacer(sutAssembly, semanticModel)]
-        }
       }.ToFrozenDictionary();
-
-  private readonly MutationRegistry _registry = new();
-
-  public MutationRegistry GetRegistry() => _registry;
 
   // There should be at most one mutation operator that can be applied to the
   // current node, since each mutation operator apply to a disjoint set of nodes
@@ -53,9 +42,7 @@ public sealed partial class MutatorAstRewriter(
   {
     var baseType = currentNode.GetType();
     if (!_mutationOperators.TryGetValue(baseType, out var mutationOperators))
-    {
       return null;
-    }
 
     var mutationOperator =
       mutationOperators.Where(m => m.CanBeApplied(currentNode)).ToList();
@@ -74,14 +61,14 @@ public sealed partial class MutatorAstRewriter(
     var nodeWithMutatedChildren =
       (FileScopedNamespaceDeclarationSyntax)base
         .VisitFileScopedNamespaceDeclaration(node)!;
-    
+
     // 2: Replace file scoped namespace with ordinary namespace
     return SyntaxFactory.NamespaceDeclaration(nodeWithMutatedChildren.Name)
       .WithMembers(nodeWithMutatedChildren.Members)
       .WithLeadingTrivia(nodeWithMutatedChildren.GetLeadingTrivia())
       .WithTrailingTrivia(nodeWithMutatedChildren.GetTrailingTrivia());
   }
-  
+
   public override SyntaxNode VisitLiteralExpression(
     LiteralExpressionSyntax node)
   {
@@ -95,8 +82,8 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      _registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
-    
+      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
 
@@ -122,8 +109,8 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      _registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
-    
+      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
 
@@ -152,14 +139,15 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      _registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
-    
+      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
-    
+
     // 4: Add ref keyword to parameter if updatable
     var operand = SyntaxFactory.Argument(nodeWithMutatedChildren.Operand);
-    if (mutationGroup.SchemaOriginalExpressionTemplate.StartsWith("ref"))
+    if (mutationGroup.SchemaParameterTypes.FirstOrDefault()
+          ?.StartsWith("ref") ?? false)
       operand =
         operand.WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword));
 
@@ -186,14 +174,15 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      _registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
-    
+      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
-    
+
     // 4: Add ref keyword to parameter if updatable
     var operand = SyntaxFactory.Argument(nodeWithMutatedChildren.Operand);
-    if (mutationGroup.SchemaOriginalExpressionTemplate.StartsWith("ref"))
+    if (mutationGroup.SchemaParameterTypes.FirstOrDefault()
+          ?.StartsWith("ref") ?? false)
       operand =
         operand.WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword));
 
@@ -215,42 +204,73 @@ public sealed partial class MutatorAstRewriter(
 public sealed partial class MutatorAstRewriter
 {
   public override SyntaxNode VisitEnumMemberDeclaration(
-    EnumMemberDeclarationSyntax node) => node;
+    EnumMemberDeclarationSyntax node)
+  {
+    return node;
+  }
 
-  public override SyntaxNode VisitCaseSwitchLabel(CaseSwitchLabelSyntax node) =>
-    node;
+  public override SyntaxNode VisitCaseSwitchLabel(CaseSwitchLabelSyntax node)
+  {
+    return node;
+  }
 
-  public override SyntaxNode VisitAttributeList(AttributeListSyntax node) =>
-    node;
+  public override SyntaxNode VisitAttributeList(AttributeListSyntax node)
+  {
+    return node;
+  }
 
-  public override SyntaxNode VisitParameterList(ParameterListSyntax node) =>
-    node;
+  public override SyntaxNode VisitParameterList(ParameterListSyntax node)
+  {
+    return node;
+  }
 
   public override SyntaxNode VisitBracketedParameterList(
-    BracketedParameterListSyntax node) => node;
+    BracketedParameterListSyntax node)
+  {
+    return node;
+  }
 
   public override SyntaxNode VisitTypeParameterList(
-    TypeParameterListSyntax node) => node;
+    TypeParameterListSyntax node)
+  {
+    return node;
+  }
 
   public override SyntaxNode VisitCrefParameterList(
-    CrefParameterListSyntax node) => node;
+    CrefParameterListSyntax node)
+  {
+    return node;
+  }
 
   public override SyntaxNode VisitCrefBracketedParameterList(
-    CrefBracketedParameterListSyntax node) => node;
+    CrefBracketedParameterListSyntax node)
+  {
+    return node;
+  }
 
   public override SyntaxNode VisitFunctionPointerParameterList(
-    FunctionPointerParameterListSyntax node) => node;
-  
-  public override SyntaxNode
-    VisitRecursivePattern(RecursivePatternSyntax node) => node;
+    FunctionPointerParameterListSyntax node)
+  {
+    return node;
+  }
 
-  public override SyntaxNode VisitUsingDirective(UsingDirectiveSyntax node) =>
-    node;
+  public override SyntaxNode
+    VisitRecursivePattern(RecursivePatternSyntax node)
+  {
+    return node;
+  }
+
+  public override SyntaxNode VisitUsingDirective(UsingDirectiveSyntax node)
+  {
+    return node;
+  }
 
   public override SyntaxNode VisitFieldDeclaration(FieldDeclarationSyntax node)
   {
     return node.Modifiers.Any(modifier =>
-      modifier.IsKind(SyntaxKind.ConstKeyword)) ? node : base.VisitFieldDeclaration(node)!;
+      modifier.IsKind(SyntaxKind.ConstKeyword))
+      ? node
+      : base.VisitFieldDeclaration(node)!;
   }
 
   public override SyntaxNode VisitLocalDeclarationStatement(

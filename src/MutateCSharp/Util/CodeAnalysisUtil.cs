@@ -24,16 +24,15 @@ public static class CodeAnalysisUtil
     All = Integral | FloatingPoint | Boolean | Character | String
   }
 
-  public record TypeSignature(
-    SupportedType OperandType,
-    SupportedType ReturnType);
-
   public static readonly TypeSignature[] IncrementOrDecrementTypeSignature
     =
     [
-      new TypeSignature(SupportedType.UnsignedIntegral, SupportedType.UnsignedIntegral),
-      new TypeSignature(SupportedType.SignedIntegral, SupportedType.SignedIntegral),
-      new TypeSignature(SupportedType.FloatingPoint, SupportedType.FloatingPoint),
+      new TypeSignature(SupportedType.UnsignedIntegral,
+        SupportedType.UnsignedIntegral),
+      new TypeSignature(SupportedType.SignedIntegral,
+        SupportedType.SignedIntegral),
+      new TypeSignature(SupportedType.FloatingPoint,
+        SupportedType.FloatingPoint),
       new TypeSignature(SupportedType.Character, SupportedType.Character)
     ];
 
@@ -70,23 +69,9 @@ public static class CodeAnalysisUtil
         SupportedType.Boolean)
     ];
 
-  public record UnaryOp(
-    SyntaxKind ExprKind, 
-    SyntaxKind TokenKind, 
-    string MemberName,
-    TypeSignature[] TypeSignatures)
-  {
-    public override string ToString() => SyntaxFacts.GetText(TokenKind);
-  }
-
-  public record BinOp(
-    SyntaxKind ExprKind,
-    SyntaxKind TokenKind,
-    string MemberName,
-    TypeSignature[] TypeSignatures)
-  {
-    public override string ToString() => SyntaxFacts.GetText(TokenKind);
-  }
+  // For reflection use
+  public static readonly FrozenDictionary<string, string> FriendlyNameToClrName
+    = BuildDefinedTypeToClrType();
 
   public static SupportedType GetSpecialTypeClassification(SpecialType type)
   {
@@ -115,10 +100,6 @@ public static class CodeAnalysisUtil
     };
   }
 
-  // For reflection use
-  public static readonly FrozenDictionary<string, string> FriendlyNameToClrName
-    = BuildDefinedTypeToClrType();
-  
   private static FrozenDictionary<string, string> BuildDefinedTypeToClrType()
   {
     var mscorlib = Assembly.GetAssembly(typeof(int));
@@ -134,9 +115,7 @@ public static class CodeAnalysisUtil
       var friendlyName = provider.GetTypeOutput(typeRef);
       // Filter qualified types
       if (!friendlyName.Contains('.'))
-      {
         friendlyToClrName[friendlyName] = type.FullName!;
-      }
     }
 
     return friendlyToClrName.ToFrozenDictionary();
@@ -153,9 +132,12 @@ public static class CodeAnalysisUtil
   {
     return symbol switch
     {
-      IFieldSymbol fieldSymbol => fieldSymbol is { IsConst: false, IsReadOnly: false },
-      IPropertySymbol propertySymbol => propertySymbol is { IsReadOnly: false, SetMethod: not null },
-      IParameterSymbol paramSymbol => paramSymbol.RefKind is RefKind.Ref or RefKind.Out,
+      IFieldSymbol fieldSymbol => fieldSymbol is
+        { IsConst: false, IsReadOnly: false },
+      IPropertySymbol propertySymbol => propertySymbol is
+        { IsReadOnly: false, SetMethod: not null },
+      IParameterSymbol paramSymbol => paramSymbol.RefKind is RefKind.Ref
+        or RefKind.Out,
       ILocalSymbol localSymbol => localSymbol is { IsConst: false },
       _ => false
     };
@@ -166,5 +148,33 @@ public static class CodeAnalysisUtil
     return node.IsKind(SyntaxKind.StringLiteralExpression) ||
            node.IsKind(SyntaxKind.Utf8StringLiteralExpression) ||
            node.IsKind(SyntaxKind.InterpolatedStringExpression);
+  }
+
+  public record TypeSignature(
+    SupportedType OperandType,
+    SupportedType ReturnType);
+
+  public record UnaryOp(
+    SyntaxKind ExprKind,
+    SyntaxKind TokenKind,
+    string MemberName,
+    TypeSignature[] TypeSignatures)
+  {
+    public override string ToString()
+    {
+      return SyntaxFacts.GetText(TokenKind);
+    }
+  }
+
+  public record BinOp(
+    SyntaxKind ExprKind,
+    SyntaxKind TokenKind,
+    string MemberName,
+    TypeSignature[] TypeSignatures)
+  {
+    public override string ToString()
+    {
+      return SyntaxFacts.GetText(TokenKind);
+    }
   }
 }

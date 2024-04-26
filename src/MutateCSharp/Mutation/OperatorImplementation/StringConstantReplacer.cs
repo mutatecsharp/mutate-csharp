@@ -7,28 +7,32 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
 // Not to be confused with interpolated string instances
-public class StringConstantReplacer(Assembly sutAssembly, SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly, semanticModel)
+public class StringConstantReplacer(
+  Assembly sutAssembly,
+  SemanticModel semanticModel)
+  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
+    semanticModel)
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
     return originalNode.IsKind(SyntaxKind.StringLiteralExpression);
   }
 
-  protected override string OriginalExpressionTemplate(
+  protected override ExpressionRecord OriginalExpression(
     LiteralExpressionSyntax originalNode)
-  {
-    return "{0}";
-  }
+    => new(originalNode.Kind(), "{0}");
 
-  protected override IList<(int, string)> ValidMutantExpressionsTemplate(
-    LiteralExpressionSyntax originalNode)
+  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(
+      LiteralExpressionSyntax originalNode)
   {
-    var result = new List<(int, string)>();
+    var result = new List<(int, ExpressionRecord)>();
 
     // Mutation: non-empty string constant => empty string constant
     if (originalNode.Token.ValueText.Length > 0)
-      result.Add((1, "string.Empty"));
+      result.Add((1,
+        new ExpressionRecord(SyntaxKind.StringLiteralExpression,
+          "string.Empty")));
 
     return result;
   }

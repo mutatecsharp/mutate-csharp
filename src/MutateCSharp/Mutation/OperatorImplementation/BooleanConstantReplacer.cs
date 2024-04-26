@@ -6,9 +6,11 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-
-public class BooleanConstantReplacer(Assembly sutAssembly, SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly, semanticModel)
+public class BooleanConstantReplacer(
+  Assembly sutAssembly,
+  SemanticModel semanticModel)
+  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
+    semanticModel)
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
@@ -16,16 +18,16 @@ public class BooleanConstantReplacer(Assembly sutAssembly, SemanticModel semanti
            originalNode.IsKind(SyntaxKind.FalseLiteralExpression);
   }
 
-  protected override string OriginalExpressionTemplate(
+  protected override ExpressionRecord OriginalExpression(
     LiteralExpressionSyntax originalNode)
   {
-    return "{0}";
+    return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
 
-  protected override IList<(int, string)> ValidMutantExpressionsTemplate(
-    LiteralExpressionSyntax _)
+  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(LiteralExpressionSyntax _)
   {
-    return ImmutableArray.Create((1, "!{0}"));
+    return [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
   }
 
   protected override IList<string> ParameterTypes(

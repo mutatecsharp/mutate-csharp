@@ -8,39 +8,47 @@ using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
-public sealed partial class NumericConstantReplacer(Assembly sutAssembly, SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly, semanticModel)
+public sealed partial class NumericConstantReplacer(
+  Assembly sutAssembly,
+  SemanticModel semanticModel)
+  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
+    semanticModel)
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
     var type = SemanticModel.GetTypeInfo(originalNode).Type?.SpecialType;
-    return type.HasValue && SupportedNumericTypesToSuffix.ContainsKey(type.Value);
+    return type.HasValue &&
+           SupportedNumericTypesToSuffix.ContainsKey(type.Value);
   }
 
-  protected override string OriginalExpressionTemplate(
+  protected override ExpressionRecord OriginalExpression(
     LiteralExpressionSyntax originalNode)
   {
-    return "{0}";
+    return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
 
-  protected override IList<(int, string)> ValidMutantExpressionsTemplate(
-    LiteralExpressionSyntax originalNode)
+  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(
+      LiteralExpressionSyntax originalNode)
   {
     var type = SemanticModel.GetTypeInfo(originalNode).Type?.SpecialType!;
     var typeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(type.Value);
-    var result = new List<(int, string)>();
+    var result = new List<(int, ExpressionRecord)>();
 
     // Mutation: value => 0
-    result.Add((1, "0"));
+    result.Add((1,
+      new ExpressionRecord(SyntaxKind.NumericLiteralExpression, "0")));
     // Mutation: value => -value
     // (Unary negative operator cannot be applied to unsigned or char types.)
     if (typeClassification is not CodeAnalysisUtil.SupportedType.UnsignedIntegral)
-      result.Add((2, "-{0}"));
+      result.Add((2,
+        new ExpressionRecord(SyntaxKind.UnaryMinusExpression, "-{0}")));
     // Mutation: value => value - 1
-    result.Add((3, "{0} - 1"));
+    result.Add((3,
+      new ExpressionRecord(SyntaxKind.SubtractExpression, "{0} - 1")));
     // Mutation: value => value + 1
-    result.Add((4, "{0} + 1"));
+    result.Add((4, new ExpressionRecord(SyntaxKind.AddExpression, "{0} + 1")));
     return result.ToImmutableArray();
   }
 
@@ -77,14 +85,14 @@ public sealed partial class NumericConstantReplacer
       new Dictionary<SpecialType, string>
       {
         // Signed numeric types
-        {SpecialType.System_Int32, ""}, 
-        {SpecialType.System_Int64, "L"},
+        { SpecialType.System_Int32, "" },
+        { SpecialType.System_Int64, "L" },
         // Unsigned numeric types
-        {SpecialType.System_UInt32, "U"}, 
-        {SpecialType.System_UInt64, "UL"},
+        { SpecialType.System_UInt32, "U" },
+        { SpecialType.System_UInt64, "UL" },
         // Floating point types
-        {SpecialType.System_Single, "f"}, 
-        {SpecialType.System_Double, "d"},
-        {SpecialType.System_Decimal, "m"}
+        { SpecialType.System_Single, "f" },
+        { SpecialType.System_Double, "d" },
+        { SpecialType.System_Decimal, "m" }
       }.ToFrozenDictionary();
 }
