@@ -1,56 +1,89 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.MSBuild;
+using MutateCSharp.FileSystem;
 using Serilog;
 
 namespace MutateCSharp.Mutation;
 
 public static class MutatorHarness
 {
-    
-  // TODO: return the mutated project
-  private static async void MutateProject(Workspace workspace, Project project)
+  public static async Task<Solution> MutateSolution(MSBuildWorkspace workspace, Solution solution)
   {
+    Log.Information("Mutating solution {Solution}.", Path.GetFileName(solution.FilePath));
+    var mutatedSolution = solution;
+
+    foreach (var projectId in solution.ProjectIds)
+    {
+      var project = mutatedSolution.GetProject(projectId)!;
+      var mutatedProject = await MutateProject(workspace, project);
+      mutatedSolution = mutatedProject.Solution;
+    }
+
+    var mutateResult = workspace.TryApplyChanges(mutatedSolution);
+    if (!mutateResult)
+    {
+      Log.Error("Failed to mutate solution {Solution}.", Path.GetFileName(solution.FilePath));
+    }
+
+    return workspace.CurrentSolution;
+  }
+  
+  private static async Task<Project> MutateProject(Workspace workspace, Project project)
+  {
+    Log.Information("Mutating project {Project}.", project.Name);
+    var mutatedProject = project;
     // We currently support looking up type symbols from the local project only
     using var portableExecutableStream = new MemoryStream();
     var compilation = await project.GetCompilationAsync();
     var emitResult = compilation?.Emit(portableExecutableStream).Success ?? false;
-    if (!emitResult) return;
+    if (!emitResult)
+    {
+      Log.Warning("Failed to compile project {Project}. Proceeding...", project.Name);
+      return project;
+    }
 
+    foreach (var additionalDoc in project.AdditionalDocuments)
+    {
+      Log.Information("Additional: {doc}", additionalDoc.Name);
+    }
+    
     await portableExecutableStream.FlushAsync();
     portableExecutableStream.Seek(0, SeekOrigin.Begin);
     var sutAssembly =
       System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(
         portableExecutableStream);
 
-    foreach (var document in project.Documents)
+    foreach (var documentId in project.DocumentIds)
     {
-      _ = await MutateDocument(workspace, sutAssembly, document);
+      var document = mutatedProject.GetDocument(documentId)!;
+      var mutatedDocument = await MutateDocument(workspace, sutAssembly, document);
+      mutatedProject = mutatedDocument.Project;
     }
+
+    return mutatedProject;
   }
 
   private static async Task<Document> MutateDocument(Workspace workspace, Assembly sutAssembly, Document document)
   {
-    Log.Debug("Processing source file: {SourceFile}", document.FilePath);
-    if (!document.SupportsSyntaxTree || !document.SupportsSemanticModel)
-      return document;
+    var tree = await document.GetValidatedSyntaxTree();
+    if (tree is null) return document;
     
-    // Don't mutate if there is nothing to mutate
-    if (await document.GetSyntaxRootAsync() is not CompilationUnitSyntax astRoot) return document;
-    if (astRoot.Members.Count == 0)
-    {
-      Log.Information("There is nothing to mutate in this source file. Proceeding...");
-      return document;
-    }
-    var semanticModel = (await document.GetSemanticModelAsync())!;
+    var semanticModel = await document.GetValidatedSemanticModel();
+    if (semanticModel is null) return document;
     
-    // Modify the body of the source file
-    var astVisitor = new MutatorAstRewriter(sutAssembly, semanticModel);
-    var mutatedAstRoot = (CompilationUnitSyntax) astVisitor.Visit(astRoot);
+    Log.Information("Processing source file: {SourceFilePath}", document.FilePath);
+    var root = tree.GetCompilationUnitRoot();
+    var registry = new MutationRegistry();
     
-    // Generate mutant schemata
+    // 1: Modify the body of the source file
+    var astVisitor = new MutatorAstRewriter(sutAssembly, semanticModel, registry);
+    var mutatedAstRoot = (CompilationUnitSyntax) astVisitor.Visit(root);
+    
+    // 2: Generate mutant schemata
     var schemata = 
       MutantSchemataGenerator.GenerateSchemataSyntax(astVisitor.GetRegistry());
     if (schemata is null)
@@ -59,30 +92,15 @@ public static class MutatorHarness
       return document;
     }
     
-    var formattedSchemata = Formatter.Format(schemata, workspace);
-    
-    // Inject mutant schemata to mutated source code
+    // 3: Inject mutant schemata to mutated source code
     mutatedAstRoot = mutatedAstRoot.InsertNodesBefore(
       mutatedAstRoot.Members.First(),
-      new [] {formattedSchemata}
+      new [] {schemata}
     );
     
+    // 4: Format mutated document
+    mutatedAstRoot = (CompilationUnitSyntax) Formatter.Format(mutatedAstRoot, workspace);
+    
     return document.WithSyntaxRoot(mutatedAstRoot);
-  }
-  
-  public static async Task<Solution> MutateSolution(MSBuildWorkspace workspace, Solution solution)
-  {
-    var mutatedSolution = solution;
-    var projects = solution.Projects;
-
-    foreach (var project in projects)
-    {
-      MutateProject(workspace, project);
-    }
-
-    // // Solutions are immutable by default; we create a new solution for each mutated document
-    // if (!astRoot.IsEquivalentTo(mutatedAstRoot))
-    //   mutatedSolution = mutatedSolution.WithDocumentSyntaxRoot(document.Id, mutatedAstRoot);
-    return mutatedSolution;
   }
 }
