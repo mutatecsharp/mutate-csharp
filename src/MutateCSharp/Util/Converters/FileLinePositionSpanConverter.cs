@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace MutateCSharp.Util;
+namespace MutateCSharp.Util.Converters;
 
 public class FileLinePositionSpanConverter : JsonConverter<FileLinePositionSpan>
 {

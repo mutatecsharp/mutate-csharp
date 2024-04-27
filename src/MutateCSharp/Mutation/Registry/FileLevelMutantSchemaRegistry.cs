@@ -1,13 +1,12 @@
 using System.Collections.Frozen;
-using Microsoft.CodeAnalysis;
 
-namespace MutateCSharp.Mutation;
+namespace MutateCSharp.Mutation.Registry;
 
 // update base counter with mutation registry
-public class MutantSchemaRegistry
+public class FileLevelMutantSchemaRegistry
 {
   // There is a many-to-one mapping between a mutation and a mutation group
-  private long _idGenerator;
+  private long _idGenerator = 1;
 
   // Each entry records the unique mapping of original construct to all
   // mutant constructs (mutation group). Mutation group is only concerned
@@ -36,7 +35,7 @@ public class MutantSchemaRegistry
     return _mutationGroups.ToFrozenSet();
   }
 
-  public MutationRegistry ToMutationRegistry(Document document)
+  public FileLevelMutationRegistry ToMutationRegistry(string fileRelativePath)
   {
     var mutations = new Dictionary<long, Mutation>();
     
@@ -57,6 +56,11 @@ public class MutantSchemaRegistry
       }
     }
 
-    return new MutationRegistry(document.FilePath!, mutations.ToFrozenDictionary());
+    return new FileLevelMutationRegistry
+    {
+      FileRelativePath = fileRelativePath,
+      EnvironmentVariable = MutantSchemataGenerator.EnvVar,
+      Mutations = mutations.ToFrozenDictionary()
+    };
   }
 }

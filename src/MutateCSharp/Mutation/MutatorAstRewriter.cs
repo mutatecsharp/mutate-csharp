@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation;
@@ -15,7 +16,7 @@ namespace MutateCSharp.Mutation;
 public sealed partial class MutatorAstRewriter(
   Assembly sutAssembly,
   SemanticModel semanticModel,
-  MutantSchemaRegistry registry)
+  FileLevelMutantSchemaRegistry schemaRegistry)
   : CSharpSyntaxRewriter
 {
   private readonly FrozenDictionary<Type, IMutationOperator[]>
@@ -82,7 +83,7 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+      schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
 
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
@@ -109,7 +110,7 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+      schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
 
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
@@ -139,7 +140,7 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+      schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
 
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
@@ -174,7 +175,7 @@ public sealed partial class MutatorAstRewriter(
 
     // 3: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
-      registry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+      schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
 
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));

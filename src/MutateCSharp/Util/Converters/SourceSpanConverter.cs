@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis.Text;
 
-namespace MutateCSharp.Util;
+namespace MutateCSharp.Util.Converters;
 
 public sealed class SourceSpanConverter: JsonConverter<TextSpan>
 {

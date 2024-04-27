@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using MutateCSharp.Util;
+using MutateCSharp.Util.Converters;
 
 namespace MutateCSharp.Mutation;
 

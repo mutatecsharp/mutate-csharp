@@ -23,7 +23,12 @@ internal static class CliHandler
     workspace.SkipUnrecognizedProjects = true;
     var solution =
       await workspace.OpenSolutionAsync(options.AbsoluteSolutionPath);
-    _ = await MutatorHarness.MutateSolution(workspace, solution);
+    
+    // 1: Generate mutant schema and acquire mutation registry
+    var (mutatedSolution, mutationRegistry) = 
+      await MutatorHarness.MutateSolution(workspace, solution);
+    
+    // 2: Serialise and persist mutation registry on disk
   }
 
   internal static void HandleParseError(IEnumerable<Error> errorIterator)

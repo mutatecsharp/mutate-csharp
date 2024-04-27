@@ -6,24 +6,26 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.MSBuild;
 using MutateCSharp.FileSystem;
+using MutateCSharp.Mutation.Registry;
 using Serilog;
 
 namespace MutateCSharp.Mutation;
 
 public static class MutatorHarness
 {
-  public static async Task<Solution> MutateSolution(
+  public static async Task<(Solution, MutationRegistry)> MutateSolution(
     MSBuildWorkspace workspace,
     Solution solution)
   {
     Log.Information("Mutating solution {Solution}.",
       Path.GetFileName(solution.FilePath));
     var mutatedSolution = solution;
-
+    var mutationRegistry = new MutationRegistry();
+    
     foreach (var projectId in solution.ProjectIds)
     {
       var project = mutatedSolution.GetProject(projectId)!;
-      var mutatedProject = await MutateProject(workspace, project);
+      var mutatedProject = await MutateProject(workspace, project, mutationRegistry);
       mutatedSolution = mutatedProject.Solution;
     }
 
@@ -32,12 +34,13 @@ public static class MutatorHarness
       Log.Error("Failed to mutate solution {Solution}.",
         Path.GetFileName(solution.FilePath));
 
-    return workspace.CurrentSolution;
+    return (workspace.CurrentSolution, mutationRegistry);
   }
 
   private static async Task<Project> MutateProject(
     Workspace workspace,
-    Project project)
+    Project project,
+    MutationRegistry registry)
   {
     Log.Information("Mutating project {Project}.", project.Name);
     var mutatedProject = project;
@@ -58,13 +61,12 @@ public static class MutatorHarness
     var sutAssembly =
       AssemblyLoadContext.Default.LoadFromStream(
         portableExecutableStream);
-    var mutationRegistry = new MutantSchemaRegistry();
 
     foreach (var documentId in project.DocumentIds)
     {
       var document = mutatedProject.GetDocument(documentId)!;
-      var mutatedDocument = await MutateDocument(workspace, sutAssembly,
-        document, mutationRegistry);
+      var mutatedDocument = await MutateDocument(workspace, registry, 
+        sutAssembly, document);
       mutatedProject = mutatedDocument.Project;
     }
 
@@ -73,9 +75,9 @@ public static class MutatorHarness
 
   private static async Task<Document> MutateDocument(
     Workspace workspace,
+    MutationRegistry mutationRegistry,
     Assembly sutAssembly,
-    Document document,
-    MutantSchemaRegistry mutantSchemaRegistry)
+    Document document)
   {
     var tree = await document.GetValidatedSyntaxTree();
     if (tree is null) return document;
@@ -86,6 +88,7 @@ public static class MutatorHarness
     Log.Information("Processing source file: {SourceFilePath}",
       document.FilePath);
     var root = tree.GetCompilationUnitRoot();
+    var mutantSchemaRegistry = new FileLevelMutantSchemaRegistry();
 
     // 1: Modify the body of the source file
     var astVisitor =
@@ -93,7 +96,6 @@ public static class MutatorHarness
     var mutatedAstRoot = (CompilationUnitSyntax)astVisitor.Visit(root);
 
     // 2: Generate mutant schemata for the source file under mutation
-    // todo: index by file id
     var schemata =
       MutantSchemataGenerator.GenerateSchemataSyntax(mutantSchemaRegistry);
     if (schemata is null)
@@ -112,6 +114,12 @@ public static class MutatorHarness
     // 4: Format mutated document
     mutatedAstRoot =
       (CompilationUnitSyntax)Formatter.Format(mutatedAstRoot, workspace);
+    
+    // 5: Record mutations in registry
+    var relativePath = Path.GetRelativePath(
+      document.Project.Solution.FilePath!, document.FilePath!);
+    mutationRegistry.AddRegistry(document.FilePath!, 
+      mutantSchemaRegistry.ToMutationRegistry(relativePath));
 
     return document.WithSyntaxRoot(mutatedAstRoot);
   }

@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MutateCSharp.Mutation.Registry;
 
 namespace MutateCSharp.Mutation;
 
@@ -8,6 +9,7 @@ public static class MutantSchemataGenerator
 {
   public const string Namespace = "MutateCSharp";
   public const string Class = "Schemata";
+  public const string EnvVar = "MUTATE_CSHARP_ACTIVATED_MUTANT";
 
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =
@@ -72,14 +74,14 @@ public static class MutantSchemataGenerator
   private static string GenerateInitialiseMethod()
   {
     return
-      """
+      $$"""
       private static bool _initialised;
       private static int _activatedMutantId;
 
       private static void Initialise()
       {
         if (_initialised) return;
-        var activatedMutant = Environment.GetEnvironmentVariable("MUTATE_CSHARP_ACTIVATED_MUTANT");
+        var activatedMutant = Environment.GetEnvironmentVariable("{{EnvVar}}");
         if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = int.Parse(activatedMutant);
         _initialised = true;
       }
@@ -139,12 +141,12 @@ public static class MutantSchemataGenerator
 
 
   public static NamespaceDeclarationSyntax? GenerateSchemataSyntax(
-    MutantSchemaRegistry registry)
+    FileLevelMutantSchemaRegistry registry)
   {
     var mutationGroups = registry.GetAllMutationGroups();
     if (mutationGroups.Count == 0) return null;
 
-    var schemata = GenerateSchemata(registry.GetAllMutationGroups());
+    var schemata = GenerateSchemata(mutationGroups);
     var ast = CSharpSyntaxTree.ParseText(schemata.ToString());
     var syntax = ast.GetCompilationUnitRoot().Members
       .OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
