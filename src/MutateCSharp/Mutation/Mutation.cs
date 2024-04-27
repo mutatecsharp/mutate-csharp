@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Text;
+using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation;
 
@@ -8,17 +10,29 @@ namespace MutateCSharp.Mutation;
 // the map from original expression/value => list of possible mutations
 // 1) Node expression type (input, output)
 // 2) Valid mutations
-// first call base.Visit() in any method you override and use the
-// result so that you have the updated version of any nodes that are
-// descendants of the current node.
 public record Mutation
 {
   [JsonInclude]
   public required long MutantId { get; init; }
+  
   [JsonInclude]
   public required SyntaxKind OriginalOperation { get; init; }
+  
   [JsonInclude]
   public required SyntaxKind MutantOperation { get; init; }
+  
+  // Records the span of the location of the original expression that does
+  // not take into account line breaks and line numbers.
+  // Used to convert location back to syntax node.
   [JsonInclude]
-  public required Location OriginalNodeLocation { get; init; }
+  [JsonConverter(typeof(SourceSpanConverter))]
+  public required TextSpan SourceSpan { get; init; }
+  
+  // Records the span of the location of the original expression in the
+  // source file, taking into account line breaks and line numbers.
+  // Used to display location in a human-friendly representation for
+  // information reporting.
+  [JsonInclude]
+  [JsonConverter(typeof(FileLinePositionSpanConverter))]
+  public required FileLinePositionSpan LineSpan { get; init; }
 }
