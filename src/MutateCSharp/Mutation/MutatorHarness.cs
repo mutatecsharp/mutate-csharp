@@ -20,12 +20,12 @@ public static class MutatorHarness
     Log.Information("Mutating solution {Solution}.",
       Path.GetFileName(solution.FilePath));
     var mutatedSolution = solution;
-    var mutationRegistry = new MutationRegistry();
+    var registryBuilder = new MutationRegistryBuilder();
     
     foreach (var projectId in solution.ProjectIds)
     {
       var project = mutatedSolution.GetProject(projectId)!;
-      var mutatedProject = await MutateProject(workspace, project, mutationRegistry);
+      var mutatedProject = await MutateProject(workspace, project, registryBuilder);
       mutatedSolution = mutatedProject.Solution;
     }
 
@@ -34,13 +34,13 @@ public static class MutatorHarness
       Log.Error("Failed to mutate solution {Solution}.",
         Path.GetFileName(solution.FilePath));
 
-    return (workspace.CurrentSolution, mutationRegistry);
+    return (workspace.CurrentSolution, registryBuilder.ToFinalisedRegistry());
   }
 
   private static async Task<Project> MutateProject(
     Workspace workspace,
     Project project,
-    MutationRegistry registry)
+    MutationRegistryBuilder registryBuilder)
   {
     Log.Information("Mutating project {Project}.", project.Name);
     var mutatedProject = project;
@@ -65,7 +65,7 @@ public static class MutatorHarness
     foreach (var documentId in project.DocumentIds)
     {
       var document = mutatedProject.GetDocument(documentId)!;
-      var mutatedDocument = await MutateDocument(workspace, registry, 
+      var mutatedDocument = await MutateDocument(workspace, registryBuilder, 
         sutAssembly, document);
       mutatedProject = mutatedDocument.Project;
     }
@@ -75,7 +75,7 @@ public static class MutatorHarness
 
   private static async Task<Document> MutateDocument(
     Workspace workspace,
-    MutationRegistry mutationRegistry,
+    MutationRegistryBuilder registryBuilder,
     Assembly sutAssembly,
     Document document)
   {
@@ -117,9 +117,9 @@ public static class MutatorHarness
     
     // 5: Record mutations in registry
     var relativePath = Path.GetRelativePath(
-      document.Project.Solution.FilePath!, document.FilePath!);
-    mutationRegistry.AddRegistry(document.FilePath!, 
-      mutantSchemaRegistry.ToMutationRegistry(relativePath));
+      Path.GetDirectoryName(document.Project.Solution.FilePath)!, 
+      document.FilePath!);
+    registryBuilder.AddRegistry(mutantSchemaRegistry.ToMutationRegistry(relativePath));
 
     return document.WithSyntaxRoot(mutatedAstRoot);
   }

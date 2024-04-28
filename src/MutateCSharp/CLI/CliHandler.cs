@@ -12,7 +12,7 @@ internal static class CliHandler
   internal static async Task RunOptions(CliOptions options)
   {
     using var backup = DirectoryBackup.BackupDirectoryIfNecessary(
-      Path.GetDirectoryName(options.AbsoluteSolutionPath)!,
+      Path.GetDirectoryName(options.AbsoluteSolutionPath)!, 
       options.Backup);
 
     // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
@@ -29,6 +29,8 @@ internal static class CliHandler
       await MutatorHarness.MutateSolution(workspace, solution);
     
     // 2: Serialise and persist mutation registry on disk
+    var registryPath = await mutationRegistry.PersistToDisk(Path.GetDirectoryName(options.AbsoluteSolutionPath)!);
+    Log.Information("Mutation registry persisted to disk: {RegistryPath}", registryPath);
   }
 
   internal static void HandleParseError(IEnumerable<Error> errorIterator)

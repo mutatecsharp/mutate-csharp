@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace MutateCSharp.Util.Converters;
 
-public class
+public sealed class
   FileLevelMutationRegistryConverter : JsonConverter<FileLevelMutationRegistry>
 {
   public override FileLevelMutationRegistry Read(ref Utf8JsonReader reader,
@@ -85,10 +85,10 @@ public class
     writer.WriteString("EnvironmentVariable", value.EnvironmentVariable); 
     writer.WritePropertyName("Mutations");
     writer.WriteStartObject();
-    foreach (var mutation in value.Mutations)
+    foreach (var (id, mutation) in value.Mutations)
     {
-      writer.WritePropertyName(mutation.Key.ToString());
-      JsonSerializer.Serialize(writer, mutation.Value, typeof(Mutation.Mutation), options);
+      writer.WritePropertyName(id.ToString());
+      JsonSerializer.Serialize(writer, mutation, typeof(Mutation.Mutation), options);
     }
     writer.WriteEndObject();
     writer.WriteEndObject();

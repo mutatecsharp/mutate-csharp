@@ -1,13 +1,13 @@
+using System.Collections.Frozen;
+using System.Text.Json.Serialization;
+using MutateCSharp.Util.Converters;
+
 namespace MutateCSharp.Mutation.Registry;
 
+[JsonConverter(typeof(MutationRegistryConverter))]
 public class MutationRegistry
 {
-  private readonly IDictionary<string, FileLevelMutationRegistry>
-    _fileAbsolutePathToMutationRegistry =
-      new Dictionary<string, FileLevelMutationRegistry>();
-
-  public void AddRegistry(string fileAbsolutePath, FileLevelMutationRegistry registry)
-  {
-    _fileAbsolutePathToMutationRegistry[fileAbsolutePath] = registry;
-  }
+  [JsonInclude]
+  public required FrozenDictionary<string, FileLevelMutationRegistry>
+    RelativePathToRegistry { get; init; }
 }

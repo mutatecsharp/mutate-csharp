@@ -15,14 +15,14 @@ public class FileLinePositionSpanConverter : JsonConverter<FileLinePositionSpan>
       throw new JsonException("Expected StartObject token");
     }
 
-    string path = string.Empty;
+    // Do not record source file path on a position span level; it is redundant
     LinePosition startLinePosition = default;
     LinePosition endLinePosition = default;
 
     while (reader.Read())
     {
       if (reader.TokenType == JsonTokenType.EndObject)
-        return new FileLinePositionSpan(path, startLinePosition, endLinePosition);
+        return new FileLinePositionSpan(string.Empty, startLinePosition, endLinePosition);
 
       if (reader.TokenType != JsonTokenType.PropertyName)
         throw new JsonException("Expected PropertyName token");
@@ -34,9 +34,6 @@ public class FileLinePositionSpanConverter : JsonConverter<FileLinePositionSpan>
 
       switch (propertyName)
       {
-        case "Path":
-          path = reader.GetString() ?? string.Empty;
-          break;
         case "StartLinePosition":
           startLinePosition = ReadLinePosition(ref reader);
           break;
@@ -95,7 +92,6 @@ public class FileLinePositionSpanConverter : JsonConverter<FileLinePositionSpan>
     JsonSerializerOptions options)
   {
     writer.WriteStartObject();
-    writer.WriteString("Path", value.Path);
     writer.WriteStartObject("StartLinePosition");
     writer.WriteNumber("Line", value.StartLinePosition.Line);
     writer.WriteNumber("Character", value.StartLinePosition.Character);
