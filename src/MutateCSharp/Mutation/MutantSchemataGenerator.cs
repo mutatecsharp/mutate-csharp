@@ -7,9 +7,15 @@ namespace MutateCSharp.Mutation;
 
 public static class MutantSchemataGenerator
 {
+  private static int _schemataCounter;
   public const string Namespace = "MutateCSharp";
-  public const string Class = "Schemata";
-  public const string EnvVar = "MUTATE_CSHARP_ACTIVATED_MUTANT";
+  public static string Class { get; private set; } = ClassNameGenerator();
+  public static string EnvVar { get; private set; } = EnvVarGenerator();
+  
+  private static string ClassNameGenerator() => $"Schemata{_schemataCounter}";
+  
+  private static string EnvVarGenerator() =>
+    $"MUTATE_CSHARP_ACTIVATED_MUTANT{_schemataCounter}";
 
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =
@@ -110,8 +116,16 @@ public static class MutantSchemataGenerator
   }
 
   public static StringBuilder GenerateSchemata(
-    IEnumerable<MutationGroup> mutationGroups)
+    IEnumerable<MutationGroup> mutationGroups, bool incrementEntry = true)
   {
+    if (incrementEntry)
+    {
+      // Update class and env var
+      _schemataCounter++;
+      Class = ClassNameGenerator();
+      EnvVar = EnvVarGenerator();
+    }
+    
     var result = new StringBuilder();
 
     result.Append($"namespace {Namespace}");
@@ -138,7 +152,6 @@ public static class MutantSchemataGenerator
 
     return result;
   }
-
 
   public static NamespaceDeclarationSyntax? GenerateSchemataSyntax(
     FileLevelMutantSchemaRegistry registry)
