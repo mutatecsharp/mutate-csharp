@@ -7,16 +7,8 @@ namespace MutateCSharp.Mutation;
 
 public static class MutantSchemataGenerator
 {
-  private static int _schemataCounter;
   public const string Namespace = "MutateCSharp";
-  public static string Class { get; private set; } = ClassNameGenerator();
-  public static string EnvVar { get; private set; } = EnvVarGenerator();
   
-  private static string ClassNameGenerator() => $"Schemata{_schemataCounter}";
-  
-  private static string EnvVarGenerator() =>
-    $"MUTATE_CSHARP_ACTIVATED_MUTANT{_schemataCounter}";
-
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =
     ["argument1", "argument2", "argument3", "argument4"];
@@ -77,7 +69,7 @@ public static class MutantSchemataGenerator
     return result;
   }
 
-  private static string GenerateInitialiseMethod()
+  private static string GenerateInitialiseMethod(string environmentVariable)
   {
     return
       $$"""
@@ -87,7 +79,7 @@ public static class MutantSchemataGenerator
       private static void Initialise()
       {
         if (_initialised) return;
-        var activatedMutant = Environment.GetEnvironmentVariable("{{EnvVar}}");
+        var activatedMutant = Environment.GetEnvironmentVariable("{{environmentVariable}}");
         if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = int.Parse(activatedMutant);
         _initialised = true;
       }
@@ -116,30 +108,22 @@ public static class MutantSchemataGenerator
   }
 
   public static StringBuilder GenerateSchemata(
-    IEnumerable<MutationGroup> mutationGroups, bool incrementEntry = true)
+    FileLevelMutantSchemaRegistry registry)
   {
-    if (incrementEntry)
-    {
-      // Update class and env var
-      _schemataCounter++;
-      Class = ClassNameGenerator();
-      EnvVar = EnvVarGenerator();
-    }
-    
     var result = new StringBuilder();
 
     result.Append($"namespace {Namespace}");
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.Append($"public static class {Class}");
+    result.Append($"public static class {registry.ClassName}");
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.Append(GenerateInitialiseMethod());
+    result.Append(GenerateInitialiseMethod(registry.EnvironmentVariable));
     result.AppendLine();
 
-    foreach (var mutationGroup in mutationGroups)
+    foreach (var mutationGroup in registry.GetAllMutationGroups())
     {
       result.Append(GenerateIndividualSchema(mutationGroup));
       result.AppendLine();
@@ -149,7 +133,7 @@ public static class MutantSchemataGenerator
     result.AppendLine();
     result.Append('}');
     result.AppendLine();
-
+    
     return result;
   }
 
@@ -159,7 +143,7 @@ public static class MutantSchemataGenerator
     var mutationGroups = registry.GetAllMutationGroups();
     if (mutationGroups.Count == 0) return null;
 
-    var schemata = GenerateSchemata(mutationGroups);
+    var schemata = GenerateSchemata(registry);
     var ast = CSharpSyntaxTree.ParseText(schemata.ToString());
     var syntax = ast.GetCompilationUnitRoot().Members
       .OfType<NamespaceDeclarationSyntax>().FirstOrDefault();

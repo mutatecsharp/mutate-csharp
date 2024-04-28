@@ -2,11 +2,13 @@ using System.Collections.Frozen;
 
 namespace MutateCSharp.Mutation.Registry;
 
-// update base counter with mutation registry
 public class FileLevelMutantSchemaRegistry
 {
+  // Id generator used to uniquely identify generated class and environment variable
+  private static int _fileIdGenerator;
+  
   // There is a many-to-one mapping between a mutation and a mutation group
-  private long _idGenerator = 1;
+  private long _mutantIdGenerator;
 
   // Each entry records the unique mapping of original construct to all
   // mutant constructs (mutation group). Mutation group is only concerned
@@ -16,17 +18,29 @@ public class FileLevelMutantSchemaRegistry
 
   private IDictionary<long, MutationGroup> _baseIdToMutationGroup
     = new Dictionary<long, MutationGroup>();
+  
+  public string ClassName { get; private init; }
 
+  public string EnvironmentVariable { get; private init; }
+
+  public FileLevelMutantSchemaRegistry()
+  {
+    _mutantIdGenerator = 1;
+    ClassName = $"Schemata{_fileIdGenerator}";
+    EnvironmentVariable = $"MUTATE_CSHARP_ACTIVATED_MUTANT{_fileIdGenerator}";
+    _fileIdGenerator++;
+  }
+  
   public long RegisterMutationGroupAndGetIdAssignment(
     MutationGroup mutationGroup)
   {
-    var baseId = _idGenerator;
+    var baseId = _mutantIdGenerator;
     
     // Mutation groups may have existed since different nodes under mutation
     // can generate an equivalent set of mutations
     _mutationGroups.Add(mutationGroup);
     _baseIdToMutationGroup[baseId] = mutationGroup;
-    _idGenerator += mutationGroup.SchemaMutantExpressions.Count;
+    _mutantIdGenerator += mutationGroup.SchemaMutantExpressions.Count;
     return baseId;
   }
 
@@ -59,7 +73,7 @@ public class FileLevelMutantSchemaRegistry
     return new FileLevelMutationRegistry
     {
       FileRelativePath = fileRelativePath,
-      EnvironmentVariable = MutantSchemataGenerator.EnvVar,
+      EnvironmentVariable = EnvironmentVariable,
       Mutations = mutations.ToFrozenDictionary()
     };
   }

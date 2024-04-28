@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Mutation.Registry;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation;
@@ -76,26 +77,59 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
   [Fact]
   public void DifferentFilesShouldHaveDifferentMutantSchemataClassAndEnvVar()
   {
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
     var group =
       TestUtil
         .GetValidMutationGroup<BooleanConstantReplacer,
           LiteralExpressionSyntax>(ExampleProgram);
-    var schemata = MutantSchemataGenerator.GenerateSchemata([group]);
-    var ast = CSharpSyntaxTree.ParseText(schemata.ToString());
-    var className = ExtractMutantSchemataClassName(ast);
-    var envVar = ExtractMutantSchemataEnvVarName(ast);
+    schemaRegistry.RegisterMutationGroupAndGetIdAssignment(group);
+    var syntax = MutantSchemataGenerator.GenerateSchemataSyntax(schemaRegistry)!;
+    var className = ExtractMutantSchemataClassName(syntax.SyntaxTree);
+    var envVar = ExtractMutantSchemataEnvVarName(syntax.SyntaxTree);
     
+    var anotherSchemaRegistry = new FileLevelMutantSchemaRegistry();
     var anotherGroup =
       TestUtil
         .GetValidMutationGroup<BooleanConstantReplacer,
           LiteralExpressionSyntax>(AnotherExampleProgram);
-    var anotherSchemata =
-      MutantSchemataGenerator.GenerateSchemata([anotherGroup]);
-    var anotherAst = CSharpSyntaxTree.ParseText(anotherSchemata.ToString());
-    var anotherClassName = ExtractMutantSchemataClassName(anotherAst);
-    var anotherEnvVar = ExtractMutantSchemataEnvVarName(anotherAst);
+    anotherSchemaRegistry.RegisterMutationGroupAndGetIdAssignment(anotherGroup);
+    var anotherSyntax = MutantSchemataGenerator.GenerateSchemataSyntax(anotherSchemaRegistry)!;
+    var anotherClassName = ExtractMutantSchemataClassName(anotherSyntax.SyntaxTree);
+    var anotherEnvVar = ExtractMutantSchemataEnvVarName(anotherSyntax.SyntaxTree);
 
     className.Should().NotBeEquivalentTo(anotherClassName);
     envVar.Should().NotBeEquivalentTo(anotherEnvVar);
+  }
+
+  [Fact]
+  public void MutantSchemataClassNameAndMutationRegistryClassNameShouldMatch()
+  {
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var group =
+      TestUtil
+        .GetValidMutationGroup<BooleanConstantReplacer,
+          LiteralExpressionSyntax>(ExampleProgram);
+    schemaRegistry.RegisterMutationGroupAndGetIdAssignment(group);
+    var ast = MutantSchemataGenerator.GenerateSchemataSyntax(schemaRegistry)!;
+    var className = ExtractMutantSchemataClassName(ast.SyntaxTree);
+
+    className.Should().BeEquivalentTo(schemaRegistry.ClassName);
+  }
+  
+  [Fact]
+  public void MutantSchemataEnvVarAndMutationRegistryEnvVarShouldMatch()
+  {
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var group =
+      TestUtil
+        .GetValidMutationGroup<BooleanConstantReplacer,
+          LiteralExpressionSyntax>(ExampleProgram);
+    schemaRegistry.RegisterMutationGroupAndGetIdAssignment(group);
+    var ast = MutantSchemataGenerator.GenerateSchemataSyntax(schemaRegistry)!;
+    var envVar = ExtractMutantSchemataEnvVarName(ast.SyntaxTree);
+    
+    var mutationRegistry = schemaRegistry.ToMutationRegistry("some/path");
+    envVar.Should().BeEquivalentTo(schemaRegistry.EnvironmentVariable);
+    envVar.Should().BeEquivalentTo(mutationRegistry.EnvironmentVariable);
   }
 }
