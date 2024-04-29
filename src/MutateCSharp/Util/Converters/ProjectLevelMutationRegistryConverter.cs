@@ -5,9 +5,9 @@ using MutateCSharp.Mutation.Registry;
 
 namespace MutateCSharp.Util.Converters;
 
-public sealed class MutationRegistryConverter: JsonConverter<MutationRegistry>
+public sealed class ProjectLevelMutationRegistryConverter: JsonConverter<ProjectLevelMutationRegistry>
 {
-  public override MutationRegistry Read(ref Utf8JsonReader reader, Type typeToConvert,
+  public override ProjectLevelMutationRegistry Read(ref Utf8JsonReader reader, Type typeToConvert,
     JsonSerializerOptions options)
   {
     if (reader.TokenType != JsonTokenType.StartObject)
@@ -18,9 +18,9 @@ public sealed class MutationRegistryConverter: JsonConverter<MutationRegistry>
     while (reader.Read())
     {
       if (reader.TokenType == JsonTokenType.EndObject)
-        return new MutationRegistry
+        return new ProjectLevelMutationRegistry
         {
-          RelativePathToRegistry = builder.ToFrozenDictionary()
+          ProjectRelativePathToRegistry = builder.ToFrozenDictionary()
         };
 
       if (reader.TokenType != JsonTokenType.PropertyName)
@@ -41,11 +41,11 @@ public sealed class MutationRegistryConverter: JsonConverter<MutationRegistry>
     throw new JsonException("Unexpected end of JSON object");
   }
 
-  public override void Write(Utf8JsonWriter writer, MutationRegistry value,
+  public override void Write(Utf8JsonWriter writer, ProjectLevelMutationRegistry value,
     JsonSerializerOptions options)
   {
     writer.WriteStartObject();
-    foreach (var (relativePath, registry) in value.RelativePathToRegistry)
+    foreach (var (relativePath, registry) in value.ProjectRelativePathToRegistry)
     {
       writer.WritePropertyName(relativePath);
       JsonSerializer.Serialize(writer, registry,

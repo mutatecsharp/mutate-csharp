@@ -13,37 +13,35 @@ namespace MutateCSharp.Mutation;
 
 public static class MutatorHarness
 {
-  public static async Task<(Solution, MutationRegistry)> MutateSolution(
-    MSBuildWorkspace workspace,
-    Solution solution)
+  public static async Task<(Solution, IDictionary<Project, ProjectLevelMutationRegistry>)> 
+    MutateSolution(MSBuildWorkspace workspace, Solution solution)
   {
     Log.Information("Mutating solution {Solution}.",
       Path.GetFileName(solution.FilePath));
     var mutatedSolution = solution;
-    var registryBuilder = new MutationRegistryBuilder();
+    var projectLevelRegistries =
+      new Dictionary<Project, ProjectLevelMutationRegistry>();
     
     foreach (var projectId in solution.ProjectIds)
     {
       var project = mutatedSolution.GetProject(projectId)!;
-      var mutatedProject = await MutateProject(workspace, project, registryBuilder);
+      var (mutatedProject, projectRegistry) = await MutateProject(workspace, project);
       mutatedSolution = mutatedProject.Solution;
+
+      if (projectRegistry is not null)
+        projectLevelRegistries[project] = projectRegistry;
     }
 
-    var mutateResult = workspace.TryApplyChanges(mutatedSolution);
-    if (!mutateResult)
-      Log.Error("Failed to mutate solution {Solution}.",
-        Path.GetFileName(solution.FilePath));
-
-    return (workspace.CurrentSolution, registryBuilder.ToFinalisedRegistry());
+    return (mutatedSolution, projectLevelRegistries);
   }
 
-  private static async Task<Project> MutateProject(
-    Workspace workspace,
-    Project project,
-    MutationRegistryBuilder registryBuilder)
+  public static async Task<(Project, ProjectLevelMutationRegistry?)> 
+    MutateProject(Workspace workspace, Project project)
   {
     Log.Information("Mutating project {Project}.", project.Name);
     var mutatedProject = project;
+    var registryBuilder = new ProjectLevelMutationRegistryBuilder();
+    
     // We currently support looking up type symbols from the local project only
     using var portableExecutableStream = new MemoryStream();
     var compilation = await project.GetCompilationAsync();
@@ -51,39 +49,43 @@ public static class MutatorHarness
       compilation?.Emit(portableExecutableStream).Success ?? false;
     if (!emitResult)
     {
-      Log.Warning("Failed to compile project {Project}. Proceeding...",
+      Log.Warning("Failed to compile project {Project}.",
         project.Name);
-      return project;
+      return (project, null);
     }
 
     await portableExecutableStream.FlushAsync();
     portableExecutableStream.Seek(0, SeekOrigin.Begin);
     var sutAssembly =
-      AssemblyLoadContext.Default.LoadFromStream(
-        portableExecutableStream);
+      AssemblyLoadContext.Default.LoadFromStream(portableExecutableStream);
 
     foreach (var documentId in project.DocumentIds)
     {
       var document = mutatedProject.GetDocument(documentId)!;
-      var mutatedDocument = await MutateDocument(workspace, registryBuilder, 
-        sutAssembly, document);
+      var (mutatedDocument, fileSchemaRegistry) = 
+        await MutateDocument(workspace, sutAssembly, document);
+      
+      // Record mutations in registry
+      var relativePath = Path.GetRelativePath(
+        Path.GetDirectoryName(project.FilePath)!, document.FilePath!);
+      
       mutatedProject = mutatedDocument.Project;
+      
+      if (fileSchemaRegistry is not null)
+        registryBuilder.AddRegistry(fileSchemaRegistry.ToMutationRegistry(relativePath));
     }
-
-    return mutatedProject;
+    
+    return (mutatedProject, registryBuilder.ToFinalisedRegistry());
   }
 
-  private static async Task<Document> MutateDocument(
-    Workspace workspace,
-    MutationRegistryBuilder registryBuilder,
-    Assembly sutAssembly,
-    Document document)
+  private static async Task<(Document, FileLevelMutantSchemaRegistry?)> 
+    MutateDocument(Workspace workspace, Assembly sutAssembly, Document document)
   {
     var tree = await document.GetValidatedSyntaxTree();
-    if (tree is null) return document;
+    if (tree is null) return (document, null);
 
     var semanticModel = await document.GetValidatedSemanticModel();
-    if (semanticModel is null) return document;
+    if (semanticModel is null) return (document, null);
 
     Log.Information("Processing source file: {SourceFilePath}",
       document.FilePath);
@@ -102,7 +104,7 @@ public static class MutatorHarness
     {
       Log.Information(
         "There is nothing to mutate in this source file. Proceeding...");
-      return document;
+      return (document, null);
     }
 
     // 3: Inject mutant schemata to mutated source code
@@ -115,12 +117,6 @@ public static class MutatorHarness
     mutatedAstRoot =
       (CompilationUnitSyntax)Formatter.Format(mutatedAstRoot, workspace);
     
-    // 5: Record mutations in registry
-    var relativePath = Path.GetRelativePath(
-      Path.GetDirectoryName(document.Project.Solution.FilePath)!, 
-      document.FilePath!);
-    registryBuilder.AddRegistry(mutantSchemaRegistry.ToMutationRegistry(relativePath));
-
-    return document.WithSyntaxRoot(mutatedAstRoot);
+    return (document.WithSyntaxRoot(mutatedAstRoot), mutantSchemaRegistry);
   }
 }

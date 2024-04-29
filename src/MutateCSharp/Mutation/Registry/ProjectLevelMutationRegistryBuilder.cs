@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 
 namespace MutateCSharp.Mutation.Registry;
 
-public class MutationRegistryBuilder
+public class ProjectLevelMutationRegistryBuilder
 {
   private readonly IDictionary<string, FileLevelMutationRegistry>
     _relativePathToRegistry =
@@ -13,11 +13,11 @@ public class MutationRegistryBuilder
     _relativePathToRegistry[registry.FileRelativePath] = registry;
   }
 
-  public MutationRegistry ToFinalisedRegistry()
+  public ProjectLevelMutationRegistry ToFinalisedRegistry()
   {
-    return new MutationRegistry
+    return new ProjectLevelMutationRegistry
     {
-      RelativePathToRegistry = _relativePathToRegistry.ToFrozenDictionary()
+      ProjectRelativePathToRegistry = _relativePathToRegistry.ToFrozenDictionary()
     };
   }
 }

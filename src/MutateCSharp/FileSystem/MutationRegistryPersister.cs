@@ -9,19 +9,19 @@ public static class MutationRegistryPersister
   private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
   // Persist mutation information corresponding to each source file on disk
-  public static async Task<string> PersistToDisk(this MutationRegistry registry, string path)
+  public static async Task<string> PersistToDisk(this ProjectLevelMutationRegistry registry, string basePath)
   {
-    var outputPath = Path.Combine(path, FileName);
+    var outputPath = Path.Combine(basePath, FileName);
     await using var fs = File.Create(outputPath, 4096, FileOptions.Asynchronous);
     await JsonSerializer.SerializeAsync(fs, registry, JsonOptions);
     return outputPath;
   }
 
-  public static async Task<MutationRegistry> ReconstructRegistryFromDisk(string path)
+  public static async Task<ProjectLevelMutationRegistry> ReconstructRegistryFromDisk(string absolutePath)
   {
-    using var fs = new StreamReader(path);
+    using var fs = new StreamReader(absolutePath);
     var registry =
-      await JsonSerializer.DeserializeAsync<MutationRegistry>(fs.BaseStream, JsonOptions);
+      await JsonSerializer.DeserializeAsync<ProjectLevelMutationRegistry>(fs.BaseStream, JsonOptions);
     return registry!;
   }
 }

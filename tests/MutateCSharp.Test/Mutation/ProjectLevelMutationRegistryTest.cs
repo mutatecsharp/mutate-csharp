@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation;
 
-public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
+public class ProjectLevelMutationRegistryTest(ITestOutputHelper testOutputHelper)
 {
   private static readonly FileLevelMutationRegistry ExampleFileLevelMutationRegistry =
     new()
@@ -39,14 +39,14 @@ public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
       }.ToFrozenDictionary()
     };
 
-  private static MutationRegistry MutationRegistryCreator()
+  private static ProjectLevelMutationRegistry MutationRegistryCreator()
   {
-    var builder = new MutationRegistryBuilder();
+    var builder = new ProjectLevelMutationRegistryBuilder();
     builder.AddRegistry(ExampleFileLevelMutationRegistry);
     return builder.ToFinalisedRegistry();
   }
 
-  private static readonly MutationRegistry ExampleMutationRegistry =
+  private static readonly ProjectLevelMutationRegistry ExampleProjectLevelMutationRegistry =
     MutationRegistryCreator();
 
   [Fact]
@@ -70,21 +70,21 @@ public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
   }
 
   [Fact]
-  public void MutationRegistryShouldBeSerialisable()
+  public void ProjectLevelMutationRegistryShouldBeSerialisable()
   {
-    var json = JsonSerializer.Serialize(ExampleMutationRegistry);
-    var restoredRegistry = JsonSerializer.Deserialize<MutationRegistry>(json);
-    restoredRegistry.Should().BeEquivalentTo(ExampleMutationRegistry);
+    var json = JsonSerializer.Serialize(ExampleProjectLevelMutationRegistry);
+    var restoredRegistry = JsonSerializer.Deserialize<ProjectLevelMutationRegistry>(json);
+    restoredRegistry.Should().BeEquivalentTo(ExampleProjectLevelMutationRegistry);
   }
 
   [Fact]
-  public async Task MutationRegistryShouldBeSerialisableAsync()
+  public async Task ProjectLevelMutationRegistryShouldBeSerialisableAsync()
   {
     using var stream = new MemoryStream();
-    await JsonSerializer.SerializeAsync(stream, ExampleMutationRegistry);
+    await JsonSerializer.SerializeAsync(stream, ExampleProjectLevelMutationRegistry);
     stream.Position = 0;
     var restoredRegistry =
-      await JsonSerializer.DeserializeAsync<MutationRegistry>(stream);
-    restoredRegistry.Should().BeEquivalentTo(ExampleMutationRegistry);
+      await JsonSerializer.DeserializeAsync<ProjectLevelMutationRegistry>(stream);
+    restoredRegistry.Should().BeEquivalentTo(ExampleProjectLevelMutationRegistry);
   }
 }

@@ -6,15 +6,25 @@ namespace MutateCSharp.CLI;
 internal sealed class CliOptions
 {
   private readonly string _absoluteSolutionPath = string.Empty;
+  private readonly string _absoluteProjectPath = string.Empty;
   private readonly string _absoluteSourceFilePath = string.Empty;
 
   [Option("solution",
     HelpText = "The path to C# solution file (.sln).")]
-  public required string AbsoluteSolutionPath
+  public string AbsoluteSolutionPath
   {
     get => _absoluteSolutionPath;
     init => _absoluteSolutionPath =
       ParseAbsolutePath(value, FileExtension.Solution);
+  }
+
+  [Option("project",
+    HelpText = "The path to C# project file (.csproj).")]
+  public string AbsoluteProjectPath
+  {
+    get => _absoluteProjectPath;
+    init => _absoluteProjectPath =
+      ParseAbsolutePath(value, FileExtension.Project);
   }
 
   [Option("source-file",
@@ -42,7 +52,7 @@ internal sealed class CliOptions
     if (!File.Exists(absolutePath) ||
         Path.GetExtension(absolutePath) != extension.ToFriendlyString())
       throw new ArgumentException(
-        "Solution file does not exist or is invalid.");
+        $"{Path.GetFileName(absolutePath)} does not exist or is invalid.");
 
     return absolutePath;
   }

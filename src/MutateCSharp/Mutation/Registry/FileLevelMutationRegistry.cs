@@ -7,6 +7,7 @@ namespace MutateCSharp.Mutation.Registry;
 [JsonConverter(typeof(FileLevelMutationRegistryConverter))]
 public sealed record FileLevelMutationRegistry
 {
+  // Relative to project base path.
   [JsonInclude]
   public required string FileRelativePath { get; init; }
   

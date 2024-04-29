@@ -4,10 +4,10 @@ using MutateCSharp.Util.Converters;
 
 namespace MutateCSharp.Mutation.Registry;
 
-[JsonConverter(typeof(MutationRegistryConverter))]
-public class MutationRegistry
+[JsonConverter(typeof(ProjectLevelMutationRegistryConverter))]
+public class ProjectLevelMutationRegistry
 {
   [JsonInclude]
   public required FrozenDictionary<string, FileLevelMutationRegistry>
-    RelativePathToRegistry { get; init; }
+    ProjectRelativePathToRegistry { get; init; }
 }
