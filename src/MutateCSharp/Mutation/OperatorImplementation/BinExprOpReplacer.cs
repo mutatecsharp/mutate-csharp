@@ -173,13 +173,14 @@ public sealed partial class BinExprOpReplacer
             WellKnownMemberNames.RightShiftOperatorName,
             CodeAnalysisUtil.BitwiseShiftTypeSignature)
         },
-        {
-          SyntaxKind.UnsignedRightShiftExpression,
-          new(SyntaxKind.UnsignedRightShiftExpression,
-            SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
-            WellKnownMemberNames.UnsignedRightShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature)
-        },
+        // Note: .NET 6.0 does not support unsigned right shift operator
+        // {
+        //   SyntaxKind.UnsignedRightShiftExpression,
+        //   new(SyntaxKind.UnsignedRightShiftExpression,
+        //     SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+        //     WellKnownMemberNames.UnsignedRightShiftOperatorName,
+        //     CodeAnalysisUtil.BitwiseShiftTypeSignature)
+        // },
         // Supported equality comparison operators (==, !=)
         {
           SyntaxKind.EqualsExpression,

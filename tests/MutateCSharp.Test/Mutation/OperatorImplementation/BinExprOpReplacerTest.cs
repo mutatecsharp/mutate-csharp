@@ -82,7 +82,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
   private static ISet<string> SupportedIntegralOperators =
     new HashSet<string>
-      { "+", "-", "*", "/", "%", ">>", "<<", ">>>", "^", "&", "|" };
+      { "+", "-", "*", "/", "%", ">>", "<<", "^", "&", "|" };
 
   public static IEnumerable<object[]> IntegralTypedMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
@@ -221,7 +221,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("%", "*")]
   // Bitwise operators
   [InlineData("<<", ">>")]
-  [InlineData("<<", ">>>")]
+  // [InlineData("<<", ">>>")]
   [InlineData(">>", "<<")]
   [InlineData("&", "^")]
   [InlineData("^", "&")]
@@ -291,7 +291,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   // Bitwise/boolean operators
   [InlineData(">>")]
   [InlineData("<<")]
-  [InlineData(">>>")]
+  // [InlineData(">>>")]
   [InlineData("&")]
   [InlineData("^")]
   [InlineData("|")]
@@ -327,7 +327,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("%", "*")]
   // Bitwise operators
   [InlineData("<<", ">>")]
-  [InlineData("<<", ">>>")]
+  // [InlineData("<<", ">>>")]
   [InlineData(">>", "<<")]
   [InlineData("&", "^")]
   [InlineData("^", "&")]

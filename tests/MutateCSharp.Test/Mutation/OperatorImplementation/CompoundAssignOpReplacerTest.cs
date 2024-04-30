@@ -78,7 +78,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 
   private static ISet<string> SupportedIntegralOperators =
     new HashSet<string>
-      { "+=", "-=", "*=", "/=", "%=", ">>=", "<<=", ">>>=", "^=", "&=", "|=" };
+      { "+=", "-=", "*=", "/=", "%=", ">>=", "<<=", "^=", "&=", "|=" };
   
   public static IEnumerable<object[]> IntegralTypedMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(IntegralTypes.Keys,
@@ -192,7 +192,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("%", "*")]
   // Bitwise operators
   [InlineData("<<", ">>")]
-  [InlineData("<<", ">>>")]
+  // [InlineData("<<", ">>>")]
   [InlineData(">>", "<<")]
   [InlineData("&", "^")]
   [InlineData("^", "&")]
@@ -256,7 +256,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
   // Bitwise/boolean operators
   [InlineData(">>")]
   [InlineData("<<")]
-  [InlineData(">>>")]
+  // [InlineData(">>>")]
   [InlineData("&")]
   [InlineData("^")]
   [InlineData("|")]
@@ -292,7 +292,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("%", "*")]
   // Bitwise operators
   [InlineData("<<", ">>")]
-  [InlineData("<<", ">>>")]
+  // [InlineData("<<", ">>>")]
   [InlineData(">>", "<<")]
   [InlineData("&", "^")]
   [InlineData("^", "&")]

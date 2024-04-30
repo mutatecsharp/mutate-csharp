@@ -171,13 +171,14 @@ public sealed partial class CompoundAssignOpReplacer
             WellKnownMemberNames.RightShiftOperatorName,
             CodeAnalysisUtil.BitwiseShiftTypeSignature)
         },
-        {
-          SyntaxKind.UnsignedRightShiftAssignmentExpression,
-          new(SyntaxKind.UnsignedRightShiftAssignmentExpression,
-            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
-            WellKnownMemberNames.UnsignedRightShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature)
-        }
+        // .NET 6.0 does not support unsigned right shift assignment operator
+        // {
+        //   SyntaxKind.UnsignedRightShiftAssignmentExpression,
+        //   new(SyntaxKind.UnsignedRightShiftAssignmentExpression,
+        //     SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+        //     WellKnownMemberNames.UnsignedRightShiftOperatorName,
+        //     CodeAnalysisUtil.BitwiseShiftTypeSignature)
+        // }
       }.ToFrozenDictionary();
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
