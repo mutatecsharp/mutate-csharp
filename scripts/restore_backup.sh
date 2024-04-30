@@ -10,7 +10,7 @@ BACKUP_PATH="$SUT_PATH/.mutate-csharp"
 pushd "$SUT_PATH"
 
 # Verify backup folder exists
-test -d "$BACKUP_PATH"
+[[ -d "$BACKUP_PATH" ]] || exit 1
 
 # Delete all content inside the SUT directory except the backup folder
 find "$SUT_PATH" -mindepth 1 -maxdepth 1 \
@@ -25,5 +25,6 @@ mv -- * ..
 shopt -u dotglob
 
 rm -r "$BACKUP_PATH"
+echo "Backup restored."
 
 popd
