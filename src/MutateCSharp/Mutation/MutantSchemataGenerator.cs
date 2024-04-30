@@ -8,6 +8,7 @@ namespace MutateCSharp.Mutation;
 public static class MutantSchemataGenerator
 {
   public const string Namespace = "MutateCSharp";
+  private const string MutantIdType = "long";
   
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =
@@ -25,7 +26,7 @@ public static class MutantSchemataGenerator
     var result = new StringBuilder();
 
     result.Append(
-      $"public static {mutationGroup.SchemaReturnType} {mutationGroup.SchemaName}(int mutantId"
+      $"public static {mutationGroup.SchemaReturnType} {mutationGroup.SchemaName}({MutantIdType} mutantId"
     );
 
     for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
@@ -74,17 +75,17 @@ public static class MutantSchemataGenerator
     return
       $$"""
       private static bool _initialised;
-      private static long _activatedMutantId;
+      private static {{MutantIdType}} _activatedMutantId;
 
       private static void Initialise()
       {
         if (_initialised) return;
         var activatedMutant = Environment.GetEnvironmentVariable("{{environmentVariable}}");
-        if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = long.Parse(activatedMutant);
+        if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = {{MutantIdType}}.Parse(activatedMutant);
         _initialised = true;
       }
 
-      private static bool ActivatedInRange(int lowerBound, int upperBound)
+      private static bool ActivatedInRange({{MutantIdType}} lowerBound, {{MutantIdType}} upperBound)
       {
         Initialise();
         return lowerBound <= _activatedMutantId && _activatedMutantId <= upperBound;
