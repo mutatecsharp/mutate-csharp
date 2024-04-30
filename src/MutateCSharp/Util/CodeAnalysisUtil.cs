@@ -72,6 +72,15 @@ public static class CodeAnalysisUtil
   // For reflection use
   public static readonly FrozenDictionary<string, string> FriendlyNameToClrName
     = BuildDefinedTypeToClrType();
+  
+  public static readonly FrozenSet<SyntaxKind> ShortCircuitOperators
+    = new HashSet<SyntaxKind>
+    {
+      SyntaxKind.LogicalAndExpression,
+      SyntaxKind.LogicalOrExpression,
+      SyntaxKind.CoalesceExpression,
+      SyntaxKind.ConditionalExpression
+    }.ToFrozenSet();
 
   public static SupportedType GetSpecialTypeClassification(SpecialType type)
   {
@@ -126,6 +135,13 @@ public static class CodeAnalysisUtil
     return type.SpecialType != SpecialType.None
       ? FriendlyNameToClrName[type.ToDisplayString()]
       : type.ToDisplayString();
+  }
+
+  public static string ToClrTypeName(this Type type)
+  {
+    using var provider = new CSharpCodeProvider();
+    var typeRef = new CodeTypeReference(type);
+    return provider.GetTypeOutput(typeRef);
   }
 
   public static bool IsSymbolVariable(this ISymbol symbol)

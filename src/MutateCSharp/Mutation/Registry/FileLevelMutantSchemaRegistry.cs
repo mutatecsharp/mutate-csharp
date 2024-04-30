@@ -2,13 +2,15 @@ using System.Collections.Frozen;
 
 namespace MutateCSharp.Mutation.Registry;
 
+using MutantId = long;
+
 public class FileLevelMutantSchemaRegistry
 {
   // Id generator used to uniquely identify generated class and environment variable
   private static int _fileIdGenerator;
   
   // There is a many-to-one mapping between a mutation and a mutation group
-  private long _mutantIdGenerator;
+  private MutantId _mutantIdGenerator;
 
   // Each entry records the unique mapping of original construct to all
   // mutant constructs (mutation group). Mutation group is only concerned
@@ -16,8 +18,10 @@ public class FileLevelMutantSchemaRegistry
   // This information is useful to omit generation of redundant schemas.
   private ISet<MutationGroup> _mutationGroups = new HashSet<MutationGroup>();
 
-  private IDictionary<long, MutationGroup> _baseIdToMutationGroup
-    = new Dictionary<long, MutationGroup>();
+  private IDictionary<MutantId, MutationGroup> _baseIdToMutationGroup
+    = new Dictionary<MutantId, MutationGroup>();
+  
+  public static Type MutantIdType { get; } = typeof(MutantId);
   
   public string ClassName { get; private init; }
 
@@ -51,7 +55,7 @@ public class FileLevelMutantSchemaRegistry
 
   public FileLevelMutationRegistry ToMutationRegistry(string fileRelativePath)
   {
-    var mutations = new Dictionary<long, Mutation>();
+    var mutations = new Dictionary<MutantId, Mutation>();
     
     foreach (var (baseId, group) in _baseIdToMutationGroup)
     {

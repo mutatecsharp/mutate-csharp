@@ -2,13 +2,16 @@ using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation;
 
 public static class MutantSchemataGenerator
 {
   public const string Namespace = "MutateCSharp";
-  private const string MutantIdType = "long";
+
+  private static readonly string
+    MutantIdType = FileLevelMutantSchemaRegistry.MutantIdType.ToClrTypeName();
   
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =

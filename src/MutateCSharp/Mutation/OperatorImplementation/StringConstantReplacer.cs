@@ -19,7 +19,7 @@ public class StringConstantReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode)
+    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
     => new(originalNode.Kind(), "{0}");
 
   protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
@@ -38,7 +38,7 @@ public class StringConstantReplacer(
   }
 
   protected override IList<string> ParameterTypes(
-    LiteralExpressionSyntax originalNode)
+    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     return ImmutableArray.Create(ReturnType(originalNode));
   }

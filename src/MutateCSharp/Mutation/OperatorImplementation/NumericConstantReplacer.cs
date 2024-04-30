@@ -22,7 +22,7 @@ public sealed partial class NumericConstantReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode)
+    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
@@ -53,7 +53,7 @@ public sealed partial class NumericConstantReplacer(
   }
 
   protected override IList<string> ParameterTypes(
-    LiteralExpressionSyntax originalNode)
+    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     return ImmutableArray.Create(ReturnType(originalNode));
   }

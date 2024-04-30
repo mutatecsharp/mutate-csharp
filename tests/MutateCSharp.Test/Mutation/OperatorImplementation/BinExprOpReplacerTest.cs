@@ -46,12 +46,12 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal("bool", "bool");
+      .Equal("Func<bool>", "Func<bool>");
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("bool");
 
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
-      .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
+      .BeEquivalentTo($"{{0}}() {originalOperator} {{1}}()");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
     mutationGroup.SchemaMutantExpressions.Count.Should()
@@ -59,7 +59,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
-      = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}")
+      = expectedReplacementOperators.Select(op => $"{{0}}() {op} {{1}}()")
         .ToHashSet();
 
     TestUtil.GetMutantExpressionTemplates(mutationGroup)

@@ -3,7 +3,9 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
+using MutateCSharp.Mutation.Registry;
 
 namespace MutateCSharp.Test;
 
@@ -56,7 +58,7 @@ public static class TestUtil
   public static void TestForSemanticErrors(SemanticModel model)
   {
     var sb = new StringBuilder();
-    
+
     foreach (var diagnostic in model.Compilation.GetDiagnostics())
     {
       if (diagnostic.Severity == DiagnosticSeverity.Error)
@@ -64,7 +66,7 @@ public static class TestUtil
         sb.AppendLine(diagnostic.GetMessage());
       }
     }
-    
+
     // Check: Input should not have semantic errors.
     model.Compilation.GetDiagnostics()
       .Any(d => d.Severity == DiagnosticSeverity.Error)
@@ -142,6 +144,62 @@ public static class TestUtil
       .NotBeEmpty("because at least one mutation group should exist");
 
     return mutationGroups;
+  }
+
+  public static IList<ArgumentSyntax> GetReplacedNodeArguments<T>(
+    string inputUnderMutation,
+    Func<MutatorAstRewriter, T, SyntaxNode> visitSyntaxUnderTest)
+    where T : SyntaxNode
+  {
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var rewriter = new MutatorAstRewriter(
+      compilation.sutAssembly, compilation.model, schemaRegistry);
+    var construct = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<T>().First();
+    var result = visitSyntaxUnderTest(rewriter, construct);
+
+    result.Should().BeOfType<InvocationExpressionSyntax>();
+    var mutantConstruct = (InvocationExpressionSyntax)result;
+
+    // Get method
+    mutantConstruct.Expression.Should()
+      .BeOfType<MemberAccessExpressionSyntax>();
+    var methodMemberAccessExpr =
+      (MemberAccessExpressionSyntax)mutantConstruct.Expression;
+
+    // Check class name matches
+    methodMemberAccessExpr.Expression.Should()
+      .BeOfType<MemberAccessExpressionSyntax>();
+    var classMemberAccessExpr =
+      (MemberAccessExpressionSyntax)methodMemberAccessExpr.Expression;
+    classMemberAccessExpr.Name.Identifier.Text.Should()
+      .BeEquivalentTo(schemaRegistry.ClassName);
+
+    // Check namespace name matches
+    classMemberAccessExpr.Expression.Should()
+      .BeOfType<IdentifierNameSyntax>();
+    var namespaceMemberAccessExpr =
+      (IdentifierNameSyntax)classMemberAccessExpr.Expression;
+    namespaceMemberAccessExpr.Identifier.Text.Should()
+      .BeEquivalentTo(MutantSchemataGenerator.Namespace);
+
+    // Extract arguments to mutant schema method invocation
+    var args = mutantConstruct.ArgumentList.Arguments;
+
+    // First argument will always be mutant ID assignment (numeric literal)
+    var mutantIdAssignment = args[0].Expression;
+    mutantIdAssignment.Should().BeOfType<LiteralExpressionSyntax>();
+
+    // Validate mutant ID is a numeric literal and has type "long"
+    var mutantId = (LiteralExpressionSyntax)mutantIdAssignment;
+    mutantId.IsKind(SyntaxKind.NumericLiteralExpression).Should()
+      .BeTrue();
+    mutantId.Token.Text.Should().EndWith("L");
+
+    // Drop mutantId argument and return the rest of the arguments of interest
+    return args.RemoveAt(0).ToList();
   }
 
   public static IEnumerable<string> GetMutantExpressionTemplates(

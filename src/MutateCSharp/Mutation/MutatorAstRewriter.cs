@@ -116,13 +116,25 @@ public sealed partial class MutatorAstRewriter(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
 
     // 4: Mutate node
+    // Handle short-circuit operators
+    var firstParameter = mutationGroup.SchemaParameterTypes[0];
+    var secondParameter = mutationGroup.SchemaParameterTypes[1];
+
+    var leftArgument = firstParameter.StartsWith("Func")
+      ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Left)
+      : nodeWithMutatedChildren.Left;
+
+    var rightArgument = secondParameter.StartsWith("Func")
+      ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Right)
+      : nodeWithMutatedChildren.Right;
+    
     return SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
       mutationGroup.SchemaName,
       baseMutantIdLiteral,
-      nodeWithMutatedChildren.Left,
-      nodeWithMutatedChildren.Right
+      leftArgument,
+      rightArgument
     );
   }
 
@@ -146,9 +158,9 @@ public sealed partial class MutatorAstRewriter(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
 
     // 4: Add ref keyword to parameter if updatable
+    var firstParam = mutationGroup.SchemaParameterTypes[0];
     var operand = SyntaxFactory.Argument(nodeWithMutatedChildren.Operand);
-    if (mutationGroup.SchemaParameterTypes.FirstOrDefault()
-          ?.StartsWith("ref") ?? false)
+    if (firstParam.StartsWith("ref"))
       operand =
         operand.WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword));
 

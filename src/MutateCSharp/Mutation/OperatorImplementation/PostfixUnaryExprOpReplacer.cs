@@ -25,7 +25,8 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    PostfixUnaryExpressionSyntax originalNode)
+    PostfixUnaryExpressionSyntax originalNode,
+    IList<ExpressionRecord> mutantExpressions)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -52,7 +53,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   }
 
   protected override IList<string> ParameterTypes(
-    PostfixUnaryExpressionSyntax originalNode)
+    PostfixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     // Since the supported postfix unary expressions can be either 
     // postincrement or postdecrement, they are guaranteed to be updatable

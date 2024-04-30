@@ -30,24 +30,26 @@ public abstract class AbstractMutationOperator<T>(
     var mutationsWithId = ValidMutantExpressions(node);
     if (mutationsWithId.Count == 0) return null;
 
-    var mutations = mutationsWithId.Select(entry => entry.expr);
+    var mutations = 
+      mutationsWithId.Select(entry => entry.expr).ToList();
     var uniqueMutantsId =
       string.Join("", mutationsWithId.Select(entry => entry.exprIdInMutator));
 
     return new MutationGroup
     {
       SchemaName = $"{SchemaBaseName(node)}{uniqueMutantsId}",
-      SchemaParameterTypes = ParameterTypes(node),
+      SchemaParameterTypes = ParameterTypes(node, mutations),
       SchemaReturnType = ReturnType(node),
-      SchemaOriginalExpression = OriginalExpression(node),
-      SchemaMutantExpressions = mutations.ToImmutableArray(),
+      SchemaOriginalExpression = OriginalExpression(node, mutations),
+      SchemaMutantExpressions = mutations,
       OriginalLocation = node.GetLocation()
     };
   }
 
   protected abstract bool CanBeApplied(T originalNode);
 
-  protected abstract ExpressionRecord OriginalExpression(T originalNode);
+  protected abstract ExpressionRecord OriginalExpression(T originalNode,
+    IList<ExpressionRecord> mutantExpressions);
 
   // Generate list of valid mutations for the currently visited node, in the
   // form of string template to be formatted later to insert arguments.
@@ -57,7 +59,8 @@ public abstract class AbstractMutationOperator<T>(
     ValidMutantExpressions(T originalNode);
 
   // Parameter type of the programming construct.
-  protected abstract IList<string> ParameterTypes(T originalNode);
+  protected abstract IList<string> ParameterTypes(T originalNode,
+    IList<ExpressionRecord> mutantExpressions);
 
   // Return type of the programming construct (expression, statement)
   // represented by type of node under mutation.

@@ -30,7 +30,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    PrefixUnaryExpressionSyntax originalNode)
+    PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -59,7 +59,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   }
 
   protected override IList<string> ParameterTypes(
-    PrefixUnaryExpressionSyntax originalNode)
+    PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).Type!
       .ToDisplayString();

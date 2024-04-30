@@ -18,16 +18,22 @@ public sealed partial class BinExprOpReplacer(
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
-  private static string ExpressionTemplate(SyntaxKind kind)
+  private static string ExpressionTemplate(SyntaxKind kind, bool hasLambdaArguments)
   {
-    return $"{{0}} {SupportedOperators[kind]} {{1}}";
+    var insertInvocation = hasLambdaArguments ? "()" : string.Empty;
+    return $"{{0}}{insertInvocation} {SupportedOperators[kind]} {{1}}{insertInvocation}";
   }
 
   protected override ExpressionRecord OriginalExpression(
-    BinaryExpressionSyntax originalNode)
+    BinaryExpressionSyntax originalNode,
+    IList<ExpressionRecord> mutantExpressions)
   {
+    var containsShortCircuitOperators =
+      HasShortCircuitOperators(originalNode.Kind(), 
+        mutantExpressions.Select(expr => expr.Operation));
+    
     return new ExpressionRecord(originalNode.Kind(),
-      ExpressionTemplate(originalNode.Kind()));
+      ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators));
   }
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
@@ -39,23 +45,38 @@ public sealed partial class BinExprOpReplacer(
   protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(BinaryExpressionSyntax originalNode)
   {
-    var validMutants = ValidMutants(originalNode);
+    var validMutants = ValidMutants(originalNode).ToList();
+    var containsShortCircuitOperators =
+      HasShortCircuitOperators(originalNode.Kind(), validMutants);
+    
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
     return attachIdToMutants.Select(entry =>
         (entry.Item1,
-          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))))
+          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2, containsShortCircuitOperators))))
       .ToList();
   }
 
+  // C# allows short-circuit evaluation for boolean && and || operators.
+  // To preserve the semantics in mutant schemata, we defer the expression
+  // evaluation by wrapping the expression in lambda iff any of the original
+  // expression or mutant expressions involve the use of && or ||
   protected override IList<string> ParameterTypes(
-    BinaryExpressionSyntax originalNode)
+    BinaryExpressionSyntax originalNode, IList<ExpressionRecord> mutantExpressions)
   {
     var firstVariableType =
       SemanticModel.GetTypeInfo(originalNode.Left).Type!.ToDisplayString();
     var secondVariableType =
       SemanticModel.GetTypeInfo(originalNode.Right).Type!.ToDisplayString();
+
+    // Short-circuit evaluation operators present
+    if (CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) 
+        || mutantExpressions.Any(expr =>
+          CodeAnalysisUtil.ShortCircuitOperators.Contains(expr.Operation)))
+    {
+      return [$"Func<{firstVariableType}>", $"Func<{secondVariableType}>"];
+    }
     return [firstVariableType, secondVariableType];
   }
 
@@ -67,6 +88,14 @@ public sealed partial class BinExprOpReplacer(
   protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)
   {
     return $"ReplaceBinExprOpReturn{ReturnType(originalNode)}";
+  }
+
+  private static bool HasShortCircuitOperators(SyntaxKind originalOperator,
+    IEnumerable<SyntaxKind> mutantOperators)
+  {
+    return CodeAnalysisUtil.ShortCircuitOperators.Contains(originalOperator)
+           || mutantOperators.Any(op =>
+             CodeAnalysisUtil.ShortCircuitOperators.Contains(op));
   }
 }
 

@@ -40,7 +40,7 @@ public sealed partial class CompoundAssignOpReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    AssignmentExpressionSyntax originalNode)
+    AssignmentExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -62,7 +62,7 @@ public sealed partial class CompoundAssignOpReplacer(
   }
 
   protected override IList<string> ParameterTypes(
-    AssignmentExpressionSyntax originalNode)
+    AssignmentExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     var firstVariableType =
       SemanticModel.GetTypeInfo(originalNode.Left).Type!.ToDisplayString();
