@@ -61,9 +61,9 @@ public static class MutantSchemataGenerator
       result.AppendLine();
     }
 
-    // Default case: throw new System.Diagnostics.UnreachableException("Mutant ID out of range");
+    // Default case: throw new System.InvalidOperationException("Mutant ID out of range");
     result.Append(
-      "throw new System.Diagnostics.UnreachableException(\"Mutant ID out of range\");");
+      "throw new System.InvalidOperationException(\"Mutant ID out of range\");");
     result.AppendLine();
 
     return result;
@@ -74,13 +74,13 @@ public static class MutantSchemataGenerator
     return
       $$"""
       private static bool _initialised;
-      private static int _activatedMutantId;
+      private static long _activatedMutantId;
 
       private static void Initialise()
       {
         if (_initialised) return;
         var activatedMutant = Environment.GetEnvironmentVariable("{{environmentVariable}}");
-        if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = int.Parse(activatedMutant);
+        if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = long.Parse(activatedMutant);
         _initialised = true;
       }
 
