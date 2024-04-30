@@ -255,6 +255,12 @@ public sealed partial class MutatorAstRewriter
     return node;
   }
 
+  public override SyntaxNode VisitRelationalPattern(
+    RelationalPatternSyntax node)
+  {
+    return node;
+  }
+
   public override SyntaxNode
     VisitRecursivePattern(RecursivePatternSyntax node)
   {
