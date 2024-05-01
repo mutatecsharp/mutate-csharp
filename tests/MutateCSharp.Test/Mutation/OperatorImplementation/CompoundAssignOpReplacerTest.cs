@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
@@ -104,6 +106,15 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
           }
         }
         """;
+    
+    // Skip test if the input does not compile
+    if (TestUtil.GetCompilation(CSharpSyntaxTree.ParseText(inputUnderMutation))
+        .GetDiagnostics()
+        .Any(d => d.Severity == DiagnosticSeverity.Error))
+    {
+      testOutputHelper.WriteLine("We can safely skip the test as the original input does not compile");
+      return;
+    }
     
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     

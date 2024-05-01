@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using Xunit.Sdk;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
