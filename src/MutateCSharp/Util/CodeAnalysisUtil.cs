@@ -130,11 +130,15 @@ public static class CodeAnalysisUtil
     return friendlyToClrName.ToFrozenDictionary();
   }
 
+  public static ITypeSymbol? ResolveType(this Microsoft.CodeAnalysis.TypeInfo typeInfo)
+  {
+    return typeInfo.Type ?? typeInfo.ConvertedType;
+  }
+
   public static string ToClrTypeName(this ITypeSymbol type)
   {
-    return type.SpecialType != SpecialType.None
-      ? FriendlyNameToClrName[type.ToDisplayString()]
-      : type.ToDisplayString();
+    return FriendlyNameToClrName.TryGetValue(type.ToDisplayString(),
+      out var clrTypeName) ? clrTypeName : type.ToDisplayString();
   }
 
   public static string ToClrTypeName(this Type type)

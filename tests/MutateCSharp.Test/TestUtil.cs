@@ -14,12 +14,17 @@ public static class TestUtil
   private static readonly PortableExecutableReference MicrosoftCoreLibrary =
     MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
 
+  public static CSharpCompilation GetCompilation(SyntaxTree tree)
+  {
+    return CSharpCompilation.Create(Path.GetRandomFileName())
+      .WithReferences(MicrosoftCoreLibrary)
+      .AddSyntaxTrees(tree);
+  }
+
   public static (SemanticModel model, Assembly sutAssembly)
     GetAstSemanticModelAndAssembly(SyntaxTree tree)
   {
-    var compilation = CSharpCompilation.Create(Path.GetRandomFileName())
-      .WithReferences(MicrosoftCoreLibrary)
-      .AddSyntaxTrees(tree);
+    var compilation = GetCompilation(tree);
 
     // Obtain semantic model of input
     var model = compilation.GetSemanticModel(tree);
@@ -152,7 +157,7 @@ public static class TestUtil
     where T : SyntaxNode
   {
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
-    var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var compilation = GetAstSemanticModelAndAssembly(ast);
     var schemaRegistry = new FileLevelMutantSchemaRegistry();
     var rewriter = new MutatorAstRewriter(
       compilation.sutAssembly, compilation.model, schemaRegistry);

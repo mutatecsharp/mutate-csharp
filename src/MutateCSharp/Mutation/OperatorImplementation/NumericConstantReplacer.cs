@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -16,7 +17,9 @@ public sealed partial class NumericConstantReplacer(
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).Type?.SpecialType;
+    Log.Debug("Processing numeric constant: {SyntaxNode}", 
+      originalNode.GetText().ToString());
+    var type = SemanticModel.GetTypeInfo(originalNode).ResolveType()?.SpecialType;
     return type.HasValue &&
            SupportedNumericTypesToSuffix.ContainsKey(type.Value);
   }
@@ -31,7 +34,7 @@ public sealed partial class NumericConstantReplacer(
     ValidMutantExpressions(
       LiteralExpressionSyntax originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).Type?.SpecialType!;
+    var type = SemanticModel.GetTypeInfo(originalNode).ResolveType()?.SpecialType!;
     var typeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(type.Value);
     var result = new List<(int, ExpressionRecord)>();
@@ -60,7 +63,7 @@ public sealed partial class NumericConstantReplacer(
 
   protected override string ReturnType(LiteralExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
   }
 
   protected override string

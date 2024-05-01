@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -15,6 +16,8 @@ public sealed partial class BinExprOpReplacer(
 {
   protected override bool CanBeApplied(BinaryExpressionSyntax originalNode)
   {
+    Log.Debug("Processing binary expression: {SyntaxNode}", 
+      originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
@@ -66,9 +69,9 @@ public sealed partial class BinExprOpReplacer(
     BinaryExpressionSyntax originalNode, IList<ExpressionRecord> mutantExpressions)
   {
     var firstVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Left).Type!.ToDisplayString();
+      SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()!.ToDisplayString();
     var secondVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Right).Type!.ToDisplayString();
+      SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()!.ToDisplayString();
 
     // Short-circuit evaluation operators present
     if (CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) 
@@ -82,7 +85,7 @@ public sealed partial class BinExprOpReplacer(
 
   protected override string ReturnType(BinaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)

@@ -45,12 +45,36 @@ public static class MutatorHarness
     // We currently support looking up type symbols from the local project only
     using var portableExecutableStream = new MemoryStream();
     var compilation = await project.GetCompilationAsync();
-    var emitResult =
-      compilation?.Emit(portableExecutableStream).Success ?? false;
-    if (!emitResult)
+
+    if (compilation is null)
     {
-      Log.Warning("Failed to compile project {Project}.",
+      Log.Warning("Failed to compile project {Project}.", project.Name);
+      return (project, null);
+    }
+
+    // Log all referenced assemblies
+    foreach (var reference in compilation.ReferencedAssemblyNames)
+    {
+      Log.Debug("Assembly referenced: {ReferenceName}", reference.Name);
+    }
+
+    var emitResult = compilation.Emit(portableExecutableStream);
+    
+    if (!emitResult.Success)
+    {
+      Log.Warning("Failed to emit assembly for project {Project}.",
         project.Name);
+      Log.Debug("Reason for emit failure:");
+      foreach (var diagnostic in emitResult.Diagnostics)
+      {
+        var lineSpan = diagnostic.Location.GetLineSpan();
+        Log.Debug("{FileName}(Line {LineNumber}, Column {StartColumn}:{EndColumn}): {Message}", 
+          Path.GetFileName(lineSpan.Path), 
+          lineSpan.StartLinePosition.Line,
+          lineSpan.StartLinePosition.Character,
+          lineSpan.EndLinePosition.Character,
+          diagnostic.GetMessage());
+      }
       return (project, null);
     }
 

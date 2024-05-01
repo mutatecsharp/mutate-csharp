@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -25,6 +26,8 @@ public sealed partial class CompoundAssignOpReplacer(
 {
   protected override bool CanBeApplied(AssignmentExpressionSyntax originalNode)
   {
+    Log.Debug("Processing compound assignment: {SyntaxNode}", 
+      originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
@@ -65,9 +68,9 @@ public sealed partial class CompoundAssignOpReplacer(
     AssignmentExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
     var firstVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Left).Type!.ToDisplayString();
+      SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()!.ToDisplayString();
     var secondVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Right).Type!.ToDisplayString();
+      SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()!.ToDisplayString();
     return [$"ref {firstVariableType}", secondVariableType];
   }
 

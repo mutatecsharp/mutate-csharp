@@ -86,8 +86,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
   public static IEnumerable<object[]> IntegralTypedMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
-      IntegralTypes.Keys,
-      SupportedIntegralOperators);
+      IntegralTypes.Keys, SupportedIntegralOperators);
 
   [Theory]
   [MemberData(nameof(IntegralTypedMutations))]
@@ -459,5 +458,71 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         """;
 
     ShouldNotHaveValidMutationGroup(inputUnderMutation);
+  }
+
+  [Theory]
+  [InlineData("==", "!=")]
+  [InlineData("!=", "==")]
+  public void ShouldReplaceForGenericTypes(string originalOperator, string replacementOperator)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+      using System.Collections.Generic;
+      
+      public class A
+      {
+        public static void Main()
+        { 
+          var d = new Dictionary<int, int>();
+          var result = d {{originalOperator}} null;
+        }
+      }
+      """;
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("bool");
+    mutationGroup.SchemaParameterTypes.Should()
+      .Equal("System.Collections.Generic.Dictionary<int, int>", "object");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
+  }
+
+  public static IEnumerable<object[]> IntegralMutations =
+    TestUtil.GenerateMutationTestCases(SupportedIntegralOperators);
+  
+  [Theory]
+  [MemberData(nameof(IntegralMutations))]
+  public void ShouldReplaceForNullableTypes(string originalOperator,
+    string[] expectedReplacementOperators)
+  {
+    foreach (var (leftType, rightType) in
+             new [] {("int", "int?"), ("int?", "int"), ("int?", "int?")})
+    {
+      var inputUnderMutation =
+        $$"""
+          using System;
+          using System.Collections.Generic;
+
+          public class A
+          {
+            public static void Main()
+            {
+              {{leftType}} left = 10;
+              {{rightType}} right = 10;
+              var sum = left {{originalOperator}} right;
+            }
+          }
+          """;
+    
+      var mutationGroup = GetMutationGroup(inputUnderMutation);
+      mutationGroup.SchemaReturnType.Should().Be("int?");
+      mutationGroup.SchemaParameterTypes.Should()
+        .Equal(leftType, rightType);
+      var mutantExpressionsTemplate =
+        expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
+      TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+        .BeEquivalentTo(mutantExpressionsTemplate);
+    }
   }
 }

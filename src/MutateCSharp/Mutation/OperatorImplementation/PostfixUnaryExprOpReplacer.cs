@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -16,6 +17,8 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   protected override bool CanBeApplied(
     PostfixUnaryExpressionSyntax originalNode)
   {
+    Log.Debug("Processing postfix unary expression: {SyntaxNode}", 
+      originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
@@ -57,7 +60,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   {
     // Since the supported postfix unary expressions can be either 
     // postincrement or postdecrement, they are guaranteed to be updatable
-    var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).Type!
+    var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).ResolveType()!
       .ToDisplayString();
 
     return [$"ref {operandType}"];
@@ -66,7 +69,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   protected override string ReturnType(
     PostfixUnaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(

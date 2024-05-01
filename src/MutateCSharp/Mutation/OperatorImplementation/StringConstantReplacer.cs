@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -15,6 +16,8 @@ public class StringConstantReplacer(
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
+    Log.Debug("Processing string constant: {SyntaxNode}", 
+      originalNode.GetText().ToString());
     return originalNode.IsKind(SyntaxKind.StringLiteralExpression);
   }
 

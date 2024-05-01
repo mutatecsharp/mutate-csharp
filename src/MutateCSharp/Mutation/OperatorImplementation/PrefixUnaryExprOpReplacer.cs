@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -21,6 +22,8 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 {
   protected override bool CanBeApplied(PrefixUnaryExpressionSyntax originalNode)
   {
+    Log.Debug("Processing prefix unary expression: {SyntaxNode}", 
+      originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
@@ -61,7 +64,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   protected override IList<string> ParameterTypes(
     PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
-    var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).Type!
+    var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).ResolveType()!
       .ToDisplayString();
 
     // Check if operand is updatable
@@ -72,7 +75,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
   protected override string ReturnType(PrefixUnaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(

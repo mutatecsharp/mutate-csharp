@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation;
 
@@ -42,8 +43,8 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return Array.Empty<SyntaxKind>();
 
-    var leftType = SemanticModel.GetTypeInfo(left).Type!;
-    var rightType = SemanticModel.GetTypeInfo(right).Type!;
+    var leftType = SemanticModel.GetTypeInfo(left).ResolveType()!;
+    var rightType = SemanticModel.GetTypeInfo(right).ResolveType()!;
 
     // Case 1: Predefined types
     // Binary operators can take operand of separate types, warranting the
@@ -102,8 +103,8 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // TODO: may be acceptable to only check return type
     var leftOperand = GetLeftOperand(originalNode);
     if (leftOperand == null) return false;
-    var returnType = SemanticModel.GetTypeInfo(originalNode).Type!;
-    var operandType = SemanticModel.GetTypeInfo(leftOperand).Type!;
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!;
+    var operandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType()!;
 
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
@@ -172,12 +173,51 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return false;
 
-    var leftOperandTypeName =
-      SemanticModel.GetTypeInfo(left).Type!.ToClrTypeName();
-    var rightOperandTypeName =
-      SemanticModel.GetTypeInfo(right).Type!.ToClrTypeName();
-    var originalReturnTypeName =
-      SemanticModel.GetTypeInfo(originalNode).Type!.ToClrTypeName();
+    var leftCompileType = SemanticModel.GetTypeInfo(left).ResolveType()!;
+    var rightCompileType = SemanticModel.GetTypeInfo(right).ResolveType()!;
+    var returnCompileType =
+      SemanticModel.GetTypeInfo(originalNode).ResolveType()!;
+
+    // 2) Check if user-defined operator exists
+    // 2a) Fallback: check if equality operator applies
+    return HasUnambiguousUserDefinedOperator(replacementOp, leftCompileType,
+              rightCompileType, returnCompileType)
+            || (replacementOp.ExprKind 
+                  is SyntaxKind.EqualsExpression
+                  or SyntaxKind.NotEqualsExpression
+                && CanApplyEqualityOperator(leftCompileType, rightCompileType, returnCompileType));
+  }
+
+  /*
+   * Equality operator is baked into the C# programming language and is defined
+   * for all types regardless of whether is overloaded. We handle this case
+   * specially.
+   *
+   * A binary (in)equality expression should have either left operand or
+   * right operand implicitly convertable to the other.
+   */
+  private bool CanApplyEqualityOperator(
+    ITypeSymbol leftType, ITypeSymbol rightType, ITypeSymbol returnType)
+  {
+    var operandTypeChecks =
+      SemanticModel.Compilation.HasImplicitConversion(leftType, rightType)
+           || SemanticModel.Compilation.HasImplicitConversion(
+             rightType, leftType);
+
+    var boolType =
+      SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+
+    return operandTypeChecks &&
+           SemanticModel.Compilation.HasImplicitConversion(boolType,
+             returnType);
+  }
+
+  private bool HasUnambiguousUserDefinedOperator(CodeAnalysisUtil.BinOp replacementOp,
+    ITypeSymbol leftType, ITypeSymbol rightType, ITypeSymbol returnType)
+  {
+    var leftOperandTypeName = leftType.ToClrTypeName();
+    var rightOperandTypeName = rightType.ToClrTypeName();
+    var originalReturnTypeName = returnType.ToClrTypeName();
 
     var leftOperandType = SutAssembly.GetType(leftOperandTypeName) ??
                           Type.GetType(leftOperandTypeName);
@@ -190,17 +230,22 @@ public abstract class AbstractBinaryMutationOperator<T>(
     if (leftOperandType == null
         || rightOperandType == null
         || originalReturnType == null)
+    {
+      Log.Debug(
+        "Type information not available in assembly for either {ReturnType}, {LeftOperandType}, or {RightOperandType}",
+        originalReturnTypeName, leftOperandTypeName, rightOperandTypeName);
       return false;
-
-    // 2) Get overloaded operator methods from operand user-defined types
+    }
+    
+    // Get overloaded operator methods from operand user-defined types
     //
     // We leverage reflection to handle overload resolution within a single type
     //
     // Note that either left or right operand may be of predefined type,
     // but not both at the same time
     var (leftReplacementOpMethod, rightReplacementOpMethod) =
-      GetResolvedBinaryOverloadedOperator(replacementOp, leftOperandType,
-        rightOperandType);
+      GetResolvedBinaryOverloadedOperator(
+        replacementOp, leftOperandType, rightOperandType);
 
     // No match for the overloaded operator from both operand types is found
     if (leftReplacementOpMethod == null && rightReplacementOpMethod == null)
@@ -212,20 +257,17 @@ public abstract class AbstractBinaryMutationOperator<T>(
       leftReplacementOpMethod == null ? rightReplacementOpMethod
       : rightReplacementOpMethod == null ? leftReplacementOpMethod : null;
 
-    // 3) Apply tiebreaks by selecting operator with more specific parameter types
+    // 4) Apply tiebreaks by selecting operator with more specific parameter types
     if (replacementOpMethod == null)
       replacementOpMethod = DetermineBetterFunctionMember(
         leftReplacementOpMethod!, rightReplacementOpMethod!);
-
-    // Tiebreak failed
-    if (replacementOpMethod == null) return false;
-
-    // 4) Check if replacement operator method return type is assignable to
+    
+    // 5) Check if replacement operator method return type is assignable to
     // original operator method return type
-    return replacementOpMethod.ReturnType.IsAssignableTo(
-      originalReturnType);
+    return replacementOpMethod is not null && 
+           replacementOpMethod.ReturnType.IsAssignableTo(originalReturnType);
   }
-
+  
   public static (MethodInfo?, MethodInfo?) GetResolvedBinaryOverloadedOperator(
     CodeAnalysisUtil.BinOp binOp, Type leftType, Type rightType)
   {

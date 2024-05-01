@@ -17,7 +17,7 @@ public class MutationGroup
 
   public override int GetHashCode()
   {
-    return HashCode.Combine(SchemaName);
+    return HashCode.Combine(SchemaName, SchemaParameterTypes);
   }
 
   public override bool Equals(object? other)
@@ -27,6 +27,7 @@ public class MutationGroup
         GetType() != other.GetType())
       return false;
     var otherGroup = (other as MutationGroup)!;
-    return SchemaName.Equals(otherGroup.SchemaName);
+    return SchemaName.Equals(otherGroup.SchemaName)
+      && SchemaParameterTypes.Equals(otherGroup.SchemaParameterTypes);
   }
 }

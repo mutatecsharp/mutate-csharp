@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
@@ -14,6 +15,8 @@ public class BooleanConstantReplacer(
 {
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
+    Log.Debug("Processing boolean constant: {SyntaxNode}", 
+      originalNode.GetText().ToString());
     return originalNode.IsKind(SyntaxKind.TrueLiteralExpression) ||
            originalNode.IsKind(SyntaxKind.FalseLiteralExpression);
   }
