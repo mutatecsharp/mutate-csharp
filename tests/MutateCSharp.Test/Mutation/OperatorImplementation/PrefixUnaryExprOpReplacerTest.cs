@@ -454,8 +454,8 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     {
       group.SchemaParameterTypes.Should().Equal("int");
       var mutantExpressions = TestUtil.GetMutantExpressionTemplates(group).ToHashSet();
-      mutantExpressions.Should().Contain("++{0}");
-      mutantExpressions.Should().Contain("--{0}");
+      mutantExpressions.Should().NotContain("++{0}");
+      mutantExpressions.Should().NotContain("--{0}");
     }
   }
 }

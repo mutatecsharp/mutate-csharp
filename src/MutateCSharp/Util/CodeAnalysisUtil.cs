@@ -1,5 +1,6 @@
 using System.CodeDom;
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -129,10 +130,26 @@ public static class CodeAnalysisUtil
 
     return friendlyToClrName.ToFrozenDictionary();
   }
-
+  
   public static ITypeSymbol? ResolveType(this Microsoft.CodeAnalysis.TypeInfo typeInfo)
   {
+    // Get the type; failing which we get the converted type
+    // This mainly happens when we try to get the type of null, but null does
+    // not have a type; it will be converted to the object type
     return typeInfo.Type ?? typeInfo.ConvertedType;
+  }
+
+  public static ITypeSymbol GetNullableUnderlyingType(this ITypeSymbol type)
+  {
+    // If the type is Nullable<T> or T?, convert to T
+    if (type is INamedTypeSymbol 
+          { ConstructedFrom.SpecialType: SpecialType.System_Nullable_T,
+            Arity: 1 } namedType)
+    {
+      return namedType.TypeArguments[0];
+    }
+
+    return type;
   }
 
   public static string ToClrTypeName(this ITypeSymbol type)

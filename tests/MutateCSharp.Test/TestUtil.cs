@@ -11,14 +11,20 @@ namespace MutateCSharp.Test;
 
 public static class TestUtil
 {
+  private static readonly CSharpCompilationOptions TestCompileOptions =
+    new CSharpCompilationOptions(OutputKind.ConsoleApplication)
+      .WithNullableContextOptions(NullableContextOptions.Enable);
+  
   private static readonly PortableExecutableReference MicrosoftCoreLibrary =
     MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
 
   public static CSharpCompilation GetCompilation(SyntaxTree tree)
   {
-    return CSharpCompilation.Create(Path.GetRandomFileName())
-      .WithReferences(MicrosoftCoreLibrary)
-      .AddSyntaxTrees(tree);
+    return CSharpCompilation.Create(
+      assemblyName: Path.GetRandomFileName(),
+      syntaxTrees: [tree],
+      references: [MicrosoftCoreLibrary],
+      options: TestCompileOptions);
   }
 
   public static (SemanticModel model, Assembly sutAssembly)

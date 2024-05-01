@@ -85,7 +85,7 @@ public sealed partial class BinExprOpReplacer(
 
   protected override string ReturnType(BinaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)

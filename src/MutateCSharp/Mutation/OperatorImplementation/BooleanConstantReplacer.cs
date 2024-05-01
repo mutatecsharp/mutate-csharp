@@ -36,7 +36,7 @@ public class BooleanConstantReplacer(
   protected override IList<string> ParameterTypes(
     LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
-    return ImmutableArray.Create(ReturnType(originalNode));
+    return [ReturnType(originalNode)];
   }
 
   protected override string ReturnType(LiteralExpressionSyntax _)

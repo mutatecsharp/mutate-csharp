@@ -69,7 +69,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   protected override string ReturnType(
     PostfixUnaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(

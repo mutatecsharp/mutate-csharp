@@ -43,8 +43,8 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return Array.Empty<SyntaxKind>();
 
-    var leftType = SemanticModel.GetTypeInfo(left).ResolveType()!;
-    var rightType = SemanticModel.GetTypeInfo(right).ResolveType()!;
+    var leftType = SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
+    var rightType = SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
 
     // Case 1: Predefined types
     // Binary operators can take operand of separate types, warranting the
@@ -103,8 +103,8 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // TODO: may be acceptable to only check return type
     var leftOperand = GetLeftOperand(originalNode);
     if (leftOperand == null) return false;
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!;
-    var operandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType()!;
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
+    var operandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType()!.GetNullableUnderlyingType();
 
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
@@ -173,10 +173,10 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return false;
 
-    var leftCompileType = SemanticModel.GetTypeInfo(left).ResolveType()!;
-    var rightCompileType = SemanticModel.GetTypeInfo(right).ResolveType()!;
+    var leftCompileType = SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
+    var rightCompileType = SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
     var returnCompileType =
-      SemanticModel.GetTypeInfo(originalNode).ResolveType()!;
+      SemanticModel.GetTypeInfo(originalNode).Type!;
 
     // 2) Check if user-defined operator exists
     // 2a) Fallback: check if equality operator applies

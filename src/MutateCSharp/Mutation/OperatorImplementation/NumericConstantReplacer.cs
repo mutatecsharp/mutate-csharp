@@ -58,12 +58,12 @@ public sealed partial class NumericConstantReplacer(
   protected override IList<string> ParameterTypes(
     LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
   {
-    return ImmutableArray.Create(ReturnType(originalNode));
+    return [ReturnType(originalNode)];
   }
 
   protected override string ReturnType(LiteralExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
   protected override string

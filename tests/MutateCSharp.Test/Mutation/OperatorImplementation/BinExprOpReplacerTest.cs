@@ -1,7 +1,10 @@
 using FluentAssertions;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
@@ -483,7 +486,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("bool");
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal("System.Collections.Generic.Dictionary<int, int>", "object");
+      .Equal("System.Collections.Generic.Dictionary<int, int>", "object?");
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
   }
@@ -493,12 +496,13 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   
   [Theory]
   [MemberData(nameof(IntegralMutations))]
-  public void ShouldReplaceForNullableTypes(string originalOperator,
+  public void ShouldReplaceForNullablePrimitiveTypes(string originalOperator,
     string[] expectedReplacementOperators)
   {
-    foreach (var (leftType, rightType) in
-             new [] {("int", "int?"), ("int?", "int"), ("int?", "int?")})
+    foreach (var (leftType, rightType) in 
+             new [] {("int?", "int?"), ("int", "int?"), ("int?", "int")})
     {
+      testOutputHelper.WriteLine($"Test case: {leftType}, {rightType}");
       var inputUnderMutation =
         $$"""
           using System;
@@ -514,7 +518,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
             }
           }
           """;
-    
+
       var mutationGroup = GetMutationGroup(inputUnderMutation);
       mutationGroup.SchemaReturnType.Should().Be("int?");
       mutationGroup.SchemaParameterTypes.Should()

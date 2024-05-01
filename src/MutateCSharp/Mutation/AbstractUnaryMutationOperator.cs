@@ -65,8 +65,8 @@ public abstract class AbstractUnaryMutationOperator<T>(
     // 1) Get the operand type name and return type name
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
-    var operandType = SemanticModel.GetTypeInfo(operand).ResolveType()!;
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!;
+    var operandType = SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType();
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
 
     var operandTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
@@ -127,10 +127,10 @@ public abstract class AbstractUnaryMutationOperator<T>(
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
     var operandTypeName =
-      SemanticModel.GetTypeInfo(operand).ResolveType()!.ToClrTypeName();
+      SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType().ToClrTypeName();
     var returnTypeName =
-      SemanticModel.GetTypeInfo(originalNode).ResolveType()!.ToClrTypeName();
-
+      SemanticModel.GetTypeInfo(originalNode).Type!.ToClrTypeName();
+    
     // 2) Get operand type and return type in runtime
     // If we cannot locate the type from the assembly of SUT, this means we
     // are looking for types defined in the core library: we defer to the
