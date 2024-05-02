@@ -38,7 +38,7 @@ public abstract class AbstractMutationOperator<T>(
     {
       SchemaName = $"{SchemaBaseName(node)}{uniqueMutantsId}",
       SchemaParameterTypes = ParameterTypes(node, mutations),
-      SchemaReturnType = ReturnType(node),
+      SchemaReturnType = ReturnType(node).Replace("?", "Nullable"),
       SchemaOriginalExpression = OriginalExpression(node, mutations),
       SchemaMutantExpressions = mutations,
       OriginalLocation = node.GetLocation()
