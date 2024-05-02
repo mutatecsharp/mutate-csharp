@@ -15,9 +15,12 @@ public class MutationGroup
   // For internal use (registry)
   public required Location OriginalLocation { get; init; }
 
+  // Compute hash code that takes into consideration the schema method name
+  // and the (order-aware) schema parameter types
   public override int GetHashCode()
   {
-    return HashCode.Combine(SchemaName, SchemaParameterTypes);
+    return SchemaParameterTypes.Aggregate(
+      SchemaName.GetHashCode(), HashCode.Combine);
   }
 
   public override bool Equals(object? other)
@@ -28,6 +31,7 @@ public class MutationGroup
       return false;
     var otherGroup = (other as MutationGroup)!;
     return SchemaName.Equals(otherGroup.SchemaName)
-      && SchemaParameterTypes.Equals(otherGroup.SchemaParameterTypes);
+           && SchemaParameterTypes.SequenceEqual(
+             otherGroup.SchemaParameterTypes);
   }
 }
