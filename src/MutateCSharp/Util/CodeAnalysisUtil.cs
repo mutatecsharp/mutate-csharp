@@ -1,10 +1,10 @@
 using System.CodeDom;
 using System.Collections.Frozen;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CSharp;
+using Serilog;
 
 namespace MutateCSharp.Util;
 
@@ -67,10 +67,6 @@ public static class CodeAnalysisUtil
       new TypeSignature(SupportedType.Numeric | SupportedType.Character,
         SupportedType.Boolean)
     ];
-
-  // For reflection use
-  public static readonly FrozenDictionary<string, string> FriendlyNameToClrName
-    = BuildDefinedTypeToClrType();
   
   public static readonly FrozenSet<SyntaxKind> ShortCircuitOperators
     = new HashSet<SyntaxKind>
@@ -130,27 +126,6 @@ public static class CodeAnalysisUtil
       _ => SupportedType.NotSupported
     };
   }
-
-  private static FrozenDictionary<string, string> BuildDefinedTypeToClrType()
-  {
-    var mscorlib = Assembly.GetAssembly(typeof(int));
-    var definedTypes =
-      mscorlib!.DefinedTypes
-        .Where(type => type.Namespace?.Equals("System") ?? false);
-    using var provider = new CSharpCodeProvider();
-    var friendlyToClrName = new Dictionary<string, string>();
-
-    foreach (var type in definedTypes)
-    {
-      var typeRef = new CodeTypeReference(type);
-      var friendlyName = provider.GetTypeOutput(typeRef);
-      // Filter qualified types
-      if (!friendlyName.Contains('.'))
-        friendlyToClrName[friendlyName] = type.FullName!;
-    }
-
-    return friendlyToClrName.ToFrozenDictionary();
-  }
   
   public static ITypeSymbol? ResolveType(this Microsoft.CodeAnalysis.TypeInfo typeInfo)
   {
@@ -191,11 +166,43 @@ public static class CodeAnalysisUtil
     
     return type;
   }
+  
+  // For reflection use
+  private static readonly SymbolDisplayFormat ClrFormatOptions
+    = new(
+      typeQualificationStyle: 
+      SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
 
+  // Subsumes ToClrTypeName.
+  public static string ToFullMetadataName(this ISymbol symbol) 
+  {
+    if (IsRootNamespace(symbol)) return string.Empty;
+    var builder = new List<string>{symbol.MetadataName};
+    var current = symbol.ContainingSymbol;
+
+    while (!IsRootNamespace(current))
+    {
+      if (current is ITypeSymbol && symbol is ITypeSymbol)
+        builder.Add("+");
+      else
+        builder.Add(".");
+      
+      builder.Add(current.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+      current = current.ContainingSymbol;
+    }
+
+    builder.Reverse();
+    return string.Join("", builder);
+  }
+
+  private static bool IsRootNamespace(ISymbol symbol)
+  {
+    return symbol is INamespaceSymbol { IsGlobalNamespace: true };
+  }
+  
   public static string ToClrTypeName(this ITypeSymbol type)
   {
-    return FriendlyNameToClrName.TryGetValue(type.ToDisplayString(),
-      out var clrTypeName) ? clrTypeName : type.ToDisplayString();
+    return type.ToDisplayString(ClrFormatOptions);
   }
 
   public static string ToClrTypeName(this Type type)
@@ -203,6 +210,49 @@ public static class CodeAnalysisUtil
     using var provider = new CSharpCodeProvider();
     var typeRef = new CodeTypeReference(type);
     return provider.GetTypeOutput(typeRef);
+  }
+  
+  public static Type? GetRuntimeType(this ITypeSymbol typeSymbol, Assembly sutAssembly)
+  {
+    // Named type (user-defined, predefined collection types, etc.)
+    if (typeSymbol is INamedTypeSymbol namedTypeSymbol)
+    {
+      // Construct type
+      var runtimeBaseType =
+        ResolveReflectionType(namedTypeSymbol.ToFullMetadataName(), sutAssembly);
+      
+      // Non-generic
+      if (!namedTypeSymbol.IsGenericType) return runtimeBaseType;
+      
+      // Generic (recursively construct children runtime types)
+      var runtimeChildrenTypes = namedTypeSymbol.TypeArguments
+        .Select(type => GetRuntimeType(type, sutAssembly)).ToList();
+      if (runtimeChildrenTypes.Any(type => type is null)) return null;
+      var absoluteRuntimeChildrenTypes 
+        = runtimeChildrenTypes.Select(type => type!).ToArray();
+      return runtimeBaseType?.MakeGenericType(absoluteRuntimeChildrenTypes);
+    }
+    
+    // Array type
+    if (typeSymbol is IArrayTypeSymbol arrayTypeSymbol)
+    {
+      var elementType = GetRuntimeType(arrayTypeSymbol.ElementType, sutAssembly);
+      return arrayTypeSymbol.Rank == 1 
+        ? elementType?.MakeArrayType() 
+        : elementType?.MakeArrayType(arrayTypeSymbol.Rank);
+    }
+    
+    // Pointer type
+    if (typeSymbol is IPointerTypeSymbol pointerTypeSymbol)
+    {
+      var elementType = GetRuntimeType(pointerTypeSymbol.PointedAtType, sutAssembly);
+      return elementType?.MakePointerType();
+    }
+    
+    // Unsupported type
+    Log.Debug("Cannot obtain runtime type from assembly due to unsupported type symbol: {TypeName}", 
+      typeSymbol.GetType().FullName);
+    return null;
   }
 
   public static bool IsSymbolVariable(this ISymbol symbol)
