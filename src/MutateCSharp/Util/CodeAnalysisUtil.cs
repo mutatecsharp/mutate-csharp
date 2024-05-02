@@ -28,10 +28,8 @@ public static class CodeAnalysisUtil
   public static readonly TypeSignature[] IncrementOrDecrementTypeSignature
     =
     [
-      new TypeSignature(SupportedType.UnsignedIntegral,
-        SupportedType.UnsignedIntegral),
-      new TypeSignature(SupportedType.SignedIntegral,
-        SupportedType.SignedIntegral),
+      new TypeSignature(SupportedType.Integral,
+        SupportedType.Integral),
       new TypeSignature(SupportedType.FloatingPoint,
         SupportedType.FloatingPoint),
       new TypeSignature(SupportedType.Character, SupportedType.Character)
@@ -77,10 +75,33 @@ public static class CodeAnalysisUtil
   public static readonly FrozenSet<SyntaxKind> ShortCircuitOperators
     = new HashSet<SyntaxKind>
     {
+      // Binary operators
       SyntaxKind.LogicalAndExpression,
       SyntaxKind.LogicalOrExpression,
       SyntaxKind.CoalesceExpression,
       SyntaxKind.ConditionalExpression
+    }.ToFrozenSet();
+
+  public static readonly FrozenSet<SyntaxKind> VariableModifyingOperators
+    = new HashSet<SyntaxKind>
+    {
+      // Unary operators
+      SyntaxKind.PreIncrementExpression,
+      SyntaxKind.PostIncrementExpression,
+      SyntaxKind.PreDecrementExpression,
+      SyntaxKind.PostDecrementExpression,
+      // Binary operators
+      SyntaxKind.AddAssignmentExpression,
+      SyntaxKind.SubtractAssignmentExpression,
+      SyntaxKind.MultiplyAssignmentExpression,
+      SyntaxKind.DivideAssignmentExpression,
+      SyntaxKind.ModuloAssignmentExpression,
+      SyntaxKind.AndAssignmentExpression,
+      SyntaxKind.OrAssignmentExpression,
+      SyntaxKind.ExclusiveOrAssignmentExpression,
+      SyntaxKind.LeftShiftAssignmentExpression,
+      SyntaxKind.RightShiftAssignmentExpression,
+      SyntaxKind.UnsignedRightShiftAssignmentExpression
     }.ToFrozenSet();
 
   public static SupportedType GetSpecialTypeClassification(SpecialType type)
@@ -139,16 +160,35 @@ public static class CodeAnalysisUtil
     return typeInfo.Type ?? typeInfo.ConvertedType;
   }
 
+  public static Type? ResolveReflectionType(string typeName, Assembly sutAssembly)
+  {
+    // If we cannot locate the type from the assembly of SUT, this means we
+    // are looking for types defined in the core library: we defer to the
+    // current assembly to get the type's runtime type
+    return sutAssembly.GetType(typeName) ?? Type.GetType(typeName);
+  }
+
   public static ITypeSymbol GetNullableUnderlyingType(this ITypeSymbol type)
   {
     // If the type is Nullable<T> or T?, convert to T
     if (type is INamedTypeSymbol 
           { ConstructedFrom.SpecialType: SpecialType.System_Nullable_T,
-            Arity: 1 } namedType)
+            Arity: 1 } nullableMonad)
     {
-      return namedType.TypeArguments[0];
+      return nullableMonad.TypeArguments[0];
     }
-
+    
+    // Pre: Nullable is enabled in the compilation properties
+    // In the case of user-defined types, the type will be annotated as nullable
+    // instead of being contained by the Nullable monad.
+    // We remove the nullable annotation and return the type.
+    if (type is INamedTypeSymbol { NullableAnnotation: NullableAnnotation.Annotated }
+          nullableAnnotation)
+    {
+      return nullableAnnotation.WithNullableAnnotation(
+        NullableAnnotation.NotAnnotated);
+    }
+    
     return type;
   }
 

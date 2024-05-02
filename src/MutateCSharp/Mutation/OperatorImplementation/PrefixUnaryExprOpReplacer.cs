@@ -44,6 +44,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       PrefixUnaryExpressionSyntax originalNode)
   {
     // Perform additional filtering for assignable variables
+    // TODO: move assignable logic validation to abstract class
     var validMutants = ValidMutants(originalNode).ToHashSet();
     if (!IsOperandAssignable(originalNode))
     {
@@ -62,13 +63,14 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   }
 
   protected override IList<string> ParameterTypes(
-    PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
+    PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> mutantExpressions)
   {
     var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).ResolveType()!
       .ToDisplayString();
 
-    // Check if operand is updatable
-    return IsOperandAssignable(originalNode)
+    // Check if any of original or mutant expressions update the argument
+    return CodeAnalysisUtil.VariableModifyingOperators.Contains(originalNode.Kind())
+    || mutantExpressions.Any(op => CodeAnalysisUtil.VariableModifyingOperators.Contains(op.Operation))
       ? [$"ref {operandType}"]
       : [operandType];
   }
@@ -110,14 +112,14 @@ public sealed partial class PrefixUnaryExprOpReplacer
           SyntaxKind.UnaryPlusExpression, // +x
           new(SyntaxKind.UnaryPlusExpression,
             SyntaxKind.PlusToken,
-            WellKnownMemberNames.AdditionOperatorName,
+            WellKnownMemberNames.UnaryPlusOperatorName,
             CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {
           SyntaxKind.UnaryMinusExpression, // -x
           new(SyntaxKind.UnaryMinusExpression,
             SyntaxKind.MinusToken,
-            WellKnownMemberNames.SubtractionOperatorName,
+            WellKnownMemberNames.UnaryNegationOperatorName,
             CodeAnalysisUtil.ArithmeticTypeSignature)
         },
         {

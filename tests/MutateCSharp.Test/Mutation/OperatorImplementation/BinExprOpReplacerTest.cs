@@ -4,7 +4,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
-using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
@@ -32,19 +31,19 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     ShouldReplaceBitwiseLogicalAndEqualityOperatorsForBooleanExpressions(
       string originalOperator, string[] expectedReplacementOperators)
   {
-    var inputUnderMutation = 
+    var inputUnderMutation =
       $$"""
-        using System;
-
-        public class A
-        {
-          public static void Main()
-          {
-            bool b = true;
-            var c = b {{originalOperator}} false;
-          }
-        }
-       """;
+         using System;
+        
+         public class A
+         {
+           public static void Main()
+           {
+             bool b = true;
+             var c = b {{originalOperator}} false;
+           }
+         }
+        """;
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
     // Type checks
@@ -111,13 +110,14 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
           }
         }
         """;
-    
+
     // Skip test if the input does not compile
     if (TestUtil.GetCompilation(CSharpSyntaxTree.ParseText(inputUnderMutation))
         .GetDiagnostics()
         .Any(d => d.Severity == DiagnosticSeverity.Error))
     {
-      testOutputHelper.WriteLine("We can safely skip the test as the original input does not compile");
+      testOutputHelper.WriteLine(
+        "We can safely skip the test as the original input does not compile");
       return;
     }
 
@@ -149,7 +149,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var mutantExpressions =
       mutationGroup.SchemaMutantExpressions.Select(mutant =>
         mutant.ExpressionTemplate).ToHashSet();
-    
+
     mutantExpressions.Should().NotContain(originalOperator);
 
     // The expressions should match (regardless of order)
@@ -445,7 +445,8 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     // mutant expression qualifies as return type B is assignable to A 
     mutationGroup.SchemaReturnType.Should().Be("A");
     mutationGroup.SchemaParameterTypes.Should().Equal("A", "B");
-    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be("{0} - {1}");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be("{0} - {1}");
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(["{0} + {1}"]);
   }
@@ -473,23 +474,24 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   [Theory]
   [InlineData("==", "!=")]
   [InlineData("!=", "==")]
-  public void ShouldReplaceForGenericTypes(string originalOperator, string replacementOperator)
+  public void ShouldReplaceForGenericTypes(string originalOperator,
+    string replacementOperator)
   {
     var inputUnderMutation =
       $$"""
-      using System;
-      using System.Collections.Generic;
-      
-      public class A
-      {
-        public static void Main()
-        { 
-          var d = new Dictionary<int, int>();
-          var result = d {{originalOperator}} null;
+        using System;
+        using System.Collections.Generic;
+
+        public class A
+        {
+          public static void Main()
+          {
+            var d = new Dictionary<int, int>();
+            var result = d {{originalOperator}} null;
+          }
         }
-      }
-      """;
-    
+        """;
+
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("bool");
     mutationGroup.SchemaParameterTypes.Should()
@@ -500,20 +502,19 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
   public static IEnumerable<object[]> IntegralMutations =
     TestUtil.GenerateMutationTestCases(SupportedIntegralOperators);
-  
+
   [Theory]
   [MemberData(nameof(IntegralMutations))]
   public void ShouldReplaceForNullablePrimitiveTypes(string originalOperator,
     string[] expectedReplacementOperators)
   {
-    foreach (var (leftType, rightType) in 
-             new [] {("int?", "int?"), ("int", "int?"), ("int?", "int")})
+    foreach (var (leftType, rightType) in
+             new[] { ("int?", "int?"), ("int", "int?"), ("int?", "int") })
     {
       testOutputHelper.WriteLine($"Test case: {leftType}, {rightType}");
       var inputUnderMutation =
         $$"""
           using System;
-          using System.Collections.Generic;
 
           public class A
           {
@@ -530,10 +531,145 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       mutationGroup.SchemaReturnType.Should().Be("int?");
       mutationGroup.SchemaParameterTypes.Should()
         .Equal(leftType, rightType);
+      mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+        .Be($"{{0}} {originalOperator} {{1}}");
       var mutantExpressionsTemplate =
         expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
       TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
         .BeEquivalentTo(mutantExpressionsTemplate);
     }
+  }
+
+  [Theory]
+  [MemberData(nameof(IntegralMutations))]
+  public void ShouldReplaceForNullablePrimitiveTypesWithNullValues(
+    string originalOperator,
+    string[] expectedReplacementOperators)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            int? left = null;
+            var sum = left {{originalOperator}} null;
+          }
+        }
+        """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("int?");
+    mutationGroup.SchemaParameterTypes.Should()
+      .Equal("int?", "int?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be($"{{0}} {originalOperator} {{1}}");
+    var mutantExpressionsTemplate =
+      expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo(mutantExpressionsTemplate);
+  }
+
+  [Fact]
+  public void ShouldReplaceForNullableUserDefinedTypes()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static A? operator+(A? a, int? b) => null;
+        public static A? operator-(A? a, int? b) => null;
+        
+        public static void Main()
+        {
+          A? a = null;
+          int? b = null;
+          var c = a + b;
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("A?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be("{0} + {1}");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A?", "int?");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo(["{0} - {1}"]);
+  }
+
+  [Fact(Skip = "Framework currently only supports overloadable operators")]
+  public void ShouldReplaceForNullableUserDefinedTypesThatReturnBool()
+  {
+    // Note: In order to be applicable as a short circuit operator,
+    // a user-defined logical operator 
+    // must have the same return type as the type of its 2 parameters
+
+    // This falls under the non-overloadable operator section
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static A? operator&(A? a, A? b) => null;
+        public static A? operator|(A? a, A? b) => null;
+        public static bool operator true(A? a) => a is not null;
+        public static bool operator false(A? a) => a is null;
+              
+        public static void Main()
+        {
+          A? a = null;
+          A? b = null;
+          var c = a && b;
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("A?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be("{0}() && {1}()");
+    mutationGroup.SchemaParameterTypes.Should().Equal("Func<A?>", "Func<A?>");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo("{0}() | {1}()", "{0} & {1}", "{0}() || {1}()");
+  }
+
+  [Fact]
+  public void
+    ShouldReplaceForNullableUserDefinedTypesThatAssignNullableToNonNullableType()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static A? operator+(A? a, int? b) => null;
+        public static A? operator-(A? a, int? b) => null;
+        
+        public static void Main()
+        {
+          A? a = null;
+          int? b = null;
+          A c = a + b;
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("A?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be("{0} + {1}");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A?", "int?");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo(["{0} - {1}"]);
   }
 }

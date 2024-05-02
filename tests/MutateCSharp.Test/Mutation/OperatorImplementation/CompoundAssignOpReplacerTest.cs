@@ -402,4 +402,70 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     
     ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
+
+  public static IEnumerable<object[]> IntegralMutations =
+    TestUtil.GenerateMutationTestCases(SupportedIntegralOperators);
+
+  [Theory]
+  [MemberData(nameof(IntegralMutations))]
+  public void ShouldReplaceForNullablePrimitiveTypes(string originalOperator,
+    string[] expectedReplacementOperators)
+  {
+    var inputUnderMutation = 
+      $$"""
+        using System;
+        
+        public class A
+        {
+          public static void Main()
+          {
+            int? x = 10;
+            var y = 10;
+            x {{originalOperator}} y;
+          }
+        }
+        """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("void");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be($"{{0}} {originalOperator} {{1}}");
+    var mutantExpressionsTemplate =
+      expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo(mutantExpressionsTemplate);
+  }
+  
+  [Theory]
+  [MemberData(nameof(IntegralMutations))]
+  public void ShouldReplaceForNullablePrimitiveTypesWithNullValues(string originalOperator,
+    string[] expectedReplacementOperators)
+  {
+    var inputUnderMutation = 
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            int? x = null;
+            x {{originalOperator}} null;
+          }
+        }
+        """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("void");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be($"{{0}} {originalOperator} {{1}}");
+    var mutantExpressionsTemplate =
+      expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo(mutantExpressionsTemplate);
+  }
 }

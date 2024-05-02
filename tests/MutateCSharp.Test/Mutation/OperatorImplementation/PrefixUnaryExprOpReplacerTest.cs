@@ -26,7 +26,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   {
     TestUtil.ShouldNotHaveValidMutationGroup<PrefixUnaryExprOpReplacer, PrefixUnaryExpressionSyntax>(inputUnderMutation);
   }
-
+  
   public static IEnumerable<object[]> BooleanMutations =
     TestUtil.GenerateMutationTestCases(["!"]);
 
@@ -71,10 +71,12 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   private static ISet<string> SupportedNonAssignableIntegralOperators =
     new HashSet<string> { "+", "-", "~" };
 
+  // Skip: operator '-' cannot be applied to operand of type 'ulong'
   public static IEnumerable<object[]> NonAssignableIntegralTypedMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
       IntegralTypes.Keys,
-      SupportedNonAssignableIntegralOperators);
+      SupportedNonAssignableIntegralOperators)
+      .Where(entry => !(entry[0].Equals("ulong") && entry[1].Equals("-")));
   
   [Theory]
   [MemberData(nameof(NonAssignableIntegralTypedMutations))]
@@ -103,7 +105,20 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
       .Equal(integralType);
-    mutationGroup.SchemaReturnType.Should().Be(integralType);
+    
+    // Note: we omit checking return type due to the complicated unary
+    // numeric promotion rules set by the C# language specification:
+    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12472-unary-numeric-promotions
+    // Example:
+    // byte y = 1;
+    // var x = +y; // returns int type
+    //
+    // This is fine as the return type is preserved when the operator
+    // is mutated. As the code compiles before the mutation is applied, we
+    // can be certain that applying mutated operators that return the same type
+    // as the original return type will compile; the semantics of implicit
+    // type conversion after the expression is returned will be maintained if
+    // applicable
 
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
@@ -124,10 +139,12 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   private static ISet<string> SupportedAssignableIntegralOperators =
     new HashSet<string> { "+", "-", "~", "++", "--" };
 
+  // Skip: operator '-' cannot be applied to operand of type 'ulong'
   public static IEnumerable<object[]> AssignableIntegralTypedMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
       IntegralTypes.Keys,
-      SupportedAssignableIntegralOperators);
+      SupportedAssignableIntegralOperators)
+      .Where(entry => !(entry[0].Equals("ulong") && entry[1].Equals("-")));
   
   [Theory]
   [MemberData(nameof(AssignableIntegralTypedMutations))]
@@ -151,14 +168,27 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         """;
 
     testOutputHelper.WriteLine(inputUnderMutation);
-
+    
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
     // Type checks (Should take a reference to the assignable value)
     mutationGroup.SchemaParameterTypes.Should()
       .Equal($"ref {integralType}");
-    mutationGroup.SchemaReturnType.Should().Be(integralType);
-
+    
+    // Note: we omit checking return type due to the complicated unary
+    // numeric promotion rules set by the C# language specification:
+    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12472-unary-numeric-promotions
+    // Example:
+    // byte y = 1;
+    // var x = +y; // returns int type
+    //
+    // This is fine as the return type is preserved when the operator
+    // is mutated. As the code compiles before the mutation is applied, we
+    // can be certain that applying mutated operators that return the same type
+    // as the original return type will compile; the semantics of implicit
+    // type conversion after the expression is returned will be maintained if
+    // applicable
+    
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo($"{originalOperator}{{0}}");
@@ -166,11 +196,11 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     // operator to itself
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .NotContain(originalOperator);
-
+    
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{op}{{0}}");
-
+    
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo(validMutantExpressionsTemplate);
   }
@@ -291,15 +321,13 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
-  [InlineData("++", "--")]
-  [InlineData("--", "++")]
   [InlineData("+", "-")]
   [InlineData("-", "+")]
   [InlineData("+", "~")]
   [InlineData("-", "~")]
-  [InlineData("^", "&")]
+  [InlineData("~", "-")]
   public void
-    ShouldReplaceOperatorForUserDefinedClassIfReplacementOperatorExistsInClass(
+    ShouldReplaceOperatorForUserDefinedClassIfReplacementOperatorExistsInClassThatDoesNotModifyVariable(
       string originalOperator, string replacementOperator)
   {
     var inputUnderMutation =
@@ -333,9 +361,52 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetMutationGroup(inputUnderMutation);
 
     // Type checks
-    mutationGroup.SchemaParameterTypes.Should()
-      .BeEquivalentTo(["ref A"]);
+    mutationGroup.SchemaParameterTypes.Should().Equal(["A"]);
     mutationGroup.SchemaReturnType.Should().Be("B");
+
+    // Expression template checks
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo($"{originalOperator}{{0}}");
+    // The mutation operator should not be able to mutate the compound assignment
+    // operator to itself
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo([$"{replacementOperator}{{0}}"]);
+  }
+  
+  [Theory]
+  [InlineData("++", "--")]
+  [InlineData("--", "++")]
+  [InlineData("++", "+")]
+  [InlineData("+", "++")]
+  public void
+    ShouldReplaceOperatorForUserDefinedClassIfReplacementOperatorExistsInClassThatModifiesVariable(
+      string originalOperator, string replacementOperator)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static A operator{{originalOperator}}(A a1) => new A();
+          
+          public static A operator{{replacementOperator}}(A a1) => new A();
+          
+          public static void Main()
+          {
+            A a = new A();
+            var b = {{originalOperator}}a;
+          }
+        }
+        """;
+
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+
+    // Type checks
+    mutationGroup.SchemaParameterTypes.Should().Equal(["ref A"]);
+    mutationGroup.SchemaReturnType.Should().Be("A");
 
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
@@ -356,7 +427,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         public static A operator -(A a) => new B();
         public static A operator +(A a) => new A();
         public static int operator +(B b, A a) => 0; // noise 
-        public static int operator -(B b, D d) => 0; // noise
+        public static int operator -(B b, A a) => 0; // noise
       }
 
       public class B: A
@@ -457,5 +528,162 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       mutantExpressions.Should().NotContain("++{0}");
       mutantExpressions.Should().NotContain("--{0}");
     }
+  }
+
+  [Theory]
+  [MemberData(nameof(AssignableIntegralTypedMutations))]
+  public void ShouldReplaceForNullableAssignableIntegralTypes(
+    string integralType, string originalOperator,
+    string[] expectedReplacementOperators)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+        
+        public class A
+        {
+          public static void Main()
+          {
+            {{integralType}}? x = null;
+            var y = {{originalOperator}}x;
+          }
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+
+    // Type checks (Should take a reference to the assignable value)
+    mutationGroup.SchemaParameterTypes.Should()
+      .Equal($"ref {integralType}?");
+    
+    // Note: we omit checking return type due to the complicated unary
+    // numeric promotion rules set by the C# language specification:
+    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12472-unary-numeric-promotions
+    // Example:
+    // byte y = 1;
+    // var x = +y; // returns int type
+    //
+    // This is fine as the return type is preserved when the operator
+    // is mutated. As the code compiles before the mutation is applied, we
+    // can be certain that applying mutated operators that return the same type
+    // as the original return type will compile; the semantics of implicit
+    // type conversion after the expression is returned will be maintained if
+    // applicable
+    
+    // Here we are more interested that the schema returns nullable type
+    mutationGroup.SchemaReturnType.Should().EndWith("?");
+
+    // Expression template checks
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo($"{originalOperator}{{0}}");
+    // The mutation operator should not be able to mutate the compound assignment
+    // operator to itself
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .NotContain(originalOperator);
+
+    // The expressions should match (regardless of order)
+    var validMutantExpressionsTemplate
+      = expectedReplacementOperators.Select(op => $"{op}{{0}}");
+
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo(validMutantExpressionsTemplate);
+  }
+
+  [Fact]
+  public void
+    ShouldReplaceForNullableUserDefinedTypesWithoutModifiableOperators()
+  {
+    const string inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static A? operator+(A? a) => null;
+        public static A? operator-(A? a) => null;
+        
+        public static void Main()
+        {
+          A? a = null;
+          var b = +a;
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("A?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be("+{0}");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A?");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo(["-{0}"]);
+  }
+  
+  [Theory]
+  [InlineData("++", "-")]
+  [InlineData("-", "++")]
+  [InlineData("++", "--")]
+  public void
+    ShouldReplaceForNullableUserDefinedTypesWithModifiableOperators(string originalOperator, string replacementOperator)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+
+      public class A
+      {
+        public static A? operator{{originalOperator}}(A? a) => null;
+        public static A? operator{{replacementOperator}}(A? a) => null;
+        
+        public static void Main()
+        {
+          A? a = null;
+          var b = {{originalOperator}}a;
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("A?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be($"{originalOperator}{{0}}");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref A?");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo([$"{replacementOperator}{{0}}"]);
+  }
+
+  [Fact]
+  public void
+    ShouldReplaceForNullableUserDefinedTypesThatAssignNullableToNonNullableType()
+  { 
+    const string inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static A? operator+(A? a) => null;
+        public static A? operator-(A? a) => null;
+        
+        public static void Main()
+        {
+          A? a = null;
+          A b = +a;
+        }
+      }
+      """;
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("A?");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .Be("+{0}");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A?");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo(["-{0}"]);
   }
 }

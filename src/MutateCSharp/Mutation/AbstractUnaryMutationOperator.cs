@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.Mutation;
 
@@ -31,7 +32,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
     var operandNode = GetOperand(originalNode);
     if (operandNode == null) return Array.Empty<SyntaxKind>();
 
-    var operandType = SemanticModel.GetTypeInfo(operandNode).ResolveType()!;
+    var operandType = SemanticModel.GetTypeInfo(operandNode).ResolveType()!.GetNullableUnderlyingType();
 
     // Case 1: Predefined types
     if (operandType.SpecialType != SpecialType.None)
@@ -48,7 +49,6 @@ public abstract class AbstractUnaryMutationOperator<T>(
           replacementOpEntry.Value))
       .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
   }
-
 
   /*
    * For an operator to be applicable to a special type:
@@ -126,28 +126,42 @@ public abstract class AbstractUnaryMutationOperator<T>(
     // 1) Get the operand type name and return type name
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
-    var operandTypeName =
+    var operandAbsoluteTypeName =
       SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType().ToClrTypeName();
-    var returnTypeName =
-      SemanticModel.GetTypeInfo(originalNode).Type!.ToClrTypeName();
+    var returnAbsoluteTypeName =
+      SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType().ToClrTypeName();
     
     // 2) Get operand type and return type in runtime
     // If we cannot locate the type from the assembly of SUT, this means we
     // are looking for types defined in the core library: we defer to the
     // current assembly to get the type's runtime type
-    var operandType = SutAssembly.GetType(operandTypeName) ??
-                      Type.GetType(operandTypeName);
-    var returnType = SutAssembly.GetType(returnTypeName) ??
-                     Type.GetType(returnTypeName);
-    if (operandType == null || returnType == null) return false;
+    var operandAbsoluteRuntimeType = 
+      CodeAnalysisUtil.ResolveReflectionType(operandAbsoluteTypeName, SutAssembly);
+    var returnAbsoluteRuntimeType =
+      CodeAnalysisUtil.ResolveReflectionType(returnAbsoluteTypeName,
+        SutAssembly);
+    if (operandAbsoluteRuntimeType is null || returnAbsoluteRuntimeType is null)
+    {
+      Log.Debug("Type information not available in assembly for either {ReturnType} or {OperandType}", returnAbsoluteTypeName, operandAbsoluteTypeName);
+      return false;
+    }
 
-    // 3) Get replacement operator method
-    var replacementOpMethod =
-      operandType.GetMethod(replacementOp.MemberName, [operandType]);
+    try
+    {
+      // 3) Get replacement operator method
+      var replacementOpMethod =
+        operandAbsoluteRuntimeType.GetMethod(replacementOp.MemberName,
+          [operandAbsoluteRuntimeType]);
 
-    // 4) Replacement operator is valid if its return type is assignable to
-    // the original operator return type
-    return replacementOpMethod != null &&
-           replacementOpMethod.ReturnType.IsAssignableTo(returnType);
+      // 4) Replacement operator is valid if its return type is assignable to
+      // the original operator return type
+      return replacementOpMethod is not null &&
+             replacementOpMethod.ReturnType.IsAssignableTo(
+               returnAbsoluteRuntimeType);
+    }
+    catch (AmbiguousMatchException)
+    {
+      return false;
+    }
   }
 }

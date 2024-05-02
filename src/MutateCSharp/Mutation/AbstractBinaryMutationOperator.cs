@@ -173,19 +173,28 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return false;
 
-    var leftCompileType = SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
-    var rightCompileType = SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
-    var returnCompileType =
-      SemanticModel.GetTypeInfo(originalNode).Type!;
+    var leftAbsoluteType = 
+      SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
+    var rightAbsoluteType =
+      SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
+    var returnMaybeNullableType = SemanticModel.GetTypeInfo(originalNode).Type!;
 
     // 2) Check if user-defined operator exists
-    // 2a) Fallback: check if equality operator applies
-    return HasUnambiguousUserDefinedOperator(replacementOp, leftCompileType,
-              rightCompileType, returnCompileType)
-            || (replacementOp.ExprKind 
-                  is SyntaxKind.EqualsExpression
-                  or SyntaxKind.NotEqualsExpression
-                && CanApplyEqualityOperator(leftCompileType, rightCompileType, returnCompileType));
+    if (HasUnambiguousUserDefinedOperator(replacementOp, leftAbsoluteType,
+          rightAbsoluteType, returnMaybeNullableType.GetNullableUnderlyingType()))
+    {
+      return true;
+    }
+    
+    // 3) Fallback: check if equality operator applies
+    if (replacementOp.ExprKind 
+          is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
+    {
+      return CanApplyEqualityOperator(
+        leftAbsoluteType, rightAbsoluteType, returnMaybeNullableType);
+    }
+
+    return false;
   }
 
   /*
@@ -213,27 +222,27 @@ public abstract class AbstractBinaryMutationOperator<T>(
   }
 
   private bool HasUnambiguousUserDefinedOperator(CodeAnalysisUtil.BinOp replacementOp,
-    ITypeSymbol leftType, ITypeSymbol rightType, ITypeSymbol returnType)
+    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnAbsoluteType)
   {
-    var leftOperandTypeName = leftType.ToClrTypeName();
-    var rightOperandTypeName = rightType.ToClrTypeName();
-    var originalReturnTypeName = returnType.ToClrTypeName();
-
-    var leftOperandType = SutAssembly.GetType(leftOperandTypeName) ??
-                          Type.GetType(leftOperandTypeName);
-    var rightOperandType = SutAssembly.GetType(rightOperandTypeName) ??
-                           Type.GetType(rightOperandTypeName);
-    var originalReturnType = SutAssembly.GetType(originalReturnTypeName) ??
-                             Type.GetType(originalReturnTypeName);
-
+    var leftTypeName = leftAbsoluteType.ToClrTypeName();
+    var rightTypeName = rightAbsoluteType.ToClrTypeName();
+    var returnTypeName = returnAbsoluteType.ToClrTypeName();
+    
+    var leftAbsoluteReflectionType = 
+      CodeAnalysisUtil.ResolveReflectionType(leftTypeName, SutAssembly);
+    var rightAbsoluteReflectionType =
+      CodeAnalysisUtil.ResolveReflectionType(rightTypeName, SutAssembly);
+    var returnAbsoluteReflectionType =
+      CodeAnalysisUtil.ResolveReflectionType(returnTypeName, SutAssembly);
+    
     // Type information not available in SUT assembly and mscorlib assembly
-    if (leftOperandType == null
-        || rightOperandType == null
-        || originalReturnType == null)
+    if (leftAbsoluteReflectionType is null 
+        || rightAbsoluteReflectionType is null
+        || returnAbsoluteReflectionType is null)
     {
       Log.Debug(
         "Type information not available in assembly for either {ReturnType}, {LeftOperandType}, or {RightOperandType}",
-        originalReturnTypeName, leftOperandTypeName, rightOperandTypeName);
+         returnTypeName, leftTypeName, rightTypeName);
       return false;
     }
     
@@ -245,7 +254,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // but not both at the same time
     var (leftReplacementOpMethod, rightReplacementOpMethod) =
       GetResolvedBinaryOverloadedOperator(
-        replacementOp, leftOperandType, rightOperandType);
+        replacementOp, leftAbsoluteReflectionType, rightAbsoluteReflectionType);
 
     // No match for the overloaded operator from both operand types is found
     if (leftReplacementOpMethod == null && rightReplacementOpMethod == null)
@@ -265,18 +274,21 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // 5) Check if replacement operator method return type is assignable to
     // original operator method return type
     return replacementOpMethod is not null && 
-           replacementOpMethod.ReturnType.IsAssignableTo(originalReturnType);
+           replacementOpMethod.ReturnType.IsAssignableTo(returnAbsoluteReflectionType);
   }
   
-  public static (MethodInfo?, MethodInfo?) GetResolvedBinaryOverloadedOperator(
-    CodeAnalysisUtil.BinOp binOp, Type leftType, Type rightType)
+  public (MethodInfo?, MethodInfo?) GetResolvedBinaryOverloadedOperator(
+    CodeAnalysisUtil.BinOp binOp, Type leftAbsoluteType, Type rightAbsoluteType)
   {
+    // Resolving the type in the assembly requires querying with the absolute type
+    // Note: Assigning A? to A does not cause an error, only a warning in C#
+    // Hence it would be fine to query with the absolute type
     try
     {
       var leftMethod =
-        leftType.GetMethod(binOp.MemberName, [leftType, rightType]);
+        leftAbsoluteType.GetMethod(binOp.MemberName, [leftAbsoluteType, rightAbsoluteType]);
       var rightMethod =
-        rightType.GetMethod(binOp.MemberName, [leftType, rightType]);
+        rightAbsoluteType.GetMethod(binOp.MemberName, [leftAbsoluteType, rightAbsoluteType]);
 
       return (leftMethod, rightMethod);
     }
