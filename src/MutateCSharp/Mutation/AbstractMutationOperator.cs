@@ -34,11 +34,14 @@ public abstract class AbstractMutationOperator<T>(
     var uniqueMutantsId =
       string.Join("", mutationsWithId.Select(entry => entry.exprIdInMutator));
 
+    // Replace (?) characters in schema's base name that contains the return type
+    var schemaName = SchemaBaseName(node).Replace("?", "Nullable");
+    
     return new MutationGroup
     {
-      SchemaName = $"{SchemaBaseName(node)}{uniqueMutantsId}",
+      SchemaName = $"{schemaName}{uniqueMutantsId}",
       SchemaParameterTypes = ParameterTypes(node, mutations),
-      SchemaReturnType = ReturnType(node).Replace("?", "Nullable"),
+      SchemaReturnType = ReturnType(node),
       SchemaOriginalExpression = OriginalExpression(node, mutations),
       SchemaMutantExpressions = mutations,
       OriginalLocation = node.GetLocation()
