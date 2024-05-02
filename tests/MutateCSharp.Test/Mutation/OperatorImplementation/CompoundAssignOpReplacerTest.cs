@@ -48,7 +48,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
       .Equal("ref bool", "bool");
-    mutationGroup.SchemaReturnType.Should().Be("void");
+    mutationGroup.SchemaReturnType.Should().Be("bool");
 
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
@@ -121,7 +121,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
       .Equal($"ref {integralType}", integralType);
-    mutationGroup.SchemaReturnType.Should().BeEquivalentTo("void");
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(integralType);
 
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
@@ -177,7 +177,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
      // Type checks
      mutationGroup.SchemaParameterTypes.Should()
        .Equal($"ref {numericType}", numericType);
-     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("void");
+     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
 
      // Expression template checks
      mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
@@ -246,7 +246,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
       .Equal("ref A", "int");
-    mutationGroup.SchemaReturnType.Should().Be("void");
+    mutationGroup.SchemaReturnType.Should().Be("A");
 
     // Expression template checks
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
@@ -427,7 +427,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
         """;
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaReturnType.Should().Be("void");
+    mutationGroup.SchemaReturnType.Should().Be("int?");
     mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator} {{1}}");
@@ -458,7 +458,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
         """;
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaReturnType.Should().Be("void");
+    mutationGroup.SchemaReturnType.Should().Be("int?");
     mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator} {{1}}");

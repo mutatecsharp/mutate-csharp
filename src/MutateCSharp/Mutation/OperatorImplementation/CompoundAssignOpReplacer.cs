@@ -73,16 +73,15 @@ public sealed partial class CompoundAssignOpReplacer(
       SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()!.ToDisplayString();
     return [$"ref {firstVariableType}", secondVariableType];
   }
-
-  // Void type since operator updates value in place
-  protected override string ReturnType(AssignmentExpressionSyntax _)
+  
+  protected override string ReturnType(AssignmentExpressionSyntax originalNode)
   {
-    return "void";
+    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
-  protected override string SchemaBaseName(AssignmentExpressionSyntax _)
+  protected override string SchemaBaseName(AssignmentExpressionSyntax originalNode)
   {
-    return "ReplaceCompoundAssignOp";
+    return $"ReplaceCompoundAssignOp{ReturnType(originalNode)}";
   }
 }
 
