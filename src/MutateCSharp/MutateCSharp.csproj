@@ -7,6 +7,11 @@
         <Nullable>enable</Nullable>
         <WarningsAsErrors>nullable</WarningsAsErrors>
         <Optimize>true</Optimize>
+        <!-- Configures application to run GC in server mode to increase throughput -->
+        <ServerGarbageCollection>true</ServerGarbageCollection>
+        <!-- Activate Dynamic Adaptation To Application Sizes to reduce memory pressure 
+             when server mode is enabled for GC -->
+        <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
