@@ -6,12 +6,12 @@ namespace MutateCSharp.Util;
 public static class SyntaxKindUniqueIdGenerator
 {
   public static FrozenDictionary<SyntaxKind, int> GenerateIds(
-    IEnumerable<SyntaxKind> items)
+    IOrderedEnumerable<SyntaxKind> sortedOperators)
   {
     var itemIds = new Dictionary<SyntaxKind, int>();
     var currentId = 0;
 
-    foreach (var item in items)
+    foreach (var item in sortedOperators)
     {
       currentId++;
       itemIds[item] = currentId;
@@ -22,7 +22,7 @@ public static class SyntaxKindUniqueIdGenerator
 
   // Precondition: predefinedIds contain entries corresponding to each element in syntaxKinds
   public static IEnumerable<(int id, SyntaxKind op)> ReturnSortedIdsToKind(
-    IDictionary<SyntaxKind, int> predefinedIds,
+    FrozenDictionary<SyntaxKind, int> predefinedIds,
     IEnumerable<SyntaxKind> syntaxKinds)
   {
     return syntaxKinds

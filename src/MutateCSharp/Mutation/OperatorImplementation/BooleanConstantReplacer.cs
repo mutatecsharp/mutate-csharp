@@ -14,6 +14,8 @@ public class BooleanConstantReplacer(
     semanticModel)
 {
   private static readonly ImmutableArray<string> ParameterType = ["bool"];
+  private static readonly ImmutableArray<(int id, ExpressionRecord expr)> 
+    MutantExpressions = [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
   
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
@@ -33,7 +35,7 @@ public class BooleanConstantReplacer(
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax _)
   {
-    return [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
+    return MutantExpressions;
   }
 
   protected override ImmutableArray<string> ParameterTypes(

@@ -52,11 +52,8 @@ public sealed partial class BinExprOpReplacer(
   }
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
-    SupportedBinaryOperators()
-  {
-    return SupportedOperators;
-  }
-
+    SupportedBinaryOperators() => SupportedOperators;
+  
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(BinaryExpressionSyntax originalNode)
@@ -176,7 +173,7 @@ public sealed partial class BinExprOpReplacer
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
 
-  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+  private static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
     SupportedOperators
       = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
       {
@@ -323,6 +320,6 @@ public sealed partial class BinExprOpReplacer
       }.ToFrozenDictionary();
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
-    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys)
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys.Order())
       .ToFrozenDictionary();
 }

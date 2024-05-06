@@ -108,6 +108,6 @@ public sealed partial class PostfixUnaryExprOpReplacer
       }.ToFrozenDictionary();
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
-    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys)
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys.Order())
       .ToFrozenDictionary();
 }
