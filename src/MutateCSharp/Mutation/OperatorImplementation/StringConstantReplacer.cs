@@ -14,6 +14,8 @@ public class StringConstantReplacer(
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
+  private static readonly ImmutableArray<string> ParameterType = ["string"];
+  
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
     Log.Debug("Processing string constant: {SyntaxNode}", 
@@ -22,12 +24,12 @@ public class StringConstantReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
+    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
     => new(originalNode.Kind(), "{0}");
 
-  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(
-      LiteralExpressionSyntax originalNode)
+  protected override
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
     var result = new List<(int, ExpressionRecord)>();
 
@@ -37,13 +39,13 @@ public class StringConstantReplacer(
         new ExpressionRecord(SyntaxKind.StringLiteralExpression,
           "string.Empty")));
 
-    return result;
+    return [..result];
   }
 
-  protected override IList<string> ParameterTypes(
-    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
+  protected override ImmutableArray<string> ParameterTypes(
+    LiteralExpressionSyntax _, ImmutableArray<ExpressionRecord> __)
   {
-    return [ReturnType(originalNode)];
+    return ParameterType;
   }
 
   protected override string ReturnType(LiteralExpressionSyntax _)

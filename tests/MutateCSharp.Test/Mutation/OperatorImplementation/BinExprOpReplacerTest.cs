@@ -498,7 +498,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("bool");
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal("System.Collections.Generic.Dictionary<int, int>", "object?");
+      .Equal("System.Collections.Generic.Dictionary<int, int>", "object");
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
       .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
   }
@@ -533,7 +533,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       var mutationGroup = GetMutationGroup(inputUnderMutation);
       mutationGroup.SchemaReturnType.Should().Be("int?");
       mutationGroup.SchemaParameterTypes.Should()
-        .Equal(leftType, rightType);
+        .Equal("int", "int");
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
         .Be($"{{0}} {originalOperator} {{1}}");
       var mutantExpressionsTemplate =
@@ -566,7 +566,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("int?");
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal("int?", "int?");
+      .Equal("int", "int");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator} {{1}}");
     var mutantExpressionsTemplate =
@@ -600,7 +600,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("{0} + {1}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("A?", "int?");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A", "int");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["{0} - {1}"]);
@@ -638,7 +638,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("{0}() && {1}()");
-    mutationGroup.SchemaParameterTypes.Should().Equal("Func<A?>", "Func<A?>");
+    mutationGroup.SchemaParameterTypes.Should().Equal("Func<A>", "Func<A>");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo("{0}() | {1}()", "{0} & {1}", "{0}() || {1}()");
@@ -670,7 +670,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("{0} + {1}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("A?", "int?");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A", "int");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["{0} - {1}"]);

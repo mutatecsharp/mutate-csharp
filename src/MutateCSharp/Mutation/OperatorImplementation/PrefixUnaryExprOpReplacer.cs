@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -22,26 +23,27 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 {
   protected override bool CanBeApplied(PrefixUnaryExpressionSyntax originalNode)
   {
-    Log.Debug("Processing prefix unary expression: {SyntaxNode}", 
+    Log.Debug("Processing prefix unary expression: {SyntaxNode}",
       originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
-  public static string ExpressionTemplate(SyntaxKind kind)
+  private static string ExpressionTemplate(SyntaxKind kind)
   {
     return $"{SupportedOperators[kind]}{{0}}";
   }
 
   protected override ExpressionRecord OriginalExpression(
-    PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
+    PrefixUnaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
   }
 
-  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(
-      PrefixUnaryExpressionSyntax originalNode)
+  protected override
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(PrefixUnaryExpressionSyntax originalNode)
   {
     // Perform additional filtering for assignable variables
     // TODO: move assignable logic validation to abstract class
@@ -55,24 +57,30 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-    return attachIdToMutants.Select(entry =>
-      (entry.Item1,
-        new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+    return [
+      ..attachIdToMutants.Select(entry =>
+        (entry.Item1,
+          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+        )
       )
-    ).ToList();
+    ];
   }
 
-  protected override IList<string> ParameterTypes(
-    PrefixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> mutantExpressions)
+  protected override ImmutableArray<string> ParameterTypes(
+    PrefixUnaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions)
   {
-    var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).ResolveType()!
+    var operandAbsoluteType = SemanticModel.GetTypeInfo(originalNode.Operand)
+      .ResolveType().GetNullableUnderlyingType()!
       .ToDisplayString();
 
     // Check if any of original or mutant expressions update the argument
-    return CodeAnalysisUtil.VariableModifyingOperators.Contains(originalNode.Kind())
-    || mutantExpressions.Any(op => CodeAnalysisUtil.VariableModifyingOperators.Contains(op.Operation))
-      ? [$"ref {operandType}"]
-      : [operandType];
+    return CodeAnalysisUtil.VariableModifyingOperators.Contains(
+             originalNode.Kind())
+           || mutantExpressions.Any(op =>
+             CodeAnalysisUtil.VariableModifyingOperators.Contains(op.Operation))
+      ? [$"ref {operandAbsoluteType}"]
+      : [operandAbsoluteType];
   }
 
   protected override string ReturnType(PrefixUnaryExpressionSyntax originalNode)
@@ -104,7 +112,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
 public sealed partial class PrefixUnaryExprOpReplacer
 {
-  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+  private static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
     SupportedOperators
       = new Dictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
       {

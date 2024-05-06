@@ -556,7 +556,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     // Type checks (Should take a reference to the assignable value)
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal($"ref {integralType}?");
+      .Equal($"ref {integralType}");
     
     // Note: we omit checking return type due to the complicated unary
     // numeric promotion rules set by the C# language specification:
@@ -616,7 +616,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("+{0}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("A?");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["-{0}"]);
@@ -650,7 +650,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{originalOperator}{{0}}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("ref A?");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref A");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo([$"{replacementOperator}{{0}}"]);
@@ -681,7 +681,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("+{0}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("A?");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["-{0}"]);

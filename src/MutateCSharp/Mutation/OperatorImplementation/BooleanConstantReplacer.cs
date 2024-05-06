@@ -13,30 +13,33 @@ public class BooleanConstantReplacer(
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
+  private static readonly ImmutableArray<string> ParameterType = ["bool"];
+  
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
-    Log.Debug("Processing boolean constant: {SyntaxNode}", 
+    Log.Debug("Processing boolean constant: {SyntaxNode}",
       originalNode.GetText().ToString());
     return originalNode.IsKind(SyntaxKind.TrueLiteralExpression) ||
            originalNode.IsKind(SyntaxKind.FalseLiteralExpression);
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
+    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
 
-  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+  protected override
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax _)
   {
     return [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
   }
 
-  protected override IList<string> ParameterTypes(
-    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
+  protected override ImmutableArray<string> ParameterTypes(
+    LiteralExpressionSyntax _, ImmutableArray<ExpressionRecord> __)
   {
-    return [ReturnType(originalNode)];
+    return ParameterType;
   }
 
   protected override string ReturnType(LiteralExpressionSyntax _)

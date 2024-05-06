@@ -428,7 +428,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("int?");
-    mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref int", "int");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator} {{1}}");
     var mutantExpressionsTemplate =
@@ -459,7 +459,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("int?");
-    mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int?");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref int", "int");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator} {{1}}");
     var mutantExpressionsTemplate =

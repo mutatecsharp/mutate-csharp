@@ -25,14 +25,14 @@ public sealed partial class NumericConstantReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
+    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
 
-  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(
-      LiteralExpressionSyntax originalNode)
+  protected override
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
     var type = SemanticModel.GetTypeInfo(originalNode).ResolveType()?.SpecialType!;
     var typeClassification =
@@ -55,8 +55,8 @@ public sealed partial class NumericConstantReplacer(
     return result.ToImmutableArray();
   }
 
-  protected override IList<string> ParameterTypes(
-    LiteralExpressionSyntax originalNode, IList<ExpressionRecord> _)
+  protected override ImmutableArray<string> ParameterTypes(
+    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
     return [ReturnType(originalNode)];
   }

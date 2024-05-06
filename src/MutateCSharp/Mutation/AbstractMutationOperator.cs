@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 
@@ -27,10 +28,10 @@ public abstract class AbstractMutationOperator<T>(
     var node = (T)originalNode!;
 
     var mutationsWithId = ValidMutantExpressions(node);
-    if (mutationsWithId.Count == 0) return null;
+    if (mutationsWithId.Length == 0) return null;
 
-    var mutations = 
-      mutationsWithId.Select(entry => entry.expr).ToList();
+    var mutations =
+      mutationsWithId.Select(entry => entry.expr).ToImmutableArray();
     var uniqueMutantsId =
       string.Join("", mutationsWithId.Select(entry => entry.exprIdInMutator));
 
@@ -51,18 +52,19 @@ public abstract class AbstractMutationOperator<T>(
   protected abstract bool CanBeApplied(T originalNode);
 
   protected abstract ExpressionRecord OriginalExpression(T originalNode,
-    IList<ExpressionRecord> mutantExpressions);
+    ImmutableArray<ExpressionRecord> mutantExpressions);
 
   // Generate list of valid mutations for the currently visited node, in the
   // form of string template to be formatted later to insert arguments.
   // Each valid candidate is statically assigned an ID that is unique within
   // the context of the mutation operator class.
-  protected abstract IList<(int exprIdInMutator, ExpressionRecord expr)>
+  protected abstract
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(T originalNode);
 
   // Parameter type of the programming construct.
-  protected abstract IList<string> ParameterTypes(T originalNode,
-    IList<ExpressionRecord> mutantExpressions);
+  protected abstract ImmutableArray<string> ParameterTypes(T originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions);
 
   // Return type of the programming construct (expression, statement)
   // represented by type of node under mutation.

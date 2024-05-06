@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -17,7 +18,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   protected override bool CanBeApplied(
     PostfixUnaryExpressionSyntax originalNode)
   {
-    Log.Debug("Processing postfix unary expression: {SyntaxNode}", 
+    Log.Debug("Processing postfix unary expression: {SyntaxNode}",
       originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
@@ -29,7 +30,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
 
   protected override ExpressionRecord OriginalExpression(
     PostfixUnaryExpressionSyntax originalNode,
-    IList<ExpressionRecord> mutantExpressions)
+    ImmutableArray<ExpressionRecord> mutantExpressions)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -41,29 +42,34 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     return SupportedOperators;
   }
 
-  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
+  protected override
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(PostfixUnaryExpressionSyntax originalNode)
   {
     var validMutants = ValidMutants(originalNode);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-    return attachIdToMutants.Select(entry =>
-      (entry.Item1,
-        new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+    return [
+      ..attachIdToMutants.Select(entry =>
+        (entry.Item1,
+          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+        )
       )
-    ).ToList();
+    ];
   }
 
-  protected override IList<string> ParameterTypes(
-    PostfixUnaryExpressionSyntax originalNode, IList<ExpressionRecord> _)
+  protected override ImmutableArray<string> ParameterTypes(
+    PostfixUnaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> _)
   {
     // Since the supported postfix unary expressions can be either 
     // postincrement or postdecrement, they are guaranteed to be updatable
-    var operandType = SemanticModel.GetTypeInfo(originalNode.Operand).ResolveType()!
+    var operandAbsoluteType = SemanticModel.GetTypeInfo(originalNode.Operand)
+      .ResolveType().GetNullableUnderlyingType()!
       .ToDisplayString();
 
-    return [$"ref {operandType}"];
+    return [$"ref {operandAbsoluteType}"];
   }
 
   protected override string ReturnType(

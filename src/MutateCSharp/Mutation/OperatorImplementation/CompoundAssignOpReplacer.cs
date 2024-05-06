@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -26,7 +27,7 @@ public sealed partial class CompoundAssignOpReplacer(
 {
   protected override bool CanBeApplied(AssignmentExpressionSyntax originalNode)
   {
-    Log.Debug("Processing compound assignment: {SyntaxNode}", 
+    Log.Debug("Processing compound assignment: {SyntaxNode}",
       originalNode.GetText().ToString());
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
@@ -43,43 +44,48 @@ public sealed partial class CompoundAssignOpReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    AssignmentExpressionSyntax originalNode, IList<ExpressionRecord> _)
+    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
   }
 
-  protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(
-      AssignmentExpressionSyntax originalNode)
+  protected override
+    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ValidMutantExpressions(AssignmentExpressionSyntax originalNode)
   {
     var validMutants = ValidMutants(originalNode);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-    return attachIdToMutants.Select(entry =>
-      (entry.Item1,
-        new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+    return [
+      ..attachIdToMutants.Select(entry =>
+        (entry.Item1,
+          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+        )
       )
-    ).ToList();
+    ];
   }
 
-  protected override IList<string> ParameterTypes(
-    AssignmentExpressionSyntax originalNode, IList<ExpressionRecord> _)
+  protected override ImmutableArray<string> ParameterTypes(
+    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
-    var firstVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()!.ToDisplayString();
-    var secondVariableType =
-      SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()!.ToDisplayString();
-    return [$"ref {firstVariableType}", secondVariableType];
+    var updateVariableAbsoluteType =
+      SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()
+        .GetNullableUnderlyingType()!.ToDisplayString();
+    var operandAbsoluteType =
+      SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()
+        .GetNullableUnderlyingType()!.ToDisplayString();
+    return [$"ref {updateVariableAbsoluteType}", operandAbsoluteType];
   }
-  
+
   protected override string ReturnType(AssignmentExpressionSyntax originalNode)
   {
     return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
   }
 
-  protected override string SchemaBaseName(AssignmentExpressionSyntax originalNode)
+  protected override string SchemaBaseName(
+    AssignmentExpressionSyntax originalNode)
   {
     return $"ReplaceCompoundAssignOp{ReturnType(originalNode)}";
   }
