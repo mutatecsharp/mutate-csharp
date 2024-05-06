@@ -21,10 +21,11 @@ public sealed partial class BinExprOpReplacer(
     return SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
-  private static string ExpressionTemplate(SyntaxKind kind, bool hasLambdaArguments)
+  private static string ExpressionTemplate(SyntaxKind kind, bool isLeftDelegate, bool isRightDelegate)
   {
-    var insertInvocation = hasLambdaArguments ? "()" : string.Empty;
-    return $"{{0}}{insertInvocation} {SupportedOperators[kind]} {{1}}{insertInvocation}";
+    var insertLeftInvocation = isLeftDelegate ? "()" : string.Empty;
+    var insertRightInvocation = isRightDelegate ? "()" : string.Empty;
+    return $"{{0}}{insertLeftInvocation} {SupportedOperators[kind]} {{1}}{insertRightInvocation}";
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -32,11 +33,18 @@ public sealed partial class BinExprOpReplacer(
     IList<ExpressionRecord> mutantExpressions)
   {
     var containsShortCircuitOperators =
-      HasShortCircuitOperators(originalNode.Kind(), 
-        mutantExpressions.Select(expr => expr.Operation));
+      HasShortCircuitOperators(InvolvedOperators(originalNode, mutantExpressions));
+    
+    var leftSymbol = SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
+    var rightSymbol = SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
+
+    var isLeftDelegate = containsShortCircuitOperators
+                         && OperandCanBeDelegate(leftSymbol);
+    var isRightDelegate = containsShortCircuitOperators
+                          && OperandCanBeDelegate(rightSymbol);
     
     return new ExpressionRecord(originalNode.Kind(),
-      ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators));
+      ExpressionTemplate(originalNode.Kind(), isLeftDelegate, isRightDelegate));
   }
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
@@ -48,17 +56,27 @@ public sealed partial class BinExprOpReplacer(
   protected override IList<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(BinaryExpressionSyntax originalNode)
   {
-    var validMutants = ValidMutants(originalNode).ToList();
-    var containsShortCircuitOperators =
-      HasShortCircuitOperators(originalNode.Kind(), validMutants);
+    var validMutants = ValidMutants(originalNode);
+    var involvedOperators = validMutants.Append(originalNode.Kind());
+      
+    var containsShortCircuitOperators = HasShortCircuitOperators(involvedOperators);
+    var leftSymbol = SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
+    var rightSymbol = SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
+
+    var isLeftDelegate = containsShortCircuitOperators
+                         && OperandCanBeDelegate(leftSymbol);
+    var isRightDelegate = containsShortCircuitOperators
+                          && OperandCanBeDelegate(rightSymbol);
     
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
+    
     return attachIdToMutants.Select(entry =>
-        (entry.Item1,
-          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2, containsShortCircuitOperators))))
-      .ToList();
+        (entry.id, new ExpressionRecord(entry.op, 
+          ExpressionTemplate(entry.op, isLeftDelegate, isRightDelegate))
+        )
+      ).ToList();
   }
 
   // C# allows short-circuit evaluation for boolean && and || operators.
@@ -72,15 +90,23 @@ public sealed partial class BinExprOpReplacer(
       SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()!.ToDisplayString();
     var secondVariableType =
       SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()!.ToDisplayString();
-
-    // Short-circuit evaluation operators present
-    if (CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) 
-        || mutantExpressions.Any(expr =>
-          CodeAnalysisUtil.ShortCircuitOperators.Contains(expr.Operation)))
-    {
-      return [$"Func<{firstVariableType}>", $"Func<{secondVariableType}>"];
-    }
-    return [firstVariableType, secondVariableType];
+    
+    if (!HasShortCircuitOperators(
+          InvolvedOperators(originalNode, mutantExpressions))) 
+      return [firstVariableType, secondVariableType];
+    
+    // Short-circuit evaluation operators are present
+    var leftOperandSymbol =
+      SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
+    var rightOperandSymbol =
+      SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
+      
+    return [OperandCanBeDelegate(leftOperandSymbol)
+        ? $"System.Func<{firstVariableType}>"
+        : firstVariableType, 
+      OperandCanBeDelegate(rightOperandSymbol)
+        ? $"System.Func<{secondVariableType}>"
+        : secondVariableType];
   }
 
   protected override string ReturnType(BinaryExpressionSyntax originalNode)
@@ -93,12 +119,35 @@ public sealed partial class BinExprOpReplacer(
     return $"ReplaceBinExprOpReturn{ReturnType(originalNode)}";
   }
 
-  private static bool HasShortCircuitOperators(SyntaxKind originalOperator,
-    IEnumerable<SyntaxKind> mutantOperators)
+  private IEnumerable<SyntaxKind> InvolvedOperators(
+    BinaryExpressionSyntax originalNode,
+    IEnumerable<ExpressionRecord> mutantExpressions)
   {
-    return CodeAnalysisUtil.ShortCircuitOperators.Contains(originalOperator)
-           || mutantOperators.Any(op =>
+    return mutantExpressions
+      .Select(expr => expr.Operation)
+      .Append(originalNode.Kind());
+  }
+  
+  private static bool HasShortCircuitOperators(
+    IEnumerable<SyntaxKind> involvedOperators)
+  {
+    return involvedOperators.Any(op =>
              CodeAnalysisUtil.ShortCircuitOperators.Contains(op));
+  }
+
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions
+   * A lambda expression can't directly capture an in, ref, or out parameter
+   * from the enclosing method.
+   */
+  private static bool OperandCanBeDelegate(ISymbol symbol)
+  {
+    return symbol switch
+    {
+      IParameterSymbol paramSymbol => paramSymbol is { RefKind: RefKind.None },
+      ILocalSymbol localSymbol => localSymbol is { RefKind: RefKind.None },
+      _ => true
+    };
   }
 }
 

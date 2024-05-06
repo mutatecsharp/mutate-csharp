@@ -22,6 +22,12 @@ public static class MutantSchemataGenerator
     return new ReadOnlySpan<object?>(PredefinedParameterNames, 0, count);
   }
 
+  private static void MaterialiseExpressionFromTemplate(this StringBuilder sb, string template, int argumentCount)
+  {
+    sb.AppendFormat(null, CompositeFormat.Parse(template), 
+      RequiredParameters(argumentCount));
+  }
+
   // Method signature: public static <type> <method name> (int mutantId, <type1> <parameter1>, <type2> <parameter2>, ...)
   private static StringBuilder GenerateSchemaMethodSignature(
     MutationGroup mutationGroup)
@@ -45,29 +51,36 @@ public static class MutantSchemataGenerator
   {
     var result = new StringBuilder();
 
-    // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) return originalExpression;
+    // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) { return originalExpression; }
     result.Append(
-      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Count - 1})) return ");
-    result.AppendFormat(null,
-      CompositeFormat.Parse(mutationGroup.SchemaOriginalExpression.ExpressionTemplate),
-      RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
-    result.Append(';');
+      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Count - 1})) {{ return ");
+    result.MaterialiseExpressionFromTemplate(
+      mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
+      mutationGroup.SchemaParameterTypes.Count);
+    result.Append("; }");
     result.AppendLine();
 
-    // Case: if (_activatedMutantId == mutantId + i) return mutatedExpression;
+    // Case: if (_activatedMutantId == mutantId + i) { return mutatedExpression; }
     for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Count; i++)
     {
-      result.Append($"if (_activatedMutantId == mutantId + {i}) return ");
-      result.AppendFormat(null,
-        CompositeFormat.Parse(mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate),
-        RequiredParameters(mutationGroup.SchemaParameterTypes.Count));
-      result.Append(';');
+      result.Append($"if (_activatedMutantId == mutantId + {i}) {{ return ");
+      result.MaterialiseExpressionFromTemplate(
+        mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate,
+        mutationGroup.SchemaParameterTypes.Count);
+      result.Append("; }");
       result.AppendLine();
     }
 
     // Default case: throw new System.InvalidOperationException("Mutant ID out of range");
+    // Release mode: return originalExpression;
+    #if DEBUG
     result.Append(
       "throw new System.InvalidOperationException(\"Mutant ID out of range\");");
+    #else
+    result.MaterialiseExpressionFromTemplate(
+      mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
+      mutationGroup.SchemaParameterTypes.Count);
+    #endif
     result.AppendLine();
 
     return result;
@@ -82,9 +95,9 @@ public static class MutantSchemataGenerator
 
       private static void Initialise()
       {
-        if (_initialised) return;
-        var activatedMutant = Environment.GetEnvironmentVariable("{{environmentVariable}}");
-        if (!string.IsNullOrEmpty(activatedMutant)) _activatedMutantId = {{MutantIdType}}.Parse(activatedMutant);
+        if (_initialised) { return; }
+        var activatedMutant = System.Environment.GetEnvironmentVariable("{{environmentVariable}}");
+        if (!string.IsNullOrEmpty(activatedMutant)) { _activatedMutantId = {{MutantIdType}}.Parse(activatedMutant); }
         _initialised = true;
       }
 

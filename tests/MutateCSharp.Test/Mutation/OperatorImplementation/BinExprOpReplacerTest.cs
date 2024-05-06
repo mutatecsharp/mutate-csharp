@@ -22,8 +22,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         BinaryExpressionSyntax>(inputUnderMutation);
   }
 
+  private static readonly string[] BooleanOperators =
+    ["&", "&&", "|", "||", "^", "==", "!="];
+
   public static IEnumerable<object[]> BooleanMutations =
-    TestUtil.GenerateMutationTestCases(["&", "&&", "|", "||", "^", "==", "!="]);
+    TestUtil.GenerateMutationTestCases(BooleanOperators);
 
   [Theory]
   [MemberData(nameof(BooleanMutations))]
@@ -48,7 +51,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     // Type checks
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal("Func<bool>", "Func<bool>");
+      .Equal("System.Func<bool>", "System.Func<bool>");
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo("bool");
 
     // Expression template checks
@@ -671,5 +674,68 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["{0} - {1}"]);
+  }
+
+  [Theory]
+  [InlineData(true, false)]
+  [InlineData(false, true)]
+  [InlineData(true, true)]
+  public void
+    ShouldReplaceForRefParametersThatInvolvesShortCircuitingOperatorsWithoutLambda(
+      bool leftRef, bool rightRef)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+      
+      public class A
+      {
+        public static void Main()
+        {
+          var x = true;
+          {{(leftRef ? "ref" : "")}} bool left = {{(leftRef ? "ref" : "")}} x;
+          {{(rightRef ? "ref" : "")}} bool right = {{(rightRef ? "ref" : "")}} x;
+          var result = left && right;
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be("bool");
+    mutationGroup.SchemaParameterTypes[0].Should()
+      .Be(leftRef ? "bool" : "System.Func<bool>");
+    mutationGroup.SchemaParameterTypes[1].Should()
+      .Be(rightRef ? "bool" : "System.Func<bool>");
+    
+    // Check left and right separately for each of original and mutant expression
+    var originalExpression = mutationGroup
+      .SchemaOriginalExpression.ExpressionTemplate
+      .Replace(" ", string.Empty)
+      .Split(BooleanOperators, StringSplitOptions.RemoveEmptyEntries);
+    
+    testOutputHelper.WriteLine(string.Join(',', originalExpression));
+
+    // Original expression
+    originalExpression[0].Should().Match<string>(leftOperand =>
+      leftRef ? !leftOperand.EndsWith("()") : leftOperand.EndsWith("()"));
+    originalExpression[1].Should().Match<string>(rightOperand =>
+      rightRef ? !rightOperand.EndsWith("()") : rightOperand.EndsWith("()"));
+
+    // Mutant expressions
+    foreach (var mutant in mutationGroup.SchemaMutantExpressions)
+    {
+      var mutantExpression = mutant.ExpressionTemplate
+        .Replace(" ", string.Empty)
+        .Split(BooleanOperators, StringSplitOptions.RemoveEmptyEntries);
+      
+      testOutputHelper.WriteLine(string.Join(',', mutantExpression));
+      
+      mutantExpression[0].Should().Match<string>(leftOperand =>
+          leftRef ? !leftOperand.EndsWith("()") : leftOperand.EndsWith("()"));
+      mutantExpression[1].Should().Match<string>(rightOperand =>
+          rightRef ? !rightOperand.EndsWith("()") : rightOperand.EndsWith("()"));
+    }
   }
 }

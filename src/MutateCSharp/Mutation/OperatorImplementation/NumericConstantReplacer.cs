@@ -61,9 +61,18 @@ public sealed partial class NumericConstantReplacer(
     return [ReturnType(originalNode)];
   }
 
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/integral-numeric-types
+   * If the literal has no suffix, its type is the first of the following types
+   * in which its value can be represented: int, uint, long, ulong.
+   *
+   * Since we can declare literals that are differently typed, and we do not
+   * have mutations that perform type conversions, we handle numeric literals
+   * specially by narrowing the type of the literal.
+   */
   protected override string ReturnType(LiteralExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.GetTypeInfo(originalNode).ConvertedType!.ToDisplayString();
   }
 
   protected override string

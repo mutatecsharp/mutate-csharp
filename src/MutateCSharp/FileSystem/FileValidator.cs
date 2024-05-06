@@ -80,7 +80,7 @@ public static class FileValidator
       return null;
     }
 
-    var model = await document.GetSemanticModelAsync();
+    var model = await document.GetSemanticModelAsync().ConfigureAwait(false);
 
     if (model is null)
       Log.Warning("Failed to build semantic model for the document.");

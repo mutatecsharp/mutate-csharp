@@ -32,7 +32,24 @@ public abstract class AbstractUnaryMutationOperator<T>(
     var operandNode = GetOperand(originalNode);
     if (operandNode == null) return Array.Empty<SyntaxKind>();
 
-    var operandType = SemanticModel.GetTypeInfo(operandNode).ResolveType()!.GetNullableUnderlyingType();
+    var operandType = 
+      SemanticModel.GetTypeInfo(operandNode).ResolveType()!.GetNullableUnderlyingType();
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!
+      .GetNullableUnderlyingType();
+    
+    if (operandType is null)
+    {
+      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+        operandNode.GetText(), operandNode.GetLocation().GetLineSpan().StartLinePosition.Line);
+      return Array.Empty<SyntaxKind>();
+    }
+    
+    if (returnType is null)
+    {
+      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+        originalNode.GetText(), originalNode.GetLocation().GetLineSpan().StartLinePosition.Line);
+      return Array.Empty<SyntaxKind>();
+    }
 
     // Case 1: Predefined types
     if (operandType.SpecialType != SpecialType.None)
@@ -67,6 +84,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
     if (operand == null) return false;
     var operandType = SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType();
     var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
+    if (operandType is null || returnType is null) return false;
 
     var operandTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
@@ -131,6 +149,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
       SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType();
     var returnTypeSymbol =
       SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
+    if (operandTypeSymbol is null || returnTypeSymbol is null) return false;
     
     // 2) Get operand type and return type in runtime
     // If we cannot locate the type from the assembly of SUT, this means we
@@ -140,12 +159,18 @@ public abstract class AbstractUnaryMutationOperator<T>(
       operandTypeSymbol.GetRuntimeType(SutAssembly);
     var returnAbsoluteRuntimeType =
       returnTypeSymbol.GetRuntimeType(SutAssembly);
-      
-    if (operandAbsoluteRuntimeType is null || returnAbsoluteRuntimeType is null)
+
+    if (operandAbsoluteRuntimeType is null)
     {
-      Log.Debug("Type information not available in assembly for either {ReturnType} or {OperandType}", 
-        returnTypeSymbol.ToClrTypeName(),
+      Log.Debug("Assembly type information not available for {OperandType}",
         operandTypeSymbol.ToClrTypeName());
+      return false;
+    }
+      
+    if (returnAbsoluteRuntimeType is null)
+    {
+      Log.Debug("Assembly type information not available for {OperandType}",
+        returnTypeSymbol.ToClrTypeName());
       return false;
     }
 

@@ -21,15 +21,12 @@ public static class SyntaxKindUniqueIdGenerator
   }
 
   // Precondition: predefinedIds contain entries corresponding to each element in syntaxKinds
-  public static IList<(int, SyntaxKind)> ReturnSortedIdsToKind(
+  public static IEnumerable<(int id, SyntaxKind op)> ReturnSortedIdsToKind(
     IDictionary<SyntaxKind, int> predefinedIds,
     IEnumerable<SyntaxKind> syntaxKinds)
   {
-    var idToKind =
-      syntaxKinds
-        .Select(kind => (predefinedIds[kind], kind))
-        .ToList();
-    idToKind.Sort();
-    return idToKind;
+    return syntaxKinds
+        .Select(kind => (id: predefinedIds[kind], op: kind))
+        .Order();
   }
 }

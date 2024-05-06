@@ -43,8 +43,31 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return Array.Empty<SyntaxKind>();
 
-    var leftType = SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
-    var rightType = SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
+    var leftType = SemanticModel.GetTypeInfo(left).ResolveType().GetNullableUnderlyingType();
+    var rightType = SemanticModel.GetTypeInfo(right).ResolveType().GetNullableUnderlyingType();
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()
+      .GetNullableUnderlyingType();
+
+    if (leftType is null)
+    {
+      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+        left.GetText(), left.GetLocation().GetLineSpan().StartLinePosition.Line);
+      return Array.Empty<SyntaxKind>();
+    }
+
+    if (rightType is null)
+    {
+      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+        right.GetText(), right.GetLocation().GetLineSpan().StartLinePosition.Line);
+      return Array.Empty<SyntaxKind>();
+    }
+
+    if (returnType is null)
+    {
+      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+        originalNode.GetText(), originalNode.GetLocation().GetLineSpan().StartLinePosition.Line);
+      return Array.Empty<SyntaxKind>();
+    }
 
     // Case 1: Predefined types
     // Binary operators can take operand of separate types, warranting the
@@ -103,8 +126,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // TODO: may be acceptable to only check return type
     var leftOperand = GetLeftOperand(originalNode);
     if (leftOperand == null) return false;
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
-    var operandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType()!.GetNullableUnderlyingType();
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType().GetNullableUnderlyingType();
+    var operandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType().GetNullableUnderlyingType();
+    if (returnType is null || operandType is null) return false;
 
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
@@ -177,11 +201,14 @@ public abstract class AbstractBinaryMutationOperator<T>(
       SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
     var rightAbsoluteType =
       SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
-    var returnMaybeNullableType = SemanticModel.GetTypeInfo(originalNode).Type!;
+    var returnMaybeNullableType = SemanticModel.GetTypeInfo(originalNode).Type;
+
+    if (leftAbsoluteType is null || rightAbsoluteType is null ||
+        returnMaybeNullableType is null) return false;
 
     // 2) Check if user-defined operator exists
     if (HasUnambiguousUserDefinedOperator(replacementOp, leftAbsoluteType,
-          rightAbsoluteType, returnMaybeNullableType.GetNullableUnderlyingType()))
+          rightAbsoluteType, returnMaybeNullableType.GetNullableUnderlyingType()!))
     {
       return true;
     }
@@ -229,14 +256,24 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var returnRuntimeType = returnAbsoluteType.GetRuntimeType(SutAssembly);
     
     // Type information not available in SUT assembly and mscorlib assembly
-    if (leftRuntimeType is null || rightRuntimeType is null
-                                || returnRuntimeType is null)
+    if (leftRuntimeType is null)
     {
-      Log.Debug(
-        "Type information not available in assembly for either {ReturnType}, {LeftOperandType}, or {RightOperandType}",
-         returnAbsoluteType.ToClrTypeName(), 
-        leftAbsoluteType.ToClrTypeName(),
+      Log.Debug("Assembly type information not available for {LeftType}",
+        leftAbsoluteType.ToClrTypeName());
+      return false;
+    }
+
+    if (rightRuntimeType is null)
+    {
+      Log.Debug("Assembly type information not available for {RightType}",
         rightAbsoluteType.ToClrTypeName());
+      return false;
+    }
+
+    if (returnRuntimeType is null)
+    {
+      Log.Debug("Assembly type information not available for {ReturnType}",
+        returnAbsoluteType.ToClrTypeName());
       return false;
     }
     

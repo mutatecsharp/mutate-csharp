@@ -120,11 +120,11 @@ public sealed partial class MutatorAstRewriter(
     var firstParameter = mutationGroup.SchemaParameterTypes[0];
     var secondParameter = mutationGroup.SchemaParameterTypes[1];
 
-    var leftArgument = firstParameter.StartsWith("Func")
+    var leftArgument = firstParameter.StartsWith("System.Func")
       ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Left)
       : nodeWithMutatedChildren.Left;
 
-    var rightArgument = secondParameter.StartsWith("Func")
+    var rightArgument = secondParameter.StartsWith("System.Func")
       ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Right)
       : nodeWithMutatedChildren.Right;
     
@@ -194,8 +194,7 @@ public sealed partial class MutatorAstRewriter(
 
     // 4: Add ref keyword to parameter if updatable
     var operand = SyntaxFactory.Argument(nodeWithMutatedChildren.Operand);
-    if (mutationGroup.SchemaParameterTypes.FirstOrDefault()
-          ?.StartsWith("ref") ?? false)
+    if (mutationGroup.SchemaParameterTypes.First().StartsWith("ref"))
       operand =
         operand.WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword));
 
@@ -216,12 +215,43 @@ public sealed partial class MutatorAstRewriter(
  */
 public sealed partial class MutatorAstRewriter
 {
+  /* The array size can be dynamically specified in C# in the absence of
+   * specification of array elements at the same time.
+   * 
+   * In the case where both the array size and array elements are specified,
+   * the size and elements must match during compile-time, or the program
+   * is considered semantically invalid and will not compile.
+   */
+  public override SyntaxNode VisitArrayCreationExpression(
+    ArrayCreationExpressionSyntax node)
+  {
+    var arrayRankSpecifier = node.Type.RankSpecifiers;
+  
+    var arrayInitializer =
+      node.DescendantNodes().OfType<InitializerExpressionSyntax>();
+  
+    if (!arrayRankSpecifier.Any() || !arrayInitializer.Any())
+      return base.VisitArrayCreationExpression(node)!;
+  
+    var modifiedArrayInitializer =
+      (InitializerExpressionSyntax) base.VisitInitializerExpression(node.Initializer!)!;
+    
+    // Both array size and elements specified; we do not modify the size
+    // and other constructs, and only mutate the elements
+    return node.WithInitializer(modifiedArrayInitializer);
+  }
+  
   public override SyntaxNode VisitEnumMemberDeclaration(
     EnumMemberDeclarationSyntax node)
   {
     return node;
   }
-
+  
+  public override SyntaxNode VisitGotoStatement(GotoStatementSyntax node)
+  {
+    return node;
+  }
+  
   public override SyntaxNode VisitCaseSwitchLabel(CaseSwitchLabelSyntax node)
   {
     return node;

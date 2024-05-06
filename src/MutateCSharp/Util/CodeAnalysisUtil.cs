@@ -143,7 +143,7 @@ public static class CodeAnalysisUtil
     return sutAssembly.GetType(typeName) ?? Type.GetType(typeName);
   }
 
-  public static ITypeSymbol GetNullableUnderlyingType(this ITypeSymbol type)
+  public static ITypeSymbol? GetNullableUnderlyingType(this ITypeSymbol? type)
   {
     // If the type is Nullable<T> or T?, convert to T
     if (type is INamedTypeSymbol 

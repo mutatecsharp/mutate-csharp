@@ -276,4 +276,31 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
 
     mutationGroups.Length.Should().Be(numericCount);
   }
+
+  [Theory]
+  [InlineData("uint")]
+  [InlineData("int")]
+  [InlineData("ulong")]
+  [InlineData("long")]
+  public void ShouldReplaceDifferentlyTypedLiteralWithoutSuffix(string type)
+  {
+    var inputUnderMutation = 
+      $$"""
+        using System;
+        
+        public class A
+        {
+          public static void Main()
+          {
+            {{type}} x = 10;
+          }
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroup = GetValidMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaReturnType.Should().Be(type);
+    mutationGroup.SchemaParameterTypes.Should().Equal(type);
+  }
 }

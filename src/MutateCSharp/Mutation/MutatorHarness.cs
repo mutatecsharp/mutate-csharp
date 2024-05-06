@@ -25,7 +25,7 @@ public static class MutatorHarness
     foreach (var projectId in solution.ProjectIds)
     {
       var project = mutatedSolution.GetProject(projectId)!;
-      var (mutatedProject, projectRegistry) = await MutateProject(workspace, project);
+      var (mutatedProject, projectRegistry) = await MutateProject(workspace, project).ConfigureAwait(false);
       mutatedSolution = mutatedProject.Solution;
 
       if (projectRegistry is not null)
@@ -87,7 +87,7 @@ public static class MutatorHarness
     {
       var document = mutatedProject.GetDocument(documentId)!;
       var (mutatedDocument, fileSchemaRegistry) = 
-        await MutateDocument(workspace, sutAssembly, document);
+        await MutateDocument(workspace, sutAssembly, document).ConfigureAwait(false);
       
       // Record mutations in registry
       var relativePath = Path.GetRelativePath(
@@ -105,10 +105,10 @@ public static class MutatorHarness
   private static async Task<(Document, FileLevelMutantSchemaRegistry?)> 
     MutateDocument(Workspace workspace, Assembly sutAssembly, Document document)
   {
-    var tree = await document.GetValidatedSyntaxTree();
+    var tree = await document.GetValidatedSyntaxTree().ConfigureAwait(false);
     if (tree is null) return (document, null);
 
-    var semanticModel = await document.GetValidatedSemanticModel();
+    var semanticModel = await document.GetValidatedSemanticModel().ConfigureAwait(false);
     if (semanticModel is null) return (document, null);
 
     Log.Information("Processing source file: {SourceFilePath}",

@@ -1,22 +1,22 @@
 using FluentAssertions;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using MutateCSharp.Mutation;
+using MutateCSharp.Mutation.Registry;
 
 namespace MutateCSharp.Test.Mutation.Visitor;
 
 public class VisitBinaryExpressionTest
 {
-  private static SyntaxNode VisitSyntaxUnderTest(MutatorAstRewriter rewriter, BinaryExpressionSyntax syntax)
-  {
-    return rewriter.VisitBinaryExpression(syntax);
-  }
-
-  private static IList<ArgumentSyntax> GetReplacedNodeArguments(
+  private static IEnumerable<ArgumentSyntax> GetReplacedNodeArguments(
     string inputUnderMutation)
   {
-    return TestUtil.GetReplacedNodeArguments<BinaryExpressionSyntax>(
-      inputUnderMutation, VisitSyntaxUnderTest);
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var node = TestUtil.GetNodeUnderMutationAfterRewrite
+      <BinaryExpressionSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+        );
+    return TestUtil.GetReplacedNodeArguments(node, schemaRegistry);
   }
   
   [Fact]

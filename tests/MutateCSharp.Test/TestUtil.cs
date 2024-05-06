@@ -158,22 +158,26 @@ public static class TestUtil
     return mutationGroups;
   }
 
-  public static IList<ArgumentSyntax> GetReplacedNodeArguments<T>(
+  public static SyntaxNode GetNodeUnderMutationAfterRewrite<T>(
     string inputUnderMutation,
+    FileLevelMutantSchemaRegistry schemaRegistry,
     Func<MutatorAstRewriter, T, SyntaxNode> visitSyntaxUnderTest)
     where T : SyntaxNode
   {
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = GetAstSemanticModelAndAssembly(ast);
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
     var rewriter = new MutatorAstRewriter(
       compilation.sutAssembly, compilation.model, schemaRegistry);
     var construct = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<T>().First();
-    var result = visitSyntaxUnderTest(rewriter, construct);
+    return visitSyntaxUnderTest(rewriter, construct);
+  }
 
-    result.Should().BeOfType<InvocationExpressionSyntax>();
-    var mutantConstruct = (InvocationExpressionSyntax)result;
+  public static IList<ArgumentSyntax> GetReplacedNodeArguments(
+    SyntaxNode node, FileLevelMutantSchemaRegistry schemaRegistry)
+  {
+    node.Should().BeOfType<InvocationExpressionSyntax>();
+    var mutantConstruct = (InvocationExpressionSyntax)node;
 
     // Get method
     mutantConstruct.Expression.Should()
@@ -211,7 +215,23 @@ public static class TestUtil
     mutantId.Token.Text.Should().EndWith("L");
 
     // Drop mutantId argument and return the rest of the arguments of interest
-    return args.RemoveAt(0).ToList();
+    return args.Skip(1).ToList();
+  }
+
+  public static void NodeShouldNotBeMutated(SyntaxNode node, FileLevelMutantSchemaRegistry schemaRegistry)
+  {
+    // Check node is not method invocation
+    if (node is not InvocationExpressionSyntax methodInvocation) return;
+    // Check method is not from mutant schema class
+    if (methodInvocation.Expression is not
+        MemberAccessExpressionSyntax methodMemberAccessExpr)
+      return;
+    // Check class does not have the same name as the mutant schemata class name
+    if (methodMemberAccessExpr.Expression is not
+        MemberAccessExpressionSyntax classMemberAccessExpr)
+      return;
+    classMemberAccessExpr.Name.Identifier.Text.Should()
+      .NotBe(schemaRegistry.ClassName);
   }
 
   public static IEnumerable<string> GetMutantExpressionTemplates(
