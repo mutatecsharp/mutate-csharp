@@ -110,14 +110,16 @@ public sealed partial class PostfixUnaryExprOpReplacer
           new(SyntaxKind.PostIncrementExpression,
             SyntaxKind.PlusPlusToken,
             WellKnownMemberNames.IncrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.PostDecrementExpression, //x--
           new(SyntaxKind.PostDecrementExpression,
             SyntaxKind.MinusMinusToken,
             WellKnownMemberNames.DecrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         }
       }.ToFrozenDictionary();
 

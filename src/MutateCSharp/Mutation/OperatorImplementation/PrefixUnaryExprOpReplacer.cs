@@ -135,42 +135,50 @@ public sealed partial class PrefixUnaryExprOpReplacer
           new(SyntaxKind.UnaryPlusExpression,
             SyntaxKind.PlusToken,
             WellKnownMemberNames.UnaryPlusOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.UnaryMinusExpression, // -x
           new(SyntaxKind.UnaryMinusExpression,
             SyntaxKind.MinusToken,
             WellKnownMemberNames.UnaryNegationOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/arithmetic-operators
+            // ulong type does not support unary - operator.
+            PrimitiveTypesToExclude: type => type is SpecialType.System_UInt64)
         },
         {
           SyntaxKind.BitwiseNotExpression, // ~x
           new(SyntaxKind.BitwiseNotExpression,
             SyntaxKind.TildeToken,
             WellKnownMemberNames.OnesComplementOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature)
+            CodeAnalysisUtil.BitwiseShiftTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.LogicalNotExpression, // !x
           new(SyntaxKind.LogicalNotExpression,
             SyntaxKind.ExclamationToken,
             WellKnownMemberNames.LogicalNotOperatorName,
-            CodeAnalysisUtil.BooleanLogicalTypeSignature)
+            CodeAnalysisUtil.BooleanLogicalTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.PreIncrementExpression, // ++x
           new(SyntaxKind.PreIncrementExpression,
             SyntaxKind.PlusPlusToken,
             WellKnownMemberNames.IncrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.PreDecrementExpression, // --x
           new(SyntaxKind.PreDecrementExpression,
             SyntaxKind.MinusMinusToken,
             WellKnownMemberNames.DecrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature)
+            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         }
       }.ToFrozenDictionary();
 

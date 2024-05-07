@@ -146,7 +146,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // Reject if the replacement operator type group is not the same as the
     // original operator type group
     
-    // Only process right operand type -> see BinExprOpReplacer for more info
+    // Only check right operand type for exclusion -> see BinExprOpReplacer for more info
     return replacementOp.TypeSignatures
       .Any(signature => 
         signature.ReturnType.HasFlag(returnTypeClassification)

@@ -93,10 +93,13 @@ public abstract class AbstractUnaryMutationOperator<T>(
 
     // 2) Replacement operator is valid if its return type is in the same
     // type group as the original operator type group
+    
+    // Only check operand type for exclusion -> see PrefixUnaryExprOpReplacer
     return replacementOp.TypeSignatures
-      .Any(signature => signature.OperandType.HasFlag(operandTypeClassification)
-                        && signature.ReturnType.HasFlag(
-                          returnTypeClassification));
+             .Any(signature =>
+               signature.OperandType.HasFlag(operandTypeClassification)
+               && signature.ReturnType.HasFlag(returnTypeClassification))
+           && !replacementOp.PrimitiveTypesToExclude(operandType.SpecialType);
   }
 
   /*

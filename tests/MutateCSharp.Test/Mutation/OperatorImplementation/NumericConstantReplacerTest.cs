@@ -83,6 +83,8 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("uint", "UInt32 x = 42u;")]
   [InlineData("ulong", "ulong x = 42ul;")]
   [InlineData("ulong", "UInt64 x = 42ul;")]
+  [InlineData("uint", "uint x = 42;")]
+  [InlineData("ulong", "ulong x = 42;")]
   public void ShouldReplaceForNumericUnsignedConstantsExceptNegativeOfItself(string numericType,
     string constructUnderMutation)
   {

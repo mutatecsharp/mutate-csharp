@@ -250,7 +250,7 @@ public static class CodeAnalysisUtil
     }
     
     // Unsupported type
-    Log.Debug("Cannot obtain runtime type from assembly due to unsupported type symbol: {TypeName}", 
+    Log.Debug("Cannot obtain runtime type from assembly due to unsupported type symbol: {TypeName}. Ignoring...", 
       typeSymbol.GetType().FullName);
     return null;
   }
@@ -296,7 +296,8 @@ public static class CodeAnalysisUtil
     SyntaxKind ExprKind,
     SyntaxKind TokenKind,
     string MemberName,
-    TypeSignature[] TypeSignatures)
+    TypeSignature[] TypeSignatures,
+    Func<SpecialType, bool> PrimitiveTypesToExclude)
   {
     public override string ToString()
     {

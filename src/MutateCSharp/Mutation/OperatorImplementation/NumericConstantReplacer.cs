@@ -34,7 +34,7 @@ public sealed partial class NumericConstantReplacer(
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).ResolveType()?.SpecialType!;
+    var type = SemanticModel.GetTypeInfo(originalNode).ConvertedType?.SpecialType!;
     var typeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(type.Value);
     var result = new List<(int, ExpressionRecord)>();
@@ -43,7 +43,8 @@ public sealed partial class NumericConstantReplacer(
     result.Add((1,
       new ExpressionRecord(SyntaxKind.NumericLiteralExpression, "0")));
     // Mutation: value => -value
-    // (Unary negative operator cannot be applied to unsigned or char types.)
+    // (Unary negative operator cannot be applied to unsigned or char types,
+    // as the type of resulting expression is different from that of the operand.)
     if (typeClassification is not CodeAnalysisUtil.SupportedType.UnsignedIntegral)
       result.Add((2,
         new ExpressionRecord(SyntaxKind.UnaryMinusExpression, "-{0}")));
