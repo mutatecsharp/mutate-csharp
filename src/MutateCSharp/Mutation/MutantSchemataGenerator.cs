@@ -71,15 +71,17 @@ public static class MutantSchemataGenerator
       result.AppendLine();
     }
 
-    // Default case: throw new System.InvalidOperationException("Mutant ID out of range");
+    // Debug mode: throw new System.InvalidOperationException("Mutant ID out of range");
     // Release mode: return originalExpression;
     #if DEBUG
     result.Append(
       "throw new System.InvalidOperationException(\"Mutant ID out of range\");");
     #else
+    result.Append("return ");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
       mutationGroup.SchemaParameterTypes.Count);
+    result.Append(';');
     #endif
     result.AppendLine();
 
