@@ -15,8 +15,8 @@ public sealed class
     if (reader.TokenType != JsonTokenType.StartObject)
       throw new JsonException("Expected StartObject token");
 
-    string relativePath = string.Empty;
-    string envVar = string.Empty;
+    var relativePath = string.Empty;
+    var envVar = string.Empty;
     var mutations = FrozenDictionary<long, Mutation.Mutation>.Empty;
 
     while (reader.Read())

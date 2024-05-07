@@ -1,15 +1,15 @@
 using System.Collections.Frozen;
-using Microsoft.CodeAnalysis.CSharp;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using MutateCSharp.Mutation.Registry;
 using Xunit.Abstractions;
 
-namespace MutateCSharp.Test.Mutation;
+namespace MutateCSharp.Test.Converters;
 
-public class ProjectLevelMutationRegistryTest(ITestOutputHelper testOutputHelper)
+public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
 {
   private static readonly FileLevelMutationRegistry ExampleFileLevelMutationRegistry =
     new()
@@ -22,7 +22,9 @@ public class ProjectLevelMutationRegistryTest(ITestOutputHelper testOutputHelper
         {
           MutantId = 1,
           OriginalOperation = SyntaxKind.BitwiseAndExpression,
+          OriginalExpressionTemplate = "{0} & {1}",
           MutantOperation = SyntaxKind.BitwiseOrExpression,
+          MutantExpressionTemplate = "{0} | {1}",
           SourceSpan = new TextSpan(42, 2),
           LineSpan = new FileLinePositionSpan(string.Empty,
             new LinePosition(42, 1), new LinePosition(42, 11))
@@ -31,7 +33,9 @@ public class ProjectLevelMutationRegistryTest(ITestOutputHelper testOutputHelper
         {
           MutantId = 2,
           OriginalOperation = SyntaxKind.BitwiseOrExpression,
+          OriginalExpressionTemplate = "{0} | {1}",
           MutantOperation = SyntaxKind.BitwiseAndExpression,
+          MutantExpressionTemplate = "{0} & {1}",
           SourceSpan = new TextSpan(42, 2),
           LineSpan = new FileLinePositionSpan(string.Empty,
             new LinePosition(42, 1), new LinePosition(42, 11))

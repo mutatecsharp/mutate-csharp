@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using MutateCSharp.Util;
 using MutateCSharp.Util.Converters;
 
 namespace MutateCSharp.Mutation;
@@ -20,7 +19,13 @@ public record Mutation
   public required SyntaxKind OriginalOperation { get; init; }
   
   [JsonInclude]
+  public required string OriginalExpressionTemplate { get; init; }
+  
+  [JsonInclude]
   public required SyntaxKind MutantOperation { get; init; }
+  
+  [JsonInclude]
+  public required string MutantExpressionTemplate { get; init; }
   
   // Records the span of the location of the original expression that does
   // not take into account line breaks and line numbers.
