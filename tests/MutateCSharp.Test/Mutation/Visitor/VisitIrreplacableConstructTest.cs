@@ -56,10 +56,14 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
   // Strictly speaking the left operand of the is expression should be mutated
   // but being conservative is sound, just not complete
   [Theory]
+  [InlineData("int.MaxValue is var n")]
   [InlineData("int.MaxValue is int n")]
-  [InlineData("!(!!(\"abc\" is string s) && !(true is bool b))")]
-  [InlineData("!(false is bool b)")]
-  [InlineData("!!!(\"def\" is string s)")]
+  [InlineData("bar(ob, out var b)")]
+  [InlineData("!(!!(ob is string s) && !(ob is bool b))")]
+  [InlineData("!(ob is bool b)")]
+  [InlineData("!!!(ob is string s)")]
+  [InlineData("foo(ob is bool b)")]
+  [InlineData("!foo(ob is var b)")]
   public void ShouldNotReplaceNodeContainingDeclarationPatternSyntaxAsDescendant(
     string construct)
   {
@@ -69,10 +73,20 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       
       public class A
       {
-        public static void Main()
+        public static bool foo(object b) => true;
+        public static bool bar(object b, out bool x)
+        {
+          return x = true;
+        }
+      
+        public static void choc(object ob)
         {
           var y = {{construct}};
-        } 
+        }
+      
+        public static void Main()
+        {
+        }
       }
       """;
     
@@ -90,6 +104,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     foreach (var node in
              varDeclSyntax.Initializer.Value.DescendantNodesAndSelf())
     {
+      testOutputHelper.WriteLine(node.ToFullString());
       TestUtil.NodeShouldNotBeMutated(node, schemaRegistry);
     }
   }

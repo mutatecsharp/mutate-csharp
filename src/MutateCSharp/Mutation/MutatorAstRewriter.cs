@@ -52,10 +52,29 @@ public sealed partial class MutatorAstRewriter(
     return mutationOperator.FirstOrDefault();
   }
 
+  /* Case 1:
+   * Predicates can specify `is` expressions with patterns that declare variables.
+   * This is followed by a variable declaration which has to be visible in the current scope.
+   *
+   * Case 2:
+   * Methods can specify parameters with `out` modifier, which allows a programmer
+   * to pass an argument to a method by reference. This is followed by a variable
+   * declaration which has to be visible in the current scope.
+   *
+   * In both cases, wrapping it in
+   * a lambda causes the declared variable to be only visible within the scope
+   * of the lambda, causing code that refers to the declared variable to be
+   * semantically invalid.
+   *
+   * We address this by not mutating a node if any of its descendant has a
+   * parameter with declaration syntax.
+   */
   private static bool ContainsDeclarationPatternSyntax(SyntaxNode node)
   {
     return node.DescendantNodes().OfType<DeclarationPatternSyntax>().Any()
-           || node.DescendantNodes().OfType<VarPatternSyntax>().Any();
+           || node.DescendantNodes().OfType<VarPatternSyntax>().Any()
+           || node.DescendantNodes().OfType<ArgumentSyntax>()
+             .Any(arg => arg.Expression is DeclarationExpressionSyntax);
   }
 
   // A file cannot contain both file scoped namespace declaration and
