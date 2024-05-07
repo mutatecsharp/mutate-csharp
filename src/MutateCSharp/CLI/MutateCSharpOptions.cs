@@ -3,7 +3,7 @@ using MutateCSharp.FileSystem;
 
 namespace MutateCSharp.CLI;
 
-internal sealed class CliOptions
+internal sealed class MutateCSharpOptions
 {
   private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteProjectPath = string.Empty;

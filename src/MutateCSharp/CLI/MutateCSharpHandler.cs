@@ -7,9 +7,9 @@ using Serilog;
 
 namespace MutateCSharp.CLI;
 
-internal static class CliHandler
+internal static class MutateCSharpHandler
 {
-  internal static async Task RunOptions(CliOptions options)
+  internal static async Task RunOptions(MutateCSharpOptions options)
   {
     // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
     MSBuildLocator.RegisterDefaults();
@@ -18,7 +18,14 @@ internal static class CliHandler
     workspace.LoadMetadataForReferencedProjects = true;
     workspace.SkipUnrecognizedProjects = true;
 
-    if (options.AbsoluteProjectPath.Length > 0)
+    if (options.AbsoluteProjectPath.Length > 0 && options.AbsoluteSourceFilePath.Length > 0)
+    {
+      using var backup = DirectoryBackup.BackupDirectoryIfNecessary(
+        Path.GetDirectoryName(options.AbsoluteSourceFilePath)!, 
+        options.Backup);
+      await ProcessSourceFile(workspace, options.AbsoluteProjectPath, options.AbsoluteSourceFilePath);
+    }
+    else if (options.AbsoluteProjectPath.Length > 0)
     {
       using var backup = DirectoryBackup.BackupDirectoryIfNecessary(
         Path.GetDirectoryName(options.AbsoluteProjectPath)!, 
@@ -88,6 +95,32 @@ internal static class CliHandler
     if (projectRegistry is not null)
     {
       var directory = Path.GetDirectoryName(absolutePath)!;
+      var registryPath = await projectRegistry.PersistToDisk(directory);
+      Log.Information("Mutation registry persisted to disk: {RegistryPath}", registryPath);
+    }
+  }
+  
+  private static async Task ProcessSourceFile(MSBuildWorkspace workspace, 
+    string projectAbsolutePath, string sourceFileAbsolutePath)
+  {
+    var project = await workspace.OpenProjectAsync(projectAbsolutePath);
+    var document = project.Documents.FirstOrDefault(doc =>
+      Path.GetFullPath(doc.FilePath ?? string.Empty).Equals(sourceFileAbsolutePath));
+    
+    // 1: Generate mutant schema and acquire mutation registry
+    var (mutatedProject, projectRegistry) =
+      await MutatorHarness.MutateProject(workspace, project, document);
+    
+    // 2: Persist mutated project under test
+    var mutateResult = workspace.TryApplyChanges(mutatedProject.Solution);
+    if (!mutateResult)
+      Log.Error("Failed to mutate project {Project}.",
+        Path.GetFileName(project.FilePath));
+    
+    // 3: Serialise and persist mutation registry on disk
+    if (projectRegistry is not null)
+    {
+      var directory = Path.GetDirectoryName(projectAbsolutePath)!;
       var registryPath = await projectRegistry.PersistToDisk(directory);
       Log.Information("Mutation registry persisted to disk: {RegistryPath}", registryPath);
     }

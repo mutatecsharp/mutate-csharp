@@ -35,8 +35,9 @@ public static class MutatorHarness
     return (mutatedSolution, projectLevelRegistries);
   }
 
-  public static async Task<(Project, ProjectLevelMutationRegistry?)> 
-    MutateProject(Workspace workspace, Project project)
+  public static async Task<(Project, ProjectLevelMutationRegistry?)>
+    MutateProject(Workspace workspace, Project project,
+      Document? specifiedDocument = default)
   {
     Log.Information("Mutating project {Project}.", project.Name);
     var mutatedProject = project;
@@ -83,7 +84,12 @@ public static class MutatorHarness
     var sutAssembly =
       AssemblyLoadContext.Default.LoadFromStream(portableExecutableStream);
 
-    foreach (var documentId in project.DocumentIds)
+    var idOfDocumentsToMutate = 
+      specifiedDocument is not null
+      ? [specifiedDocument.Id] 
+      : project.DocumentIds;
+    
+    foreach (var documentId in idOfDocumentsToMutate)
     {
       var document = mutatedProject.GetDocument(documentId)!;
       var (mutatedDocument, fileSchemaRegistry) = 
@@ -105,16 +111,17 @@ public static class MutatorHarness
   private static async Task<(Document, FileLevelMutantSchemaRegistry?)> 
     MutateDocument(Workspace workspace, Assembly sutAssembly, Document document)
   {
+    var semanticModelTask = document.GetValidatedSemanticModel().ConfigureAwait(false);
     var tree = await document.GetValidatedSyntaxTree().ConfigureAwait(false);
     if (tree is null) return (document, null);
-
-    var semanticModel = await document.GetValidatedSemanticModel().ConfigureAwait(false);
-    if (semanticModel is null) return (document, null);
-
+    
     Log.Information("Processing source file: {SourceFilePath}",
       document.FilePath);
     var root = tree.GetCompilationUnitRoot();
     var mutantSchemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var semanticModel = await semanticModelTask;
+    if (semanticModel is null) return (document, null);
 
     // 1: Modify the body of the source file
     var astVisitor =
