@@ -52,31 +52,6 @@ public sealed partial class MutatorAstRewriter(
     return mutationOperator.FirstOrDefault();
   }
 
-  /* Case 1:
-   * Predicates can specify `is` expressions with patterns that declare variables.
-   * This is followed by a variable declaration which has to be visible in the current scope.
-   *
-   * Case 2:
-   * Methods can specify parameters with `out` modifier, which allows a programmer
-   * to pass an argument to a method by reference. This is followed by a variable
-   * declaration which has to be visible in the current scope.
-   *
-   * In both cases, wrapping it in
-   * a lambda causes the declared variable to be only visible within the scope
-   * of the lambda, causing code that refers to the declared variable to be
-   * semantically invalid.
-   *
-   * We address this by not mutating a node if any of its descendant has a
-   * parameter with declaration syntax.
-   */
-  private static bool ContainsDeclarationPatternSyntax(SyntaxNode node)
-  {
-    return node.DescendantNodes().OfType<DeclarationPatternSyntax>().Any()
-           || node.DescendantNodes().OfType<VarPatternSyntax>().Any()
-           || node.DescendantNodes().OfType<ArgumentSyntax>()
-             .Any(arg => arg.Expression is DeclarationExpressionSyntax);
-  }
-
   // A file cannot contain both file scoped namespace declaration and
   // ordinary namespace declaration; we convert the file scoped namespace
   // declaration to allow injection of mutant schemata
@@ -144,9 +119,9 @@ public sealed partial class MutatorAstRewriter(
     
     // 1: Mutate children nodes if its descendant does not contain declaration pattern syntax
     var leftContainsDeclarationSyntax =
-      ContainsDeclarationPatternSyntax(node.Left);
+      node.Left.ContainsDeclarationPatternSyntax();
     var rightContainsDeclarationSyntax =
-      ContainsDeclarationPatternSyntax(node.Right);
+      node.Right.ContainsDeclarationPatternSyntax();
 
     var leftChild = leftContainsDeclarationSyntax 
       ? node.Left
@@ -204,7 +179,7 @@ public sealed partial class MutatorAstRewriter(
     // Pre: do not mutate if child node is a declaration pattern syntax
     // Reason: The variable scope will be limited to the mutant schemata
     // and is inaccessible to the current scope
-    if (ContainsDeclarationPatternSyntax(node.Operand)) return node;
+    if (node.Operand.ContainsDeclarationPatternSyntax()) return node;
 
     // 1: Mutate child expression node
     var nodeWithMutatedChildren =
@@ -244,7 +219,7 @@ public sealed partial class MutatorAstRewriter(
     // Pre: Do not mutate if child node is declaration pattern syntax
     // Reason: The variable scope will be limited to the mutant schemata
     // and is inaccessible to the current scope
-    if (ContainsDeclarationPatternSyntax(node.Operand)) return node;
+    if (node.Operand.ContainsDeclarationPatternSyntax()) return node;
 
     // 1: Mutate child expression node
     var nodeWithMutatedChildren =
@@ -309,6 +284,21 @@ public sealed partial class MutatorAstRewriter
     // Both array size and elements specified; we do not modify the size
     // and other constructs, and only mutate the elements
     return node.WithInitializer(modifiedArrayInitializer);
+  }
+
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/framework/debug-trace-profile/code-contracts
+   * "Code contracts provide a way to specify preconditions, postconditions,
+   * and object invariants in .NET Framework code."
+   * 
+   * We avoid modifying the preconditions, postconditions, and object invariants
+   * for Code Contracts as these are used by the static checker to verify the
+   * predicates at compile time, and would cause the code to fail compiling if
+   * modified.
+   */
+  public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
+  {
+    return node.InvokesCodeContractMethods() ? node : base.VisitInvocationExpression(node)!;
   }
 
   public override SyntaxNode VisitEnumMemberDeclaration(
