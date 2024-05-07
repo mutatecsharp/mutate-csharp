@@ -82,14 +82,75 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     new HashSet<string>
       { "+=", "-=", "*=", "/=", "%=", ">>=", "<<=", "^=", "&=", "|=" };
   
-  public static IEnumerable<object[]> IntegralTypedMutations =
-    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(IntegralTypes.Keys,
+  public static IEnumerable<object[]> IntegralTypedIntAssignableMutations =
+    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+      ["char", "short", "sbyte", "int", "byte", "ushort"],
       SupportedIntegralOperators);
 
   [Theory]
-  [MemberData(nameof(IntegralTypedMutations))]
+  [MemberData(nameof(IntegralTypedIntAssignableMutations))]
   public void
     ShouldReplaceArithmeticAndBitwiseOperatorsForIntegralTypes(
+      string integralType, string originalOperator,
+      string[] expectedReplacementOperators)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            {{integralType}} x = {{IntegralTypes[integralType]}};
+            x {{originalOperator}} {{IntegralTypes[integralType]}};
+          }
+        }
+        """;
+    
+    // Skip test if the input does not compile
+    if (TestUtil.GetCompilation(CSharpSyntaxTree.ParseText(inputUnderMutation))
+        .GetDiagnostics()
+        .Any(d => d.Severity == DiagnosticSeverity.Error))
+    {
+      testOutputHelper.WriteLine("We can safely skip the test as the original input does not compile");
+      return;
+    }
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    // Type checks
+    mutationGroup.SchemaParameterTypes.Should()
+      .Equal($"ref {integralType}", integralType);
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(integralType);
+
+    // Expression template checks
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
+    // The mutation operator should not be able to mutate the compound assignment
+    // operator to itself
+    var mutantExpressions = TestUtil.GetMutantExpressionTemplates(mutationGroup).ToArray();
+    mutantExpressions.Length.Should().Be(expectedReplacementOperators.Length);
+
+    // The expressions should match (regardless of order)
+    var validMutantExpressionsTemplate
+      = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
+    mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
+  }
+  
+    private static ISet<string> SupportedNonIntAssignableIntegralOperators =
+    new HashSet<string>
+      { "+=", "-=", "*=", "/=", "%=", "^=", "&=", "|=" };
+  
+  public static IEnumerable<object[]> IntegralTypedNonIntAssignableMutations =
+    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+      ["long","uint", "ulong"],
+      SupportedNonIntAssignableIntegralOperators);
+
+  [Theory]
+  [MemberData(nameof(IntegralTypedNonIntAssignableMutations))]
+  public void
+    ShouldReplaceArithmeticAndBitwiseExceptShiftOperatorsForIntegralTypes(
       string integralType, string originalOperator,
       string[] expectedReplacementOperators)
   {
@@ -467,5 +528,72 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(mutantExpressionsTemplate);
+  }
+  
+  public static IEnumerable<object[]> UnsupportedIntegralOperatorCombinations =
+    TestUtil.GenerateTestCaseCombinations(
+      new[] { "long", "uint", "ulong" },
+      new[] { "<<", ">>", ">>>" });
+  
+  [Theory]
+  [MemberData(nameof(UnsupportedIntegralOperatorCombinations))]
+  public void
+    ShouldNotReplaceArithmeticBitwiseOperatorsForUnsupportedNumericTypes(
+      string integralType, string originalOperator)
+  {
+    // We check if the program is semantically invalid for the test when
+    // populated with the given construct. This allows us to modify the
+    // program logic as needed to support the operator in the future if
+    // the language specification decides to support the operator for the
+    // specified type in the future.
+    var invalidProgramContainingUnsupportedOperatorForType =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            {{integralType}} x = {{IntegralTypes[integralType]}};
+            x {{originalOperator}}= {{IntegralTypes[integralType]}};
+          }
+        }
+        """;
+
+    testOutputHelper.WriteLine(
+      invalidProgramContainingUnsupportedOperatorForType);
+
+    // Check: construct should not be semantically valid
+    var invalidAst =
+      CSharpSyntaxTree.ParseText(
+        invalidProgramContainingUnsupportedOperatorForType);
+    var compilation = TestUtil.GetCompilation(invalidAst);
+
+    compilation.GetDiagnostics()
+      .Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+      .Should().BeTrue();
+
+    // Check: other operator should not generate the mutation group containing
+    // the language unsupported operator for the numeric type as a valid mutant
+    var inputUnderMutation = 
+      $$"""
+        using System;
+        
+        public class A
+        {
+          public static void Main()
+          {
+            {{integralType}} x = {{IntegralTypes[integralType]}};
+            x += {{IntegralTypes[integralType]}};
+          }
+        }
+        """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    var invalidExpression = $"{{0}} {originalOperator}= {{1}}";
+    
+    mutationGroup.SchemaMutantExpressions
+      .Any(expr => expr.ExpressionTemplate.Equals(invalidExpression))
+      .Should().BeFalse();
   }
 }

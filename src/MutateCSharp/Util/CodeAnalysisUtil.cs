@@ -308,11 +308,14 @@ public static class CodeAnalysisUtil
     SyntaxKind ExprKind,
     SyntaxKind TokenKind,
     string MemberName,
-    TypeSignature[] TypeSignatures)
+    TypeSignature[] TypeSignatures,
+    Func<SpecialType, bool> PrimitiveTypesToExclude)
   {
     public override string ToString()
     {
       return SyntaxFacts.GetText(TokenKind);
     }
   }
+
+  public static readonly Func<SpecialType, bool> NothingToExclude = _ => false;
 }

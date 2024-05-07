@@ -259,4 +259,19 @@ public static class TestUtil
       mutations.Select(group => new[]
         { type, group[0], group[1] }));
   }
+
+  public static IEnumerable<object[]>
+    GenerateTestCaseCombinations(IEnumerable<object> left,
+      IEnumerable<object> right)
+  {
+    var rightArray = right.ToArray();
+    
+    foreach (var leftItem in left)
+    {
+      foreach (var rightItem in rightArray)
+      {
+        yield return [leftItem, rightItem];
+      }
+    }
+  }
 }

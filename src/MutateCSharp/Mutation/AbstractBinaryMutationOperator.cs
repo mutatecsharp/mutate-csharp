@@ -122,24 +122,37 @@ public abstract class AbstractBinaryMutationOperator<T>(
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
 
     // Type checks
-    // TODO: checking only one of both variables is a heuristic, verify later
-    // TODO: may be acceptable to only check return type
+    // TODO: check for differing types
     var leftOperand = GetLeftOperand(originalNode);
-    if (leftOperand == null) return false;
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType().GetNullableUnderlyingType();
-    var operandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType().GetNullableUnderlyingType();
-    if (returnType is null || operandType is null) return false;
+    var rightOperand = GetRightOperand(originalNode);
+    if (leftOperand is null || rightOperand is null) return false;
+    
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()
+      .GetNullableUnderlyingType();
+    var leftOperandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType()
+      .GetNullableUnderlyingType();
+    var rightOperandType = SemanticModel.GetTypeInfo(rightOperand).ResolveType()
+      .GetNullableUnderlyingType();
+    if (returnType is null || leftOperandType is null || rightOperandType is null) 
+      return false;
 
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
-    var variableTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
+    var leftOperandTypeClassification =
+      CodeAnalysisUtil.GetSpecialTypeClassification(leftOperandType.SpecialType);
+    var rightOperandTypeClassification =
+      CodeAnalysisUtil.GetSpecialTypeClassification(
+        rightOperandType.SpecialType);
     // Reject if the replacement operator type group is not the same as the
     // original operator type group
+    
+    // Only process right operand type -> see BinExprOpReplacer for more info
     return replacementOp.TypeSignatures
-      .Any(signature =>
-        signature.OperandType.HasFlag(variableTypeClassification)
-        && signature.ReturnType.HasFlag(returnTypeClassification));
+      .Any(signature => 
+        signature.ReturnType.HasFlag(returnTypeClassification)
+        && signature.OperandType.HasFlag(leftOperandTypeClassification)
+        && signature.OperandType.HasFlag(rightOperandTypeClassification))
+      && !replacementOp.PrimitiveTypesToExclude(rightOperandType.SpecialType);
   }
 
   /*

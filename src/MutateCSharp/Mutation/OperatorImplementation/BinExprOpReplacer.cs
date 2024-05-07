@@ -183,10 +183,30 @@ public sealed partial class BinExprOpReplacer(
  */
 public sealed partial class BinExprOpReplacer
 {
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/bitwise-and-shift-operators#shift-count-of-the-shift-operators
+   * For the built-in shift operators <<, >>, and >>>, the type of the
+   * right-hand operand must be int or a type that has a predefined implicit \
+   * numeric conversion to int.
+   *
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/bitwise-and-shift-operators#shift-count-of-the-shift-operators
+   * sbyte, byte, short, ushort, int has predefined implicit conversions to the
+   * int type.
+   */
+  private static readonly Func<SpecialType, bool>
+    ExcludeIfRightOperandNotImplicitlyConvertableToInt
+      = specialType =>
+        specialType is not
+          (SpecialType.System_Char or
+          SpecialType.System_SByte or 
+          SpecialType.System_Byte or 
+          SpecialType.System_Int16 or 
+          SpecialType.System_UInt16 or
+          SpecialType.System_Int32);
+  
   // Both ExprKind and TokenKind represents the operator and are equivalent
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
-
   private static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
     SupportedOperators
       = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
@@ -197,35 +217,40 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.AddExpression,
             SyntaxKind.PlusToken,
             WellKnownMemberNames.AdditionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.SubtractExpression,
           new(SyntaxKind.SubtractExpression,
             SyntaxKind.MinusToken,
             WellKnownMemberNames.SubtractionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.MultiplyExpression,
           new(SyntaxKind.MultiplyExpression,
             SyntaxKind.AsteriskToken,
             WellKnownMemberNames.MultiplyOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.DivideExpression,
           new(SyntaxKind.DivideExpression,
             SyntaxKind.SlashToken,
             WellKnownMemberNames.DivisionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.ModuloExpression,
           new(SyntaxKind.ModuloExpression,
             SyntaxKind.PercentToken,
             WellKnownMemberNames.ModulusOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature)
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         // Supported boolean/integral bitwise logical operations (&, |, ^)
         {
@@ -233,21 +258,24 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.BitwiseAndExpression,
             SyntaxKind.AmpersandToken,
             WellKnownMemberNames.BitwiseAndOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.BitwiseOrExpression,
           new(SyntaxKind.BitwiseOrExpression,
             SyntaxKind.BarToken,
             WellKnownMemberNames.BitwiseOrOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.ExclusiveOrExpression,
           new(SyntaxKind.ExclusiveOrExpression,
             SyntaxKind.CaretToken,
             WellKnownMemberNames.ExclusiveOrOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature)
+            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         // Supported boolean logical operations (&&, ||)
         {
@@ -255,14 +283,16 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.LogicalAndExpression,
             SyntaxKind.AmpersandAmpersandToken,
             WellKnownMemberNames.LogicalAndOperatorName,
-            CodeAnalysisUtil.BooleanLogicalTypeSignature)
+            CodeAnalysisUtil.BooleanLogicalTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.LogicalOrExpression,
           new(SyntaxKind.LogicalOrExpression,
             SyntaxKind.BarBarToken,
             WellKnownMemberNames.LogicalOrOperatorName,
-            CodeAnalysisUtil.BooleanLogicalTypeSignature)
+            CodeAnalysisUtil.BooleanLogicalTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         // Supported integral bitwise shift operations (<<, >>, >>>)
         {
@@ -270,14 +300,16 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.LeftShiftExpression,
             SyntaxKind.LessThanLessThanToken,
             WellKnownMemberNames.LeftShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature)
+            CodeAnalysisUtil.BitwiseShiftTypeSignature,
+            PrimitiveTypesToExclude: ExcludeIfRightOperandNotImplicitlyConvertableToInt)
         },
         {
           SyntaxKind.RightShiftExpression,
           new(SyntaxKind.RightShiftExpression,
             SyntaxKind.GreaterThanGreaterThanToken,
             WellKnownMemberNames.RightShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature)
+            CodeAnalysisUtil.BitwiseShiftTypeSignature,
+            PrimitiveTypesToExclude: ExcludeIfRightOperandNotImplicitlyConvertableToInt)
         },
         // Note: .NET 6.0 does not support unsigned right shift operator
         // {
@@ -293,14 +325,16 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.EqualsExpression,
             SyntaxKind.EqualsEqualsToken,
             WellKnownMemberNames.EqualityOperatorName,
-            CodeAnalysisUtil.EqualityTypeSignature)
+            CodeAnalysisUtil.EqualityTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.NotEqualsExpression,
           new(SyntaxKind.NotEqualsExpression,
             SyntaxKind.ExclamationEqualsToken,
             WellKnownMemberNames.InequalityOperatorName,
-            CodeAnalysisUtil.EqualityTypeSignature)
+            CodeAnalysisUtil.EqualityTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         // Supported inequality comparison operators (<, <=, >, >=)
         {
@@ -308,28 +342,32 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.LessThanExpression,
             SyntaxKind.LessThanToken,
             WellKnownMemberNames.LessThanOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature)
+            CodeAnalysisUtil.InequalityTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.LessThanOrEqualExpression,
           new(SyntaxKind.LessThanOrEqualExpression,
             SyntaxKind.LessThanEqualsToken,
             WellKnownMemberNames.LessThanOrEqualOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature)
+            CodeAnalysisUtil.InequalityTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.GreaterThanExpression,
           new(SyntaxKind.GreaterThanExpression,
             SyntaxKind.GreaterThanToken,
             WellKnownMemberNames.GreaterThanOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature)
+            CodeAnalysisUtil.InequalityTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         },
         {
           SyntaxKind.GreaterThanOrEqualExpression,
           new(SyntaxKind.GreaterThanOrEqualExpression,
             SyntaxKind.GreaterThanEqualsToken,
             WellKnownMemberNames.GreaterThanOrEqualOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature)
+            CodeAnalysisUtil.InequalityTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
         }
       }.ToFrozenDictionary();
 
