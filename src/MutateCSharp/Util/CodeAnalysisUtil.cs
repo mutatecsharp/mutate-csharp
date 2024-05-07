@@ -255,6 +255,17 @@ public static class CodeAnalysisUtil
     return null;
   }
 
+  public static bool ContainsGenericTypeParameter(this ITypeSymbol typeSymbol)
+  {
+    return typeSymbol switch
+    {
+      { TypeKind: TypeKind.TypeParameter } => true,
+      INamedTypeSymbol { IsGenericType: true } namedTypeSymbol =>
+        namedTypeSymbol.TypeArguments.Any(ContainsGenericTypeParameter),
+      _ => false
+    };
+  }
+
   public static bool IsSymbolVariable(this ISymbol symbol)
   {
     return symbol switch

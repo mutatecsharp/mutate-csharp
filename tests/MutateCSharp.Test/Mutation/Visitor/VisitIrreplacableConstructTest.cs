@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.Visitor;
@@ -59,7 +60,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
   [InlineData("!(!!(\"abc\" is string s) && !(true is bool b))")]
   [InlineData("!(false is bool b)")]
   [InlineData("!!!(\"def\" is string s)")]
-  public void CannotReplaceNodeContainingDeclarationPatternSyntaxAsDescendant(
+  public void ShouldNotReplaceNodeContainingDeclarationPatternSyntaxAsDescendant(
     string construct)
   {
     var inputUnderMutation =
@@ -91,5 +92,49 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     {
       TestUtil.NodeShouldNotBeMutated(node, schemaRegistry);
     }
+  }
+  
+  [Theory]
+  [InlineData("T")]
+  [InlineData("A<T>")]
+  [InlineData("List<T>")]
+  [InlineData("List<(T, T)>")]
+  [InlineData("List<List<(T, T)>>")]
+  public void ShouldNotReplaceNodeContainingTypeParameters(string typeConstruct)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+      using System.Collections.Generic;
+      
+      public class A<T> where T: new()
+      {
+        static {{typeConstruct}} foo()
+        {
+          var result = new {{typeConstruct}}();
+          return result;
+        }
+      }
+      
+      public class B
+      {
+        public static void Main() 
+        {
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var node = (ReturnStatementSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+      <ReturnStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitReturnStatement(node)
+      );
+    
+    TestUtil.NodeShouldNotBeMutated(node.Expression, schemaRegistry);
   }
 }

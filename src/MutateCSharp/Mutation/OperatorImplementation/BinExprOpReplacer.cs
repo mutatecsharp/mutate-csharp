@@ -19,7 +19,21 @@ public sealed partial class BinExprOpReplacer(
   {
     Log.Debug("Processing binary expression: {SyntaxNode}",
       originalNode.GetText().ToString());
-    return SupportedOperators.ContainsKey(originalNode.Kind());
+    
+    SyntaxNode[] nodes = [originalNode, originalNode.Left, originalNode.Right];
+
+    // Ignore: Cannot obtain type information
+    if (nodes.Any(node =>
+          !SyntaxRewriterUtil.IsTypeResolvableLogged(in SemanticModel, in node)))
+      return false;
+
+    var types = nodes.Select(node =>
+      SemanticModel.GetTypeInfo(node).ResolveType()
+        .GetNullableUnderlyingType()!);
+
+    // Ignore: type contains generic type parameter
+    return !types.Any(type => SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)) 
+           && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
   private static string ExpressionTemplate(SyntaxKind kind, bool isLeftDelegate,

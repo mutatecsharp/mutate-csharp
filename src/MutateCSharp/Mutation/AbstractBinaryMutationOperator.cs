@@ -50,21 +50,21 @@ public abstract class AbstractBinaryMutationOperator<T>(
 
     if (leftType is null)
     {
-      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+      Log.Warning("Type information not available for {Expression} (line {Line})", 
         left.GetText(), left.GetLocation().GetLineSpan().StartLinePosition.Line);
       return Array.Empty<SyntaxKind>();
     }
 
     if (rightType is null)
     {
-      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+      Log.Warning("Type information not available for {Expression} (line {Line})", 
         right.GetText(), right.GetLocation().GetLineSpan().StartLinePosition.Line);
       return Array.Empty<SyntaxKind>();
     }
 
     if (returnType is null)
     {
-      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
+      Log.Warning("Type information not available for {Expression} (line {Line})", 
         originalNode.GetText(), originalNode.GetLocation().GetLineSpan().StartLinePosition.Line);
       return Array.Empty<SyntaxKind>();
     }
