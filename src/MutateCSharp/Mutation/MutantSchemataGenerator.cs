@@ -15,7 +15,7 @@ public static class MutantSchemataGenerator
   
   // Hack to optimise template generation time 
   private static readonly object?[] PredefinedParameterNames =
-    ["argument1", "argument2", "argument3", "argument4"];
+    ["argument1", "argument2"];
 
   private static ReadOnlySpan<object?> RequiredParameters(int count)
   {
@@ -63,7 +63,7 @@ public static class MutantSchemataGenerator
     // Case: if (_activatedMutantId == mutantId + i) { return mutatedExpression; }
     for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Count; i++)
     {
-      result.Append($"if (_activatedMutantId == mutantId + {i}) {{ return ");
+      result.Append($"if (ActivatedMutantId.Value == mutantId + {i}) {{ return ");
       result.MaterialiseExpressionFromTemplate(
         mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate,
         mutationGroup.SchemaParameterTypes.Count);
@@ -88,25 +88,24 @@ public static class MutantSchemataGenerator
     return result;
   }
 
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/framework/performance/lazy-initialization
+   * We use lazy initialisation that guarantees thread safety by default and has
+   * read-only .Value property, which also improves performance.
+   */
   private static string GenerateInitialiseMethod(string environmentVariable)
   {
     return
       $$"""
-      private static bool _initialised;
-      private static {{MutantIdType}} _activatedMutantId;
-
-      private static void Initialise()
-      {
-        if (_initialised) { return; }
-        var activatedMutant = System.Environment.GetEnvironmentVariable("{{environmentVariable}}");
-        if (!string.IsNullOrEmpty(activatedMutant)) { _activatedMutantId = {{MutantIdType}}.Parse(activatedMutant); }
-        _initialised = true;
-      }
+      private static readonly System.Lazy<{{MutantIdType}}> ActivatedMutantId =
+        new System.Lazy<{{MutantIdType}}>(() => {
+          var activatedMutant = System.Environment.GetEnvironmentVariable("{{environmentVariable}}");
+          return !string.IsNullOrEmpty(activatedMutant) ? {{MutantIdType}}.Parse(activatedMutant) : 0;
+        });
 
       private static bool ActivatedInRange({{MutantIdType}} lowerBound, {{MutantIdType}} upperBound)
       {
-        Initialise();
-        return lowerBound <= _activatedMutantId && _activatedMutantId <= upperBound;
+        return lowerBound <= ActivatedMutantId.Value && ActivatedMutantId.Value <= upperBound;
       }
       """;
   }
