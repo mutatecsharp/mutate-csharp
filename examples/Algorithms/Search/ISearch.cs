@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Search;
 
 public interface ISearch<T> where T: IComparable<T>
