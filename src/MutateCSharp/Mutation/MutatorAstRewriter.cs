@@ -150,17 +150,25 @@ public sealed partial class MutatorAstRewriter(
 
     // 5: Mutate node
     // Handle short-circuit operators
-    var firstParameter = mutationGroup.SchemaParameterTypes[0];
-    var secondParameter = mutationGroup.SchemaParameterTypes[1];
+    var containsShortCircuitOperators =
+      CodeAnalysisUtil.ShortCircuitOperators.Contains(node.Kind())
+      || mutationGroup.SchemaMutantExpressions.Any(mutant =>
+        CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
+    
+    var leftOperandSymbol = semanticModel.GetSymbolInfo(node.Left).Symbol!;
+    var rightOperandSymbol = semanticModel.GetSymbolInfo(node.Right).Symbol!;
+    
+    var isLeftDelegate = containsShortCircuitOperators
+                         && CodeAnalysisUtil.OperandCanBeDelegate(leftOperandSymbol);
+    var isRightDelegate = containsShortCircuitOperators
+                          && CodeAnalysisUtil.OperandCanBeDelegate(rightOperandSymbol);
 
-    var leftArgument = firstParameter.StartsWith("System.Func")
-      ? SyntaxFactory.ParenthesizedLambdaExpression(
-        nodeWithMutatedChildren.Left)
+    var leftArgument = isLeftDelegate
+      ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Left)
       : nodeWithMutatedChildren.Left;
 
-    var rightArgument = secondParameter.StartsWith("System.Func")
-      ? SyntaxFactory.ParenthesizedLambdaExpression(
-        nodeWithMutatedChildren.Right)
+    var rightArgument = isRightDelegate
+      ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Right)
       : nodeWithMutatedChildren.Right;
 
     return SyntaxFactoryUtil.CreateMethodCall(

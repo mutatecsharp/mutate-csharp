@@ -33,9 +33,8 @@ public abstract class AbstractUnaryMutationOperator<T>(
     if (operandNode == null) return Array.Empty<SyntaxKind>();
 
     var operandType = 
-      SemanticModel.GetTypeInfo(operandNode).ResolveType()!.GetNullableUnderlyingType();
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!
-      .GetNullableUnderlyingType();
+      SemanticModel.ResolveTypeSymbol(operandNode)?.GetNullableUnderlyingType();
+    var returnType = SemanticModel.ResolveTypeSymbol(originalNode)?.GetNullableUnderlyingType();
     
     if (operandType is null)
     {
@@ -82,8 +81,8 @@ public abstract class AbstractUnaryMutationOperator<T>(
     // 1) Get the operand type name and return type name
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
-    var operandType = SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType();
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ConvertedType!.GetNullableUnderlyingType();
+    var operandType = SemanticModel.ResolveTypeSymbol(operand)?.GetNullableUnderlyingType();
+    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)?.GetNullableUnderlyingType();
     if (operandType is null || returnType is null) return false;
     
     // 2) Replacement operator is valid if its return type is in the same
@@ -155,9 +154,9 @@ public abstract class AbstractUnaryMutationOperator<T>(
     if (operand == null) return false;
     
     var operandTypeSymbol = 
-      SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType();
+      SemanticModel.ResolveTypeSymbol(operand).GetNullableUnderlyingType();
     var returnTypeSymbol =
-      SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
+      SemanticModel.ResolveTypeSymbol(originalNode)?.GetNullableUnderlyingType();
     if (operandTypeSymbol is null || returnTypeSymbol is null) return false;
     
     // 2) Get operand type and return type in runtime

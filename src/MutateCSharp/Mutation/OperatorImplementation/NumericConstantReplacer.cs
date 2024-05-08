@@ -23,7 +23,7 @@ public sealed partial class NumericConstantReplacer(
   {
     Log.Debug("Processing numeric constant: {SyntaxNode}", 
       originalNode.GetText().ToString());
-    var type = SemanticModel.GetTypeInfo(originalNode).ResolveType()?.SpecialType;
+    var type = SemanticModel.ResolveTypeSymbol(originalNode)?.SpecialType;
     return type.HasValue &&
            SupportedNumericTypesToSuffix.ContainsKey(type.Value);
   }
@@ -38,9 +38,9 @@ public sealed partial class NumericConstantReplacer(
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
-    var numericType = SemanticModel.GetTypeInfo(originalNode).Type!.SpecialType;
-    var returnType = SemanticModel.GetTypeInfo(originalNode)
-      .ConvertedType!.SpecialType;
+    var numericType = SemanticModel.ResolveTypeSymbol(originalNode)!.SpecialType;
+    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)!
+      .SpecialType;
 
     var validMutants = SupportedOperators.Values.Where(replacement =>
     {
@@ -74,7 +74,7 @@ public sealed partial class NumericConstantReplacer(
   protected override ImmutableArray<string> ParameterTypes(
     LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
-    var originalType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!
+    var originalType = SemanticModel.ResolveTypeSymbol(originalNode)!
       .ToDisplayString();
     return [originalType];
   }
@@ -90,14 +90,13 @@ public sealed partial class NumericConstantReplacer(
    */
   protected override string ReturnType(LiteralExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).ConvertedType!.ToDisplayString();
+    return SemanticModel.ResolveConvertedTypeSymbol(originalNode)!.ToDisplayString();
   }
 
   protected override string
     SchemaBaseName(LiteralExpressionSyntax originalNode)
   {
-    var operandType = SemanticModel.GetTypeInfo(originalNode)
-      .ResolveType()!.ToDisplayString();
+    var operandType = SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
     return $"ReplaceNumeric{operandType}ConstantReturn{ReturnType(originalNode)}";
   }
 }

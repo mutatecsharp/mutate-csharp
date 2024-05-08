@@ -41,7 +41,7 @@ public class ReflectionTypeTest(ITestOutputHelper testOutputHelper)
     var construct = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<VariableDeclarationSyntax>().First();
     var variable = construct.Variables.First().Initializer!.Value;
-    var genericCompileType = compilation.model.GetTypeInfo(variable).ResolveType();
+    var genericCompileType = compilation.model.ResolveTypeSymbol(variable);
     var resolvedRuntimeType =
       genericCompileType?.GetRuntimeType(compilation.sutAssembly);
 

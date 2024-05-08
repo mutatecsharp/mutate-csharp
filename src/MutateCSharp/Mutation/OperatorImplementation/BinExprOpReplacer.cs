@@ -19,20 +19,21 @@ public sealed partial class BinExprOpReplacer(
   {
     Log.Debug("Processing binary expression: {SyntaxNode}",
       originalNode.GetText().ToString());
-    
+
     SyntaxNode[] nodes = [originalNode, originalNode.Left, originalNode.Right];
 
     // Ignore: Cannot obtain type information
     if (nodes.Any(node =>
-          !SyntaxRewriterUtil.IsTypeResolvableLogged(in SemanticModel, in node)))
+          !SyntaxRewriterUtil.IsTypeResolvableLogged(in SemanticModel,
+            in node)))
       return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.GetTypeInfo(node).ResolveType()
-        .GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter
-    return !types.Any(type => SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)) 
+    return !types.Any(type =>
+             SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type))
            && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
@@ -50,16 +51,17 @@ public sealed partial class BinExprOpReplacer(
     ImmutableArray<ExpressionRecord> mutantExpressions)
   {
     var containsShortCircuitOperators =
-      HasShortCircuitOperators(InvolvedOperators(originalNode,
-        mutantExpressions));
+      CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
+      || mutantExpressions.Any(mutant =>
+        CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
     var leftSymbol = SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
     var rightSymbol = SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
 
     var isLeftDelegate = containsShortCircuitOperators
-                         && OperandCanBeDelegate(leftSymbol);
+                         && CodeAnalysisUtil.OperandCanBeDelegate(leftSymbol);
     var isRightDelegate = containsShortCircuitOperators
-                          && OperandCanBeDelegate(rightSymbol);
+                          && CodeAnalysisUtil.OperandCanBeDelegate(rightSymbol);
 
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind(), isLeftDelegate, isRightDelegate));
@@ -67,29 +69,32 @@ public sealed partial class BinExprOpReplacer(
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators() => SupportedOperators;
-  
+
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(BinaryExpressionSyntax originalNode)
   {
-    var validMutants = ValidMutants(originalNode);
-    var involvedOperators = validMutants.Append(originalNode.Kind());
+    var validMutants = ValidMutants(originalNode).ToArray();
 
     var containsShortCircuitOperators =
-      HasShortCircuitOperators(involvedOperators);
+      CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) ||
+      validMutants.Any(op =>
+        CodeAnalysisUtil.ShortCircuitOperators.Contains(op));
+
     var leftSymbol = SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
     var rightSymbol = SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
 
     var isLeftDelegate = containsShortCircuitOperators
-                         && OperandCanBeDelegate(leftSymbol);
+                         && CodeAnalysisUtil.OperandCanBeDelegate(leftSymbol);
     var isRightDelegate = containsShortCircuitOperators
-                          && OperandCanBeDelegate(rightSymbol);
+                          && CodeAnalysisUtil.OperandCanBeDelegate(rightSymbol);
 
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
 
-    return [
+    return
+    [
       ..attachIdToMutants.Select(entry =>
         (entry.id, new ExpressionRecord(entry.op,
           ExpressionTemplate(entry.op, isLeftDelegate, isRightDelegate))
@@ -107,28 +112,35 @@ public sealed partial class BinExprOpReplacer(
     ImmutableArray<ExpressionRecord> mutantExpressions)
   {
     var leftOperandAbsoluteType =
-      SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()
+      SemanticModel.ResolveTypeSymbol(originalNode.Left)
         .GetNullableUnderlyingType()!.ToDisplayString();
     var rightOperandAbsoluteType =
-      SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()
+      SemanticModel.ResolveTypeSymbol(originalNode.Right)
         .GetNullableUnderlyingType()!.ToDisplayString();
 
-    if (!HasShortCircuitOperators(
-          InvolvedOperators(originalNode, mutantExpressions)))
-      return [leftOperandAbsoluteType, rightOperandAbsoluteType];
+    // Check for short circuit operators
+    var containsShortCircuitOperators =
+      CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
+      || mutantExpressions.Any(mutant =>
+        CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
     // Short-circuit evaluation operators are present
     var leftOperandSymbol =
       SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
     var rightOperandSymbol =
       SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
+    
+    var isLeftDelegate = containsShortCircuitOperators
+                         && CodeAnalysisUtil.OperandCanBeDelegate(leftOperandSymbol);
+    var isRightDelegate = containsShortCircuitOperators
+                          && CodeAnalysisUtil.OperandCanBeDelegate(rightOperandSymbol);
 
     return
     [
-      OperandCanBeDelegate(leftOperandSymbol)
+      isLeftDelegate
         ? $"System.Func<{leftOperandAbsoluteType}>"
         : leftOperandAbsoluteType,
-      OperandCanBeDelegate(rightOperandSymbol)
+      isRightDelegate
         ? $"System.Func<{rightOperandAbsoluteType}>"
         : rightOperandAbsoluteType
     ];
@@ -136,43 +148,12 @@ public sealed partial class BinExprOpReplacer(
 
   protected override string ReturnType(BinaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)
   {
     return $"ReplaceBinExprOpReturn{ReturnType(originalNode)}";
-  }
-
-  private static IEnumerable<SyntaxKind> InvolvedOperators(
-    BinaryExpressionSyntax originalNode,
-    IEnumerable<ExpressionRecord> mutantExpressions)
-  {
-    return mutantExpressions
-      .Select(expr => expr.Operation)
-      .Append(originalNode.Kind());
-  }
-
-  private static bool HasShortCircuitOperators(
-    IEnumerable<SyntaxKind> involvedOperators)
-  {
-    return involvedOperators.Any(op =>
-      CodeAnalysisUtil.ShortCircuitOperators.Contains(op));
-  }
-
-  /*
-   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions
-   * A lambda expression can't directly capture an in, ref, or out parameter
-   * from the enclosing method.
-   */
-  private static bool OperandCanBeDelegate(ISymbol symbol)
-  {
-    return symbol switch
-    {
-      IParameterSymbol paramSymbol => paramSymbol is { RefKind: RefKind.None },
-      ILocalSymbol localSymbol => localSymbol is { RefKind: RefKind.None },
-      _ => true
-    };
   }
 }
 

@@ -156,12 +156,22 @@ public static class CodeAnalysisUtil
     return DefaultCompilation.GetSpecialType(returnType);
   }
   
-  public static ITypeSymbol? ResolveType(this Microsoft.CodeAnalysis.TypeInfo typeInfo)
+  public static ITypeSymbol? ResolveTypeSymbol(
+    this SemanticModel model, SyntaxNode node)
   {
-    // Get the type; failing which we get the converted type
-    // This mainly happens when we try to get the type of null, but null does
-    // not have a type; it will be converted to the object type
-    return typeInfo.Type ?? typeInfo.ConvertedType;
+    // Resolve null as 'object' type; return type otherwise
+    return node.IsKind(SyntaxKind.NullLiteralExpression)
+      ? DefaultCompilation.GetSpecialType(SpecialType.System_Object)
+      : model.GetTypeInfo(node).Type;
+  }
+
+  public static ITypeSymbol? ResolveConvertedTypeSymbol(
+    this SemanticModel model, SyntaxNode node)
+  {
+    // Resolve null as 'object' type; return converted type otherwise
+    return node.IsKind(SyntaxKind.NullLiteralExpression) 
+      ? DefaultCompilation.GetSpecialType(SpecialType.System_Object) 
+      : model.GetTypeInfo(node).ConvertedType;
   }
 
   public static Type? ResolveReflectionType(string typeName, Assembly sutAssembly)
@@ -300,6 +310,23 @@ public static class CodeAnalysisUtil
       INamedTypeSymbol { IsGenericType: true } namedTypeSymbol =>
         namedTypeSymbol.TypeArguments.Any(ContainsGenericTypeParameter),
       _ => false
+    };
+  }
+  
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions
+   * A lambda expression can't directly capture an in, ref, or out parameter
+   * from the enclosing method.
+   * This method determines if the function can capture the value of the ref
+   * variable to be considered as operand in the mutated expression.
+   */
+  public static bool OperandCanBeDelegate(ISymbol symbol)
+  {
+    return symbol switch
+    {
+      IParameterSymbol paramSymbol => paramSymbol is { RefKind: RefKind.None },
+      ILocalSymbol localSymbol => localSymbol is { RefKind: RefKind.None },
+      _ => true
     };
   }
 

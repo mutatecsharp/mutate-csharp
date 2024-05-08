@@ -34,8 +34,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.GetTypeInfo(node).ResolveType()
-        .GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter
     return !types.Any(type => SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)) 
@@ -84,9 +83,8 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     PrefixUnaryExpressionSyntax originalNode,
     ImmutableArray<ExpressionRecord> mutantExpressions)
   {
-    var operandAbsoluteType = SemanticModel.GetTypeInfo(originalNode.Operand)
-      .ResolveType().GetNullableUnderlyingType()!
-      .ToDisplayString();
+    var operandAbsoluteType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)
+      .GetNullableUnderlyingType()!.ToDisplayString();
 
     // Check if any of original or mutant expressions update the argument
     return CodeAnalysisUtil.VariableModifyingOperators.Contains(
@@ -99,7 +97,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
   protected override string ReturnType(PrefixUnaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(

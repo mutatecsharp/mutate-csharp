@@ -498,11 +498,13 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(mutantExpressionsTemplate);
   }
+
+  public static IEnumerable<object[]> IntegralOperatorEnumerator
+    = SupportedIntegralOperators.Select(op => new[] { op });
   
   [Theory]
-  [MemberData(nameof(IntegralMutations))]
-  public void ShouldReplaceForNullablePrimitiveTypesWithNullValues(string originalOperator,
-    string[] expectedReplacementOperators)
+  [MemberData(nameof(IntegralOperatorEnumerator))]
+  public void ShouldNotReplaceForNullablePrimitiveTypesWithNullValues(string originalOperator)
   {
     var inputUnderMutation = 
       $$"""
@@ -517,17 +519,11 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
           }
         }
         """;
-
-    var mutationGroup = GetMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaReturnType.Should().Be("int?");
-    mutationGroup.SchemaParameterTypes.Should().Equal("ref int", "int");
-    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
-      .Be($"{{0}} {originalOperator} {{1}}");
-    var mutantExpressionsTemplate =
-      expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
-    mutationGroup.SchemaMutantExpressions
-      .Select(mutant => mutant.ExpressionTemplate)
-      .Should().BeEquivalentTo(mutantExpressionsTemplate);
+    
+    // We assign null the object type, which cannot be assigned to int
+    // it is technically assignable to int?, but in this case, the mutants are
+    // redundant so we ignore it
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
   
   public static IEnumerable<object[]> UnsupportedIntegralOperatorCombinations =

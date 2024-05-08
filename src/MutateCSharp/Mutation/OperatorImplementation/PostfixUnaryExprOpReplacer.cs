@@ -29,8 +29,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
       return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.GetTypeInfo(node).ResolveType()
-        .GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter
     return !types.Any(type => SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)) 
@@ -79,9 +78,8 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   {
     // Since the supported postfix unary expressions can be either 
     // postincrement or postdecrement, they are guaranteed to be updatable
-    var operandAbsoluteType = SemanticModel.GetTypeInfo(originalNode.Operand)
-      .ResolveType().GetNullableUnderlyingType()!
-      .ToDisplayString();
+    var operandAbsoluteType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)
+      .GetNullableUnderlyingType()!.ToDisplayString();
 
     return [$"ref {operandAbsoluteType}"];
   }
@@ -89,7 +87,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   protected override string ReturnType(
     PostfixUnaryExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(

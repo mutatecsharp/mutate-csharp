@@ -38,8 +38,7 @@ public sealed partial class CompoundAssignOpReplacer(
     return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.GetTypeInfo(node).ResolveType()
-        .GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter
     return !types.Any(type => SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)) 
@@ -85,17 +84,17 @@ public sealed partial class CompoundAssignOpReplacer(
     AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
     var updateVariableAbsoluteType =
-      SemanticModel.GetTypeInfo(originalNode.Left).ResolveType()
+      SemanticModel.ResolveTypeSymbol(originalNode.Left)
         .GetNullableUnderlyingType()!.ToDisplayString();
     var operandAbsoluteType =
-      SemanticModel.GetTypeInfo(originalNode.Right).ResolveType()
+      SemanticModel.ResolveTypeSymbol(originalNode.Right)
         .GetNullableUnderlyingType()!.ToDisplayString();
-    return [$"ref {updateVariableAbsoluteType}", operandAbsoluteType];
+    return [$"ref {updateVariableAbsoluteType}", $"{operandAbsoluteType}"];
   }
 
   protected override string ReturnType(AssignmentExpressionSyntax originalNode)
   {
-    return SemanticModel.GetTypeInfo(originalNode).Type!.ToDisplayString();
+    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
   }
 
   protected override string SchemaBaseName(

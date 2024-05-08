@@ -43,10 +43,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var right = GetRightOperand(originalNode);
     if (left == null || right == null) return Array.Empty<SyntaxKind>();
 
-    var leftType = SemanticModel.GetTypeInfo(left).ResolveType().GetNullableUnderlyingType();
-    var rightType = SemanticModel.GetTypeInfo(right).ResolveType().GetNullableUnderlyingType();
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()
-      .GetNullableUnderlyingType();
+    var leftType = SemanticModel.ResolveTypeSymbol(left).GetNullableUnderlyingType();
+    var rightType = SemanticModel.ResolveTypeSymbol(right).GetNullableUnderlyingType();
+    var returnType = SemanticModel.ResolveTypeSymbol(originalNode).GetNullableUnderlyingType();
 
     if (leftType is null)
     {
@@ -127,12 +126,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var rightOperand = GetRightOperand(originalNode);
     if (leftOperand is null || rightOperand is null) return false;
     
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()
-      .GetNullableUnderlyingType();
-    var leftOperandType = SemanticModel.GetTypeInfo(leftOperand).ResolveType()
-      .GetNullableUnderlyingType();
-    var rightOperandType = SemanticModel.GetTypeInfo(rightOperand).ResolveType()
-      .GetNullableUnderlyingType();
+    var returnType = SemanticModel.ResolveTypeSymbol(originalNode).GetNullableUnderlyingType();
+    var leftOperandType = SemanticModel.ResolveTypeSymbol(leftOperand).GetNullableUnderlyingType();
+    var rightOperandType = SemanticModel.ResolveTypeSymbol(rightOperand).GetNullableUnderlyingType();
     if (returnType is null || leftOperandType is null || rightOperandType is null) 
       return false;
 
@@ -211,10 +207,10 @@ public abstract class AbstractBinaryMutationOperator<T>(
     if (left == null || right == null) return false;
 
     var leftAbsoluteType = 
-      SemanticModel.GetTypeInfo(left).ResolveType()!.GetNullableUnderlyingType();
+      SemanticModel.ResolveTypeSymbol(left)?.GetNullableUnderlyingType();
     var rightAbsoluteType =
-      SemanticModel.GetTypeInfo(right).ResolveType()!.GetNullableUnderlyingType();
-    var returnMaybeNullableType = SemanticModel.GetTypeInfo(originalNode).Type;
+      SemanticModel.ResolveTypeSymbol(right)?.GetNullableUnderlyingType();
+    var returnMaybeNullableType = SemanticModel.ResolveTypeSymbol(originalNode);
 
     if (leftAbsoluteType is null || rightAbsoluteType is null ||
         returnMaybeNullableType is null) return false;

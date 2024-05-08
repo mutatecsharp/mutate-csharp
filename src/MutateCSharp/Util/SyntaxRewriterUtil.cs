@@ -13,9 +13,10 @@ public static class SyntaxRewriterUtil
   public static bool IsTypeResolvableLogged(
     ref readonly SemanticModel model, ref readonly SyntaxNode node)
   {
-    var typeSymbol = model.GetTypeInfo(node).ResolveType();
-    if (typeSymbol is not null) return true;
-    Log.Debug("The type for {Type} cannot be resolved (line {Line}). Ignoring...", 
+    var typeSymbol = model.ResolveTypeSymbol(node);
+    var convertedTypeSymbol = model.ResolveConvertedTypeSymbol(node);
+    if (typeSymbol is not null && convertedTypeSymbol is not null) return true;
+    Log.Debug("The type for {Expression} cannot be resolved (line {Line}). Ignoring...", 
       node.ToString(), node.GetLocation().GetLineSpan().StartLinePosition.Line);
     return false;
   }
@@ -26,12 +27,13 @@ public static class SyntaxRewriterUtil
     var underlyingTypeSymbol = typeSymbol.GetNullableUnderlyingType()!;
     if (!underlyingTypeSymbol.ContainsGenericTypeParameter()) return false;
     
-    Log.Debug("{SyntaxNodeType} is a generic type parameter. Ignoring...", 
+    Log.Debug("{Type} is a generic type parameter. Ignoring...", 
       underlyingTypeSymbol.ToDisplayString());
     return true;
   }
   
-  /* Case 1:
+  /*
+   * Case 1:
    * Predicates can specify `is` expressions with patterns that declare variables.
    * This is followed by a variable declaration which has to be visible in the current scope.
    *

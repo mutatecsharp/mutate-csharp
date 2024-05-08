@@ -14,6 +14,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     => TestUtil
       .GetValidMutationGroup<BinExprOpReplacer, BinaryExpressionSyntax>(
         inputUnderMutation);
+  
+  private static MutationGroup[] GetAllMutationGroups(string inputUnderMutation)
+    => TestUtil
+      .GetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
+        inputUnderMutation);
 
   private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
   {
@@ -622,11 +627,13 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     }
   }
 
+  public static IEnumerable<object[]> IntegralOperatorsEnumerator
+    = SupportedIntegralOperators.Select(op => new[] { op });
+
   [Theory]
-  [MemberData(nameof(IntegralMutations))]
-  public void ShouldReplaceForNullablePrimitiveTypesWithNullValues(
-    string originalOperator,
-    string[] expectedReplacementOperators)
+  [MemberData(nameof(IntegralOperatorsEnumerator))]
+  public void ShouldNotReplaceForNullablePrimitiveTypesWithNullValues(
+    string originalOperator)
   {
     var inputUnderMutation =
       $$"""
@@ -642,16 +649,10 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         }
         """;
 
-    var mutationGroup = GetMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaReturnType.Should().Be("int?");
-    mutationGroup.SchemaParameterTypes.Should()
-      .Equal("int", "int");
-    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
-      .Be($"{{0}} {originalOperator} {{1}}");
-    var mutantExpressionsTemplate =
-      expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
-    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
-      .BeEquivalentTo(mutantExpressionsTemplate);
+    // We assign null the object type, which cannot be assigned to int
+    // it is technically assignable to int?, but in this case, the mutants are
+    // redundant so we ignore it
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
 
   [Fact]
@@ -883,5 +884,38 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressions
       .Any(expr => expr.ExpressionTemplate.Equals(invalidExpression))
       .Should().BeFalse();
+  }
+
+  [Fact]
+  public void ShouldReplaceForNestedShortCircuitOperatorExpression()
+  {
+    // Example encountered in the wild.
+    var inputUnderMutation =
+      """
+      using System;
+      
+      public class A
+      {
+        public static void Main()
+        {
+          Func<A, bool> lambda = _ => true;
+          var b = false;
+          var predicate = b || lambda != null;
+        }
+      }
+      """;
+    
+    var mutationGroups = GetAllMutationGroups(inputUnderMutation);
+    var orMutationGroup = mutationGroups[0];
+    var notEqMutationGroup = mutationGroups[1];
+
+    orMutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be("{0}() || {1}()");
+    orMutationGroup.SchemaReturnType.Should().Be("bool");
+    orMutationGroup.SchemaParameterTypes[0].Should().Be("System.Func<bool>");
+    orMutationGroup.SchemaParameterTypes[1].Should().Be("System.Func<bool>");
+
+    notEqMutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be("{0} != {1}");
+    notEqMutationGroup.SchemaReturnType.Should().Be("bool");
+    notEqMutationGroup.SchemaParameterTypes.Should().Equal("System.Func<A, bool>", "object");
   }
 }
