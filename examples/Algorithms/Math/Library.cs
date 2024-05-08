@@ -1,4 +1,6 @@
-﻿namespace Math;
+﻿using System;
+
+namespace Math;
 
 public static class Library
 {
