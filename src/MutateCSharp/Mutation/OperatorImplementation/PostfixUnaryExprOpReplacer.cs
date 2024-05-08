@@ -50,7 +50,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
       ExpressionTemplate(originalNode.Kind()));
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators()
   {
     return SupportedOperators;
@@ -101,9 +101,9 @@ public sealed partial class PostfixUnaryExprOpReplacer(
 
 public sealed partial class PostfixUnaryExprOpReplacer
 {
-  private static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedOperators
-      = new Dictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+      = new Dictionary<SyntaxKind, CodeAnalysisUtil.Op>
       {
         {
           SyntaxKind.PostIncrementExpression, // x++

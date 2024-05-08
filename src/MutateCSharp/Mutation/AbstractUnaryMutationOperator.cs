@@ -14,7 +14,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
   : AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T : ExpressionSyntax // currently support prefix or postfix unary expression
 {
-  public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+  public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators();
 
   public static ExpressionSyntax? GetOperand(T originalNode)
@@ -74,7 +74,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 3) The replacement return type must be assignable to the original return type.
    */
   protected bool CanApplyOperatorForSpecialTypes(
-    T originalNode, CodeAnalysisUtil.UnaryOp replacementOp)
+    T originalNode, CodeAnalysisUtil.Op replacementOp)
   {
     // Reject if the replacement candidate is the same as the original operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
@@ -83,23 +83,29 @@ public abstract class AbstractUnaryMutationOperator<T>(
     var operand = GetOperand(originalNode);
     if (operand == null) return false;
     var operandType = SemanticModel.GetTypeInfo(operand).ResolveType()!.GetNullableUnderlyingType();
-    var returnType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!.GetNullableUnderlyingType();
+    var returnType = SemanticModel.GetTypeInfo(originalNode).ConvertedType!.GetNullableUnderlyingType();
     if (operandType is null || returnType is null) return false;
-
+    
+    // 2) Replacement operator is valid if its return type is in the same
+    // type group as the original operator type group
     var operandTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
 
-    // 2) Replacement operator is valid if its return type is in the same
-    // type group as the original operator type group
-    
-    // Only check operand type for exclusion -> see PrefixUnaryExprOpReplacer
-    return replacementOp.TypeSignatures
+    // 3) Check if expression type is assignable to original return type,
+    // taking into account exclusion rules set by the C# specification
+    // (see PrefixUnaryExprOpReplacer)
+    var exprType =
+      CodeAnalysisUtil.ResolveUnaryPrimitiveReturnType(operandType.SpecialType,
+        replacementOp.ExprKind);
+
+    return !replacementOp.PrimitiveTypesToExclude(operandType.SpecialType)
+           && replacementOp.TypeSignatures
              .Any(signature =>
                signature.OperandType.HasFlag(operandTypeClassification)
                && signature.ReturnType.HasFlag(returnTypeClassification))
-           && !replacementOp.PrimitiveTypesToExclude(operandType.SpecialType);
+           && exprType.SpecialType.CanBeImplicitlyConvertedTo(returnType.SpecialType);
   }
 
   /*
@@ -139,7 +145,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 3) op2 should return type B.
    */
   protected bool CanApplyOperatorForUserDefinedTypes(T originalNode,
-    CodeAnalysisUtil.UnaryOp replacementOp)
+    CodeAnalysisUtil.Op replacementOp)
   {
     // Reject if the replacement candidate is the same as the original operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;

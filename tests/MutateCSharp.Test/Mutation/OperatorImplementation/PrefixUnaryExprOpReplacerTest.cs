@@ -1,13 +1,8 @@
 using FluentAssertions;
-using FluentAssertions.Formatting;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
-using MutateCSharp.Util;
 using Xunit.Abstractions;
-using Formatter = Microsoft.CodeAnalysis.Formatting.Formatter;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
 
@@ -67,19 +62,22 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       { "uint", "((uint) 10)" },
       { "ulong", "11ul" }
     };
-
-  private static ISet<string> SupportedNonAssignableIntegralOperators =
-    new HashSet<string> { "+", "-", "~" };
-
-  // Skip: operator '-' cannot be applied to operand of type 'ulong'
-  public static IEnumerable<object[]> NonAssignableIntegralTypedMutations =
+  
+  private static IEnumerable<object[]> _nonAssignableIntegralTypedMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
-      IntegralTypes.Keys,
-      SupportedNonAssignableIntegralOperators)
-      .Where(entry => !(entry[0].Equals("ulong") && entry[1].Equals("-")));
+      ["char", "short", "sbyte", "int", "long", "byte", "ushort", "uint"],
+      ["+", "-", "~"]);
+  
+  // Operator '-' cannot be applied to operand of type 'ulong'
+  private static IEnumerable<object[]> _nonAssignableUlongMutations =
+    TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+      ["ulong"], ["+", "~"]);
+
+  public static IEnumerable<object[]> NonAssignableIntegralMutations =
+    _nonAssignableIntegralTypedMutations.Concat(_nonAssignableUlongMutations);
   
   [Theory]
-  [MemberData(nameof(NonAssignableIntegralTypedMutations))]
+  [MemberData(nameof(NonAssignableIntegralMutations))]
   public void
     ShouldReplaceArithmeticBitwiseOperatorsForNonAssignableIntegralTypes(
       string integralType, string originalOperator,
@@ -136,18 +134,49 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       .BeEquivalentTo(validMutantExpressionsTemplate);
   }
   
-  private static ISet<string> SupportedAssignableIntegralOperators =
-    new HashSet<string> { "+", "-", "~", "++", "--" };
+  // unary -, +, ~ cannot be applied to byte, sbyte, ushort, short, uint, char
+  // and return its own type; the type will be promoted to int
+  // This set of test case allows example constructs such as:
+  // byte b = 2;
+  // var x = ++b; // x is of type byte
+  // to accept mutant operator(s) --
+  private static readonly IEnumerable<object[]>
+    AssignableNotPromotedIntegralMutations
+      = TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+          ["char", "short", "sbyte", "byte", "ushort", "uint"],
+          ["+", "-", "~", "++", "--"]
+        ).Where(test => test[1] is not ("+" or "-" or "~"))
+        .Select(test =>
+        {
+          var expectedReplacementOperators =
+            (test[2] as string[]).Where(op => op is not ("+" or "-" or "~"))
+            .ToArray();
 
-  // Skip: operator '-' cannot be applied to operand of type 'ulong'
-  public static IEnumerable<object[]> AssignableIntegralTypedMutations =
+          return new[]{ test[0], test[1], expectedReplacementOperators };
+        });
+    
+  // This set of test case allows example constructs such as:
+  // byte b = 2;
+  // var x = +b; // x is of type int
+  // to accept mutant operator(s) -, ~, ++, --
+  private static readonly IEnumerable<object[]>
+    AssignableIntegralTypedMutations =
+      TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
+        ["char", "short", "sbyte", "int", "long", "byte", "ushort", "uint"],
+        ["+", "-", "~", "++", "--"]
+      ).Where(test => test[1] is ("+" or "-" or "~"));
+  
+  private static readonly IEnumerable<object[]> AssignableUlongMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
-      IntegralTypes.Keys,
-      SupportedAssignableIntegralOperators)
-      .Where(entry => !(entry[0].Equals("ulong") && entry[1].Equals("-")));
+      ["uint", "ulong"], ["+", "~", "++", "--"]);
+
+  public static IEnumerable<object[]> AssignableIntegralMutations =
+    AssignableNotPromotedIntegralMutations
+      .Concat(AssignableIntegralTypedMutations)
+      .Concat(AssignableUlongMutations);
   
   [Theory]
-  [MemberData(nameof(AssignableIntegralTypedMutations))]
+  [MemberData(nameof(AssignableIntegralMutations))]
   public void
     ShouldReplaceArithmeticBitwiseOperatorsForAssignableIntegralTypes(
       string integralType, string originalOperator,
@@ -531,7 +560,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   }
 
   [Theory]
-  [MemberData(nameof(AssignableIntegralTypedMutations))]
+  [MemberData(nameof(AssignableIntegralMutations))]
   public void ShouldReplaceForNullableAssignableIntegralTypes(
     string integralType, string originalOperator,
     string[] expectedReplacementOperators)

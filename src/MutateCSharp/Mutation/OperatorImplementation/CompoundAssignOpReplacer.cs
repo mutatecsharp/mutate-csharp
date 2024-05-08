@@ -51,7 +51,7 @@ public sealed partial class CompoundAssignOpReplacer(
     return $"{{0}} {SupportedOperators[kind]} {{1}}";
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators()
   {
     return SupportedOperators;
@@ -137,9 +137,9 @@ public sealed partial class CompoundAssignOpReplacer
   // Both ExprKind and TokenKind represents the operator and are equivalent
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
-  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedOperators
-      = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+      = new Dictionary<SyntaxKind, CodeAnalysisUtil.Op>
       {
         // Supported arithmetic assignment operations (+=, -=, *=, /=, %=)
         {

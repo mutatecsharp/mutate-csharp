@@ -14,7 +14,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
   : AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T : ExpressionSyntax // currently support binary expression and assignment expression
 {
-  public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+  public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
 
   public static ExpressionSyntax? GetLeftOperand(T originalNode)
@@ -115,7 +115,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
      * 3) The replacement return type must be assignable to the original return type.
  */
   private bool CanApplyOperatorForSpecialTypes(
-    T originalNode, CodeAnalysisUtil.BinOp replacementOp)
+    T originalNode, CodeAnalysisUtil.Op replacementOp)
   {
     // Operator checks
     // Reject if the replacement candidate is the same as the original operator
@@ -200,7 +200,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
    * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#1264-overload-resolution
    */
   public bool CanApplyOperatorForUserDefinedTypes(
-    T originalNode, CodeAnalysisUtil.BinOp replacementOp)
+    T originalNode, CodeAnalysisUtil.Op replacementOp)
   {
     // Reject if the original operator is the same as the replacement operator
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
@@ -261,7 +261,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
              returnType);
   }
 
-  private bool HasUnambiguousUserDefinedOperator(CodeAnalysisUtil.BinOp replacementOp,
+  private bool HasUnambiguousUserDefinedOperator(CodeAnalysisUtil.Op replacementOp,
     ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnAbsoluteType)
   {
     var leftRuntimeType = leftAbsoluteType.GetRuntimeType(SutAssembly);
@@ -322,7 +322,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
   }
   
   public (MethodInfo?, MethodInfo?) GetResolvedBinaryOverloadedOperator(
-    CodeAnalysisUtil.BinOp binOp, Type leftAbsoluteType, Type rightAbsoluteType)
+    CodeAnalysisUtil.Op op, Type leftAbsoluteType, Type rightAbsoluteType)
   {
     // Resolving the type in the assembly requires querying with the absolute type
     // Note: Assigning A? to A does not cause an error, only a warning in C#
@@ -330,9 +330,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
     try
     {
       var leftMethod =
-        leftAbsoluteType.GetMethod(binOp.MemberName, [leftAbsoluteType, rightAbsoluteType]);
+        leftAbsoluteType.GetMethod(op.MemberName, [leftAbsoluteType, rightAbsoluteType]);
       var rightMethod =
-        rightAbsoluteType.GetMethod(binOp.MemberName, [leftAbsoluteType, rightAbsoluteType]);
+        rightAbsoluteType.GetMethod(op.MemberName, [leftAbsoluteType, rightAbsoluteType]);
 
       return (leftMethod, rightMethod);
     }

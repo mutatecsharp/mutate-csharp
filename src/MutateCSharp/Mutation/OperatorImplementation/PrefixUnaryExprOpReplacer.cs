@@ -108,7 +108,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     return $"ReplacePrefixUnaryExprOpReturn{ReturnType(originalNode)}";
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators()
   {
     return SupportedOperators;
@@ -126,9 +126,9 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
 public sealed partial class PrefixUnaryExprOpReplacer
 {
-  private static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedOperators
-      = new Dictionary<SyntaxKind, CodeAnalysisUtil.UnaryOp>
+      = new Dictionary<SyntaxKind, CodeAnalysisUtil.Op>
       {
         {
           SyntaxKind.UnaryPlusExpression, // +x

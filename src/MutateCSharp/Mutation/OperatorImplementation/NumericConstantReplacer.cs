@@ -9,6 +9,10 @@ using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
 
+/*
+ * The replacer takes in the original type of the literal and returns the
+ * converted type that matches the assigned return type of the variable.
+ */
 public sealed partial class NumericConstantReplacer(
   Assembly sutAssembly,
   SemanticModel semanticModel)
@@ -34,32 +38,45 @@ public sealed partial class NumericConstantReplacer(
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
-    var type = SemanticModel.GetTypeInfo(originalNode).ConvertedType?.SpecialType!;
-    var typeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(type.Value);
-    var result = new List<(int, ExpressionRecord)>();
+    var numericType = SemanticModel.GetTypeInfo(originalNode).Type!.SpecialType;
+    var returnType = SemanticModel.GetTypeInfo(originalNode)
+      .ConvertedType!.SpecialType;
 
-    // Mutation: value => 0
-    result.Add((1,
-      new ExpressionRecord(SyntaxKind.NumericLiteralExpression, "0")));
-    // Mutation: value => -value
-    // (Unary negative operator cannot be applied to unsigned or char types,
-    // as the type of resulting expression is different from that of the operand.)
-    if (typeClassification is not CodeAnalysisUtil.SupportedType.UnsignedIntegral)
-      result.Add((2,
-        new ExpressionRecord(SyntaxKind.UnaryMinusExpression, "-{0}")));
-    // Mutation: value => value - 1
-    result.Add((3,
-      new ExpressionRecord(SyntaxKind.SubtractExpression, "{0} - 1")));
-    // Mutation: value => value + 1
-    result.Add((4, new ExpressionRecord(SyntaxKind.AddExpression, "{0} + 1")));
-    return result.ToImmutableArray();
+    var validMutants = SupportedOperators.Values.Where(replacement =>
+    {
+      return replacement.Op.ExprKind switch
+      {
+        SyntaxKind.NumericLiteralExpression => true,
+        _ when PrefixUnaryExprOpReplacer.SupportedOperators.ContainsKey(
+            replacement.Op.ExprKind)
+          => !replacement.Op.PrimitiveTypesToExclude(numericType) &&
+            CodeAnalysisUtil.ResolveUnaryPrimitiveReturnType(numericType, replacement.Op.ExprKind)
+              .SpecialType.CanBeImplicitlyConvertedTo(returnType),
+        _ when BinExprOpReplacer.SupportedOperators.ContainsKey(replacement.Op
+            .ExprKind)
+          => true,
+        _ => true
+      };
+    }).Select(replacement => replacement.Op.ExprKind);
+
+    var attachIdToMutants =
+      SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
+        validMutants);
+
+    return
+    [
+      ..attachIdToMutants.Select(entry =>
+        (entry.id, new ExpressionRecord(entry.op,
+            SupportedOperators[entry.op].Template)))
+    ];
   }
 
   protected override ImmutableArray<string> ParameterTypes(
     LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
-    return [ReturnType(originalNode)];
+    var originalType = SemanticModel.GetTypeInfo(originalNode).ResolveType()!
+      .ToDisplayString();
+    return [originalType];
   }
 
   /*
@@ -79,7 +96,9 @@ public sealed partial class NumericConstantReplacer(
   protected override string
     SchemaBaseName(LiteralExpressionSyntax originalNode)
   {
-    return $"ReplaceNumericConstantReturn{ReturnType(originalNode)}";
+    var operandType = SemanticModel.GetTypeInfo(originalNode)
+      .ResolveType()!.ToDisplayString();
+    return $"ReplaceNumeric{operandType}ConstantReturn{ReturnType(originalNode)}";
   }
 }
 
@@ -108,4 +127,37 @@ public sealed partial class NumericConstantReplacer
         { SpecialType.System_Double, "d" },
         { SpecialType.System_Decimal, "m" }
       }.ToFrozenDictionary();
+
+  private static readonly FrozenDictionary<
+      SyntaxKind, (CodeAnalysisUtil.Op Op, string Template)>
+    SupportedOperators
+      = new Dictionary<SyntaxKind, (CodeAnalysisUtil.Op, string)>
+      {
+        {
+          SyntaxKind.NumericLiteralExpression, // x -> 0
+          (new(SyntaxKind.NumericLiteralExpression,
+            // There are multiple token kinds of literal but we omit its use
+            SyntaxKind.None,
+            string.Empty,
+            CodeAnalysisUtil.ArithmeticTypeSignature,
+            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude
+          ), "0")
+        },
+        {
+          SyntaxKind.UnaryMinusExpression, // x -> -x
+          (PrefixUnaryExprOpReplacer.SupportedOperators[SyntaxKind.UnaryMinusExpression], "-{0}")
+        },
+        {
+          SyntaxKind.SubtractExpression, // x -> x - 1
+          (BinExprOpReplacer.SupportedOperators[SyntaxKind.SubtractExpression], "{0} - 1")
+        },
+        {
+          SyntaxKind.AddExpression, // x -> x + 1
+          (BinExprOpReplacer.SupportedOperators[SyntaxKind.AddExpression], "{0} + 1")
+        }
+      }.ToFrozenDictionary();
+
+  private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
+    = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys.Order())
+      .ToFrozenDictionary();
 }

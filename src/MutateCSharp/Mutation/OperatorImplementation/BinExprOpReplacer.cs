@@ -65,7 +65,7 @@ public sealed partial class BinExprOpReplacer(
       ExpressionTemplate(originalNode.Kind(), isLeftDelegate, isRightDelegate));
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators() => SupportedOperators;
   
   protected override
@@ -207,9 +207,9 @@ public sealed partial class BinExprOpReplacer
   // Both ExprKind and TokenKind represents the operator and are equivalent
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
-  private static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+  public static readonly FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedOperators
-      = new Dictionary<SyntaxKind, CodeAnalysisUtil.BinOp>
+      = new Dictionary<SyntaxKind, CodeAnalysisUtil.Op>
       {
         // Supported arithmetic operations (+, -, *, /, %)
         {

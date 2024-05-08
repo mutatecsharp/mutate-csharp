@@ -10,6 +10,11 @@ namespace MutateCSharp.Util;
 
 public static class CodeAnalysisUtil
 {
+  // Default compilation to query special types
+  private static readonly CSharpCompilation DefaultCompilation =
+    CSharpCompilation.Create(string.Empty,
+      references: [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
+  
   [Flags]
   public enum SupportedType
   {
@@ -126,6 +131,30 @@ public static class CodeAnalysisUtil
       _ => SupportedType.NotSupported
     };
   }
+
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12472-unary-numeric-promotions
+   * Implements the unary numeric promotion rule for +, -, ~.
+   */
+  public static ITypeSymbol ResolveUnaryPrimitiveReturnType(SpecialType operandType, SyntaxKind exprKind)
+  {
+    if (exprKind is not (SyntaxKind.UnaryMinusExpression
+        or SyntaxKind.UnaryPlusExpression or SyntaxKind.BitwiseNotExpression))
+      return DefaultCompilation.GetSpecialType(operandType);
+
+    var returnType = operandType switch
+    {
+      SpecialType.System_SByte => SpecialType.System_Int32, // sbyte -> int
+      SpecialType.System_Byte => SpecialType.System_Int32, // byte -> int
+      SpecialType.System_Char => SpecialType.System_Int32, // char -> int
+      SpecialType.System_UInt16 => SpecialType.System_Int32, // ushort -> int
+      SpecialType.System_Int16 => SpecialType.System_Int32, // short -> int
+      SpecialType.System_UInt32 => SpecialType.System_Int64, // uint -> long
+      _ => operandType
+    };
+
+    return DefaultCompilation.GetSpecialType(returnType);
+  }
   
   public static ITypeSymbol? ResolveType(this Microsoft.CodeAnalysis.TypeInfo typeInfo)
   {
@@ -141,6 +170,14 @@ public static class CodeAnalysisUtil
     // are looking for types defined in the core library: we defer to the
     // current assembly to get the type's runtime type
     return sutAssembly.GetType(typeName) ?? Type.GetType(typeName);
+  }
+
+  public static bool CanBeImplicitlyConvertedTo(this SpecialType fromType,
+    SpecialType toType)
+  {
+    var fromTypeSymbol = DefaultCompilation.GetSpecialType(fromType);
+    var toTypeSymbol = DefaultCompilation.GetSpecialType(toType);
+    return DefaultCompilation.HasImplicitConversion(fromTypeSymbol, toTypeSymbol);
   }
 
   public static ITypeSymbol? GetNullableUnderlyingType(this ITypeSymbol? type)
@@ -292,20 +329,7 @@ public static class CodeAnalysisUtil
     SupportedType OperandType,
     SupportedType ReturnType);
 
-  public record UnaryOp(
-    SyntaxKind ExprKind,
-    SyntaxKind TokenKind,
-    string MemberName,
-    TypeSignature[] TypeSignatures,
-    Func<SpecialType, bool> PrimitiveTypesToExclude)
-  {
-    public override string ToString()
-    {
-      return SyntaxFacts.GetText(TokenKind);
-    }
-  }
-
-  public record BinOp(
+  public record Op(
     SyntaxKind ExprKind,
     SyntaxKind TokenKind,
     string MemberName,
