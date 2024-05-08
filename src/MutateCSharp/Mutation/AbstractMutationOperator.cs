@@ -33,10 +33,12 @@ public abstract class AbstractMutationOperator<T>(
     var mutations =
       mutationsWithId.Select(entry => entry.expr).ToImmutableArray();
     var uniqueMutantsId =
-      string.Join("", mutationsWithId.Select(entry => entry.exprIdInMutator));
+      string.Join(string.Empty, mutationsWithId.Select(entry => entry.exprIdInMutator));
 
-    // Replace (?) characters in schema's base name that contains the return type
-    var schemaName = SchemaBaseName(node).Replace("?", "Nullable");
+    // Replace (?, .) characters in schema's base name that contains the return type
+    var schemaName = SchemaBaseName(node)
+      .Replace(".", string.Empty)
+      .Replace("?", "Nullable");
     
     return new MutationGroup
     {
