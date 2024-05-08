@@ -125,7 +125,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       using System;
       using System.Collections.Generic;
       
-      public class A<T> where T: new()
+      public class A<T> where T: class, new()
       {
         static {{typeConstruct}} foo()
         {
