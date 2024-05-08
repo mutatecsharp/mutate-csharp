@@ -64,6 +64,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
   [InlineData("!!!(ob is string s)")]
   [InlineData("foo(ob is bool b)")]
   [InlineData("!foo(ob is var b)")]
+  [InlineData("choc(out ob)")]
   public void ShouldNotReplaceNodeContainingDeclarationPatternSyntaxAsDescendant(
     string construct)
   {
@@ -74,9 +75,11 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       public class A
       {
         public static bool foo(object b) => true;
-        public static bool bar(object b, out bool x)
+        public static bool bar(object b, out bool x) => x = true;
+        public static int choc(out object b)
         {
-          return x = true;
+          b = 10;
+          return 1;
         }
       
         public static void choc(object ob)

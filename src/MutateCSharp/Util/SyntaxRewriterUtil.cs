@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Serilog;
 
@@ -52,7 +53,8 @@ public static class SyntaxRewriterUtil
     return node.DescendantNodes().OfType<DeclarationPatternSyntax>().Any()
            || node.DescendantNodes().OfType<VarPatternSyntax>().Any()
            || node.DescendantNodes().OfType<ArgumentSyntax>()
-             .Any(arg => arg.Expression is DeclarationExpressionSyntax)
+             .Any(arg => arg.Expression is DeclarationExpressionSyntax
+             || arg.DescendantTokens().Any(token => token.Kind() is SyntaxKind.OutKeyword))
            || node.DescendantNodes().OfType<SingleVariableDesignationSyntax>()
              .Any();
   }
