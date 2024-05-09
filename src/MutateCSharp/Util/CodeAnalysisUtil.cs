@@ -8,13 +8,17 @@ using Serilog;
 
 namespace MutateCSharp.Util;
 
-public static class CodeAnalysisUtil
+/*
+ * Definitions.
+ */
+public static partial class CodeAnalysisUtil
 {
   // Default compilation to query special types
   private static readonly CSharpCompilation DefaultCompilation =
     CSharpCompilation.Create(string.Empty,
-      references: [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
-  
+      references:
+      [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
+
   [Flags]
   public enum SupportedType
   {
@@ -29,6 +33,25 @@ public static class CodeAnalysisUtil
     Numeric = Integral | FloatingPoint,
     All = Integral | FloatingPoint | Boolean | Character | String
   }
+
+  public record TypeSignature(
+    SupportedType OperandType,
+    SupportedType ReturnType);
+
+  public record Op(
+    SyntaxKind ExprKind,
+    SyntaxKind TokenKind,
+    string MemberName,
+    TypeSignature[] TypeSignatures,
+    Func<SpecialType, bool> PrimitiveTypesToExclude)
+  {
+    public override string ToString()
+    {
+      return SyntaxFacts.GetText(TokenKind);
+    }
+  }
+
+  public static readonly Func<SpecialType, bool> NothingToExclude = _ => false;
 
   public static readonly TypeSignature[] IncrementOrDecrementTypeSignature
     =
@@ -72,7 +95,7 @@ public static class CodeAnalysisUtil
       new TypeSignature(SupportedType.Numeric | SupportedType.Character,
         SupportedType.Boolean)
     ];
-  
+
   public static readonly FrozenSet<SyntaxKind> ShortCircuitOperators
     = new HashSet<SyntaxKind>
     {
@@ -105,6 +128,14 @@ public static class CodeAnalysisUtil
       SyntaxKind.UnsignedRightShiftAssignmentExpression
     }.ToFrozenSet();
 
+  public enum SymbolVisibility { Private, Public, Internal }
+}
+
+/*
+ * Helper methods.
+ */
+public static partial class CodeAnalysisUtil
+{
   public static SupportedType GetSpecialTypeClassification(SpecialType type)
   {
     return type switch
@@ -136,7 +167,8 @@ public static class CodeAnalysisUtil
    * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12472-unary-numeric-promotions
    * Implements the unary numeric promotion rule for +, -, ~.
    */
-  public static ITypeSymbol ResolveUnaryPrimitiveReturnType(SpecialType operandType, SyntaxKind exprKind)
+  public static ITypeSymbol ResolveUnaryPrimitiveReturnType(
+    SpecialType operandType, SyntaxKind exprKind)
   {
     if (exprKind is not (SyntaxKind.UnaryMinusExpression
         or SyntaxKind.UnaryPlusExpression or SyntaxKind.BitwiseNotExpression))
@@ -155,7 +187,7 @@ public static class CodeAnalysisUtil
 
     return DefaultCompilation.GetSpecialType(returnType);
   }
-  
+
   public static ITypeSymbol? ResolveTypeSymbol(
     this SemanticModel model, SyntaxNode node)
   {
@@ -169,12 +201,13 @@ public static class CodeAnalysisUtil
     this SemanticModel model, SyntaxNode node)
   {
     // Resolve null as 'object' type; return converted type otherwise
-    return node.IsKind(SyntaxKind.NullLiteralExpression) 
-      ? DefaultCompilation.GetSpecialType(SpecialType.System_Object) 
+    return node.IsKind(SyntaxKind.NullLiteralExpression)
+      ? DefaultCompilation.GetSpecialType(SpecialType.System_Object)
       : model.GetTypeInfo(node).ConvertedType;
   }
 
-  public static Type? ResolveReflectionType(string typeName, Assembly sutAssembly)
+  public static Type? ResolveReflectionType(string typeName,
+    Assembly sutAssembly)
   {
     // If we cannot locate the type from the assembly of SUT, this means we
     // are looking for types defined in the core library: we defer to the
@@ -187,44 +220,50 @@ public static class CodeAnalysisUtil
   {
     var fromTypeSymbol = DefaultCompilation.GetSpecialType(fromType);
     var toTypeSymbol = DefaultCompilation.GetSpecialType(toType);
-    return DefaultCompilation.HasImplicitConversion(fromTypeSymbol, toTypeSymbol);
+    return DefaultCompilation.HasImplicitConversion(fromTypeSymbol,
+      toTypeSymbol);
   }
 
   public static ITypeSymbol? GetNullableUnderlyingType(this ITypeSymbol? type)
   {
     // If the type is Nullable<T> or T?, convert to T
-    if (type is INamedTypeSymbol 
-          { ConstructedFrom.SpecialType: SpecialType.System_Nullable_T,
-            Arity: 1 } nullableMonad)
+    if (type is INamedTypeSymbol
+        {
+          ConstructedFrom.SpecialType: SpecialType.System_Nullable_T,
+          Arity: 1
+        } nullableMonad)
     {
       return nullableMonad.TypeArguments[0];
     }
-    
+
     // Pre: Nullable is enabled in the compilation properties
     // In the case of user-defined types, the type will be annotated as nullable
     // instead of being contained by the Nullable monad.
     // We remove the nullable annotation and return the type.
-    if (type is INamedTypeSymbol { NullableAnnotation: NullableAnnotation.Annotated }
+    if (type is INamedTypeSymbol
+          {
+            NullableAnnotation: NullableAnnotation.Annotated
+          }
           nullableAnnotation)
     {
       return nullableAnnotation.WithNullableAnnotation(
         NullableAnnotation.NotAnnotated);
     }
-    
+
     return type;
   }
-  
+
   // For reflection use
   private static readonly SymbolDisplayFormat ClrFormatOptions
     = new(
-      typeQualificationStyle: 
+      typeQualificationStyle:
       SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
 
   // Subsumes ToClrTypeName.
-  public static string ToFullMetadataName(this ISymbol symbol) 
+  public static string ToFullMetadataName(this ISymbol symbol)
   {
     if (IsRootNamespace(symbol)) return string.Empty;
-    var builder = new List<string>{symbol.MetadataName};
+    var builder = new List<string> { symbol.MetadataName };
     var current = symbol.ContainingSymbol;
 
     while (!IsRootNamespace(current))
@@ -233,8 +272,10 @@ public static class CodeAnalysisUtil
         builder.Add("+");
       else
         builder.Add(".");
-      
-      builder.Add(current.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+
+      builder.Add(
+        current.OriginalDefinition.ToDisplayString(SymbolDisplayFormat
+          .MinimallyQualifiedFormat));
       current = current.ContainingSymbol;
     }
 
@@ -246,7 +287,7 @@ public static class CodeAnalysisUtil
   {
     return symbol is INamespaceSymbol { IsGlobalNamespace: true };
   }
-  
+
   public static string ToClrTypeName(this ITypeSymbol type)
   {
     return type.ToDisplayString(ClrFormatOptions);
@@ -258,46 +299,51 @@ public static class CodeAnalysisUtil
     var typeRef = new CodeTypeReference(type);
     return provider.GetTypeOutput(typeRef);
   }
-  
-  public static Type? GetRuntimeType(this ITypeSymbol typeSymbol, Assembly sutAssembly)
+
+  public static Type? GetRuntimeType(this ITypeSymbol typeSymbol,
+    Assembly sutAssembly)
   {
     // Named type (user-defined, predefined collection types, etc.)
     if (typeSymbol is INamedTypeSymbol namedTypeSymbol)
     {
       // Construct type
       var runtimeBaseType =
-        ResolveReflectionType(namedTypeSymbol.ToFullMetadataName(), sutAssembly);
-      
+        ResolveReflectionType(namedTypeSymbol.ToFullMetadataName(),
+          sutAssembly);
+
       // Non-generic
       if (!namedTypeSymbol.IsGenericType) return runtimeBaseType;
-      
+
       // Generic (recursively construct children runtime types)
       var runtimeChildrenTypes = namedTypeSymbol.TypeArguments
         .Select(type => GetRuntimeType(type, sutAssembly)).ToList();
       if (runtimeChildrenTypes.Any(type => type is null)) return null;
-      var absoluteRuntimeChildrenTypes 
+      var absoluteRuntimeChildrenTypes
         = runtimeChildrenTypes.Select(type => type!).ToArray();
       return runtimeBaseType?.MakeGenericType(absoluteRuntimeChildrenTypes);
     }
-    
+
     // Array type
     if (typeSymbol is IArrayTypeSymbol arrayTypeSymbol)
     {
-      var elementType = GetRuntimeType(arrayTypeSymbol.ElementType, sutAssembly);
-      return arrayTypeSymbol.Rank == 1 
-        ? elementType?.MakeArrayType() 
+      var elementType =
+        GetRuntimeType(arrayTypeSymbol.ElementType, sutAssembly);
+      return arrayTypeSymbol.Rank == 1
+        ? elementType?.MakeArrayType()
         : elementType?.MakeArrayType(arrayTypeSymbol.Rank);
     }
-    
+
     // Pointer type
     if (typeSymbol is IPointerTypeSymbol pointerTypeSymbol)
     {
-      var elementType = GetRuntimeType(pointerTypeSymbol.PointedAtType, sutAssembly);
+      var elementType =
+        GetRuntimeType(pointerTypeSymbol.PointedAtType, sutAssembly);
       return elementType?.MakePointerType();
     }
-    
+
     // Unsupported type
-    Log.Debug("Cannot obtain runtime type from assembly due to unsupported type symbol: {TypeName}. Ignoring...", 
+    Log.Debug(
+      "Cannot obtain runtime type from assembly due to unsupported type symbol: {TypeName}. Ignoring...",
       typeSymbol.GetType().FullName);
     return null;
   }
@@ -312,7 +358,7 @@ public static class CodeAnalysisUtil
       _ => false
     };
   }
-  
+
   /*
    * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions
    * A lambda expression can't directly capture an in, ref, or out parameter
@@ -345,29 +391,36 @@ public static class CodeAnalysisUtil
     };
   }
 
+  public static SymbolVisibility GetVisibility(this ISymbol symbol)
+  {
+    if (symbol is { Kind: SymbolKind.Alias or SymbolKind.TypeParameter })
+      return SymbolVisibility.Private;
+    if (symbol is { Kind: SymbolKind.Parameter })
+      return GetVisibility(symbol.ContainingSymbol);
+
+    var currentSymbol = symbol;
+    var visibility = SymbolVisibility.Public;
+
+    while (currentSymbol is { Kind: not SymbolKind.Namespace })
+    {
+      if (currentSymbol.DeclaredAccessibility is
+            Accessibility.Private or Accessibility.NotApplicable)
+        return SymbolVisibility.Private;
+
+      if (currentSymbol.DeclaredAccessibility is
+          Accessibility.Internal or Accessibility.ProtectedAndInternal)
+        visibility = SymbolVisibility.Internal;
+
+      currentSymbol = currentSymbol.ContainingSymbol;
+    }
+
+    return visibility;
+  }
+
   public static bool IsAString(this SyntaxNode node)
   {
     return node.IsKind(SyntaxKind.StringLiteralExpression) ||
            node.IsKind(SyntaxKind.Utf8StringLiteralExpression) ||
            node.IsKind(SyntaxKind.InterpolatedStringExpression);
   }
-
-  public record TypeSignature(
-    SupportedType OperandType,
-    SupportedType ReturnType);
-
-  public record Op(
-    SyntaxKind ExprKind,
-    SyntaxKind TokenKind,
-    string MemberName,
-    TypeSignature[] TypeSignatures,
-    Func<SpecialType, bool> PrimitiveTypesToExclude)
-  {
-    public override string ToString()
-    {
-      return SyntaxFacts.GetText(TokenKind);
-    }
-  }
-
-  public static readonly Func<SpecialType, bool> NothingToExclude = _ => false;
 }

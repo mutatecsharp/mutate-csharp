@@ -31,9 +31,9 @@ public sealed partial class BinExprOpReplacer(
     var types = nodes.Select(node =>
       SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
-    // Ignore: type contains generic type parameter
-    return !types.Any(type =>
-             SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type))
+    // Ignore: type contains generic type parameter / is private
+    return types.All(type => type.GetVisibility()
+             is not CodeAnalysisUtil.SymbolVisibility.Private)
            && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
