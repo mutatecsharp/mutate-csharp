@@ -32,9 +32,10 @@ public sealed partial class PostfixUnaryExprOpReplacer(
       SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter / is private
-    return types.All(type => type.GetVisibility()
-             is not CodeAnalysisUtil.SymbolVisibility.Private)
-           && SupportedOperators.ContainsKey(originalNode.Kind());
+    return types.All(type =>
+      !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
+      && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
+    ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
   public static string ExpressionTemplate(SyntaxKind kind)

@@ -37,9 +37,10 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter
-    return types.All(type => type.GetVisibility()
-             is not CodeAnalysisUtil.SymbolVisibility.Private)
-           && SupportedOperators.ContainsKey(originalNode.Kind());
+    return types.All(type =>
+      !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
+      && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
+    ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
   private static string ExpressionTemplate(SyntaxKind kind)

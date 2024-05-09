@@ -115,9 +115,9 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
   [Theory]
   [InlineData("T")]
   [InlineData("A<T>")]
-  [InlineData("List<T>")]
-  [InlineData("List<(T, T)>")]
-  [InlineData("List<List<(T, T)>>")]
+  [InlineData("A<A<T>>")]
+  [InlineData("A<(T, T)>")]
+  [InlineData("A<A<(T, T)>>")]
   public void ShouldNotReplaceNodeContainingTypeParameters(string typeConstruct)
   {
     var inputUnderMutation =
@@ -125,13 +125,17 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       using System;
       using System.Collections.Generic;
       
-      public class A<T> where T: class, new()
+      public class A<T> where T: new()
       {
         static {{typeConstruct}} foo()
         {
           var result = new {{typeConstruct}}();
+          var validate = result != null;
+          {{( typeConstruct is "T" ? string.Empty : "var prefix = !result;")}}
           return result;
         }
+        
+        public static bool operator!(A<T> a) => false;
       }
       
       public class B
@@ -145,14 +149,37 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     testOutputHelper.WriteLine(inputUnderMutation);
     
     var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    
+    var mutatedBinaryNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <BinaryExpressionSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+      );
+    testOutputHelper.WriteLine(mutatedBinaryNode.ToFullString());
+    mutatedBinaryNode.Should().BeOfType<BinaryExpressionSyntax>();
 
-    var node = (ReturnStatementSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+    if (typeConstruct is not "T")
+    {
+      var mutatedUnaryNode = TestUtil.GetNodeUnderMutationAfterRewrite
+        <PrefixUnaryExpressionSyntax>(
+          inputUnderMutation, 
+          schemaRegistry,
+          (rewriter, node) => rewriter.VisitPrefixUnaryExpression(node)
+        );
+      testOutputHelper.WriteLine(mutatedUnaryNode.ToFullString());
+      mutatedUnaryNode.Should().BeOfType<PrefixUnaryExpressionSyntax>();
+    }
+
+    var mutatedReturnStatementNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <ReturnStatementSyntax>(
         inputUnderMutation,
         schemaRegistry,
         (rewriter, node) => rewriter.VisitReturnStatement(node)
       );
+    mutatedReturnStatementNode.Should().BeOfType<ReturnStatementSyntax>();
+    var returnStat = (ReturnStatementSyntax)mutatedReturnStatementNode;
     
-    TestUtil.NodeShouldNotBeMutated(node.Expression, schemaRegistry);
+    TestUtil.NodeShouldNotBeMutated(returnStat.Expression, schemaRegistry);
   }
 }
