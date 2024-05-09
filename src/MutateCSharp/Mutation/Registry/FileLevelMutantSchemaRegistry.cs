@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 namespace MutateCSharp.Mutation.Registry;
 
 using MutantId = long;
+using SchemaSuffixId = int;
 
 public class FileLevelMutantSchemaRegistry
 {
@@ -11,15 +12,17 @@ public class FileLevelMutantSchemaRegistry
   
   // There is a many-to-one mapping between a mutation and a mutation group
   private MutantId _mutantIdGenerator;
+  
+  // There is a one-to-one mapping between a mutation group and a suffix ID
+  private SchemaSuffixId _suffixIdGenerator;
 
   // Each entry records the unique mapping of original construct to all
   // mutant constructs (mutation group). Mutation group is only concerned
   // with the operation types, not the specific value instances.
   // This information is useful to omit generation of redundant schemas.
-  private ISet<MutationGroup> _mutationGroups = new HashSet<MutationGroup>();
+  private readonly Dictionary<MutationGroup, SchemaSuffixId> _mutationGroupsToSuffix;
 
-  private IDictionary<MutantId, MutationGroup> _baseIdToMutationGroup
-    = new Dictionary<MutantId, MutationGroup>();
+  private readonly Dictionary<MutantId, MutationGroup> _baseIdToMutationGroup;
   
   public static Type MutantIdType { get; } = typeof(MutantId);
   
@@ -30,27 +33,35 @@ public class FileLevelMutantSchemaRegistry
   public FileLevelMutantSchemaRegistry()
   {
     _mutantIdGenerator = 1;
-    ClassName = $"Schemata{_fileIdGenerator}";
-    EnvironmentVariable = $"MUTATE_CSHARP_ACTIVATED_MUTANT{_fileIdGenerator}";
-    _fileIdGenerator++;
+    // Every file id is guaranteed to be unique
+    var fileId = Interlocked.Increment(ref _fileIdGenerator); 
+    ClassName = $"Schemata{fileId}";
+    EnvironmentVariable = $"MUTATE_CSHARP_ACTIVATED_MUTANT{fileId}";
+    _mutationGroupsToSuffix = new Dictionary<MutationGroup, SchemaSuffixId>();
+    _baseIdToMutationGroup = new Dictionary<MutantId, MutationGroup>();
   }
   
-  public long RegisterMutationGroupAndGetIdAssignment(
-    MutationGroup mutationGroup)
+  public MutantId RegisterMutationGroupAndGetIdAssignment(MutationGroup mutationGroup)
   {
     var baseId = _mutantIdGenerator;
     
     // Mutation groups may have existed since different nodes under mutation
     // can generate an equivalent set of mutations
-    _mutationGroups.Add(mutationGroup);
+    if (!_mutationGroupsToSuffix.ContainsKey(mutationGroup))
+      _mutationGroupsToSuffix[mutationGroup] = _suffixIdGenerator++;
     _baseIdToMutationGroup[baseId] = mutationGroup;
     _mutantIdGenerator += mutationGroup.SchemaMutantExpressions.Count;
     return baseId;
   }
 
+  public string GetUniqueSchemaName(MutationGroup mutationGroup)
+  {
+    return $"{mutationGroup.SchemaName}_{_mutationGroupsToSuffix[mutationGroup]}";
+  }
+
   public IReadOnlySet<MutationGroup> GetAllMutationGroups()
   {
-    return _mutationGroups.ToFrozenSet();
+    return _mutationGroupsToSuffix.Keys.ToFrozenSet();
   }
 
   public FileLevelMutationRegistry ToMutationRegistry(string fileRelativePath)

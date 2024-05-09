@@ -30,12 +30,12 @@ public static class MutantSchemataGenerator
 
   // Method signature: public static <type> <method name> (int mutantId, <type1> <parameter1>, <type2> <parameter2>, ...)
   private static StringBuilder GenerateSchemaMethodSignature(
-    MutationGroup mutationGroup)
+    MutationGroup mutationGroup, FileLevelMutantSchemaRegistry schemaRegistry)
   {
     var result = new StringBuilder();
 
     result.Append(
-      $"public static {mutationGroup.SchemaReturnType} {mutationGroup.SchemaName}({MutantIdType} mutantId"
+      $"public static {mutationGroup.SchemaReturnType} {schemaRegistry.GetUniqueSchemaName(mutationGroup)}({MutantIdType} mutantId"
     );
 
     for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
@@ -111,11 +111,11 @@ public static class MutantSchemataGenerator
   }
 
   public static StringBuilder GenerateIndividualSchema(
-    MutationGroup mutationGroup)
+    MutationGroup mutationGroup, FileLevelMutantSchemaRegistry schemaRegistry)
   {
     var result = new StringBuilder();
 
-    result.Append(GenerateSchemaMethodSignature(mutationGroup));
+    result.Append(GenerateSchemaMethodSignature(mutationGroup, schemaRegistry));
     result.Append('{');
     result.AppendLine();
     result.Append(GenerateSchemaCases(mutationGroup));
@@ -126,7 +126,7 @@ public static class MutantSchemataGenerator
   }
 
   public static StringBuilder GenerateSchemata(
-    FileLevelMutantSchemaRegistry registry)
+    FileLevelMutantSchemaRegistry schemaRegistry)
   {
     var result = new StringBuilder();
 
@@ -134,16 +134,16 @@ public static class MutantSchemataGenerator
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.Append($"public static class {registry.ClassName}");
+    result.Append($"public static class {schemaRegistry.ClassName}");
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.Append(GenerateInitialiseMethod(registry.EnvironmentVariable));
+    result.Append(GenerateInitialiseMethod(schemaRegistry.EnvironmentVariable));
     result.AppendLine();
 
-    foreach (var mutationGroup in registry.GetAllMutationGroups())
+    foreach (var mutationGroup in schemaRegistry.GetAllMutationGroups())
     {
-      result.Append(GenerateIndividualSchema(mutationGroup));
+      result.Append(GenerateIndividualSchema(mutationGroup, schemaRegistry));
       result.AppendLine();
     }
 

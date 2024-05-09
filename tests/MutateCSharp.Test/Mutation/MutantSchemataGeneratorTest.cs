@@ -132,4 +132,54 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
     envVar.Should().BeEquivalentTo(schemaRegistry.EnvironmentVariable);
     envVar.Should().BeEquivalentTo(mutationRegistry.EnvironmentVariable);
   }
+
+  [Fact]
+  public void MutantSchemataShouldAssignUniqueIdPerMutationAndUniquifyDuplicateSchema()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = 1 + 2;
+          var y = 3 + 4;
+        }
+      }
+      """;
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var mutationGroups =
+      TestUtil
+        .GetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
+          inputUnderMutation);
+    var firstBaseId =
+      schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroups[0]);
+    var secondBaseId =
+      schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroups[1]);
+
+    // Base ID should be different
+    firstBaseId.Should().NotBe(secondBaseId);
+    
+    var firstSchemaName = 
+      schemaRegistry.GetUniqueSchemaName(mutationGroups[0]);
+    var secondSchemaName =
+      schemaRegistry.GetUniqueSchemaName(mutationGroups[1]);
+    
+    // Schema method name should be the same
+    firstSchemaName.Should().Be(secondSchemaName);
+    
+    var schemata = MutantSchemataGenerator.GenerateSchemata(schemaRegistry)
+      .ToString();
+    var firstOccurence = 
+      schemata.IndexOf(firstSchemaName, StringComparison.Ordinal);
+    var lastOccurence =
+      schemata.LastIndexOf(firstSchemaName, StringComparison.Ordinal);
+
+    // Schema method (identified by name) should only be generated once
+    firstOccurence.Should().NotBe(-1);
+    lastOccurence.Should().Be(firstOccurence);
+  }
 }

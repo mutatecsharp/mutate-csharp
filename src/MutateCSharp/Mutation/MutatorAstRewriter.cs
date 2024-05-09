@@ -92,7 +92,7 @@ public sealed partial class MutatorAstRewriter(
     return SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
-      mutationGroup.SchemaName,
+      schemaRegistry.GetUniqueSchemaName(mutationGroup),
       baseMutantIdLiteral,
       nodeWithMutatedChildren
     );
@@ -174,7 +174,7 @@ public sealed partial class MutatorAstRewriter(
     return SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
-      mutationGroup.SchemaName,
+      schemaRegistry.GetUniqueSchemaName(mutationGroup),
       baseMutantIdLiteral,
       leftArgument,
       rightArgument
@@ -215,7 +215,7 @@ public sealed partial class MutatorAstRewriter(
     return SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
-      mutationGroup.SchemaName,
+      schemaRegistry.GetUniqueSchemaName(mutationGroup),
       SyntaxFactory.Argument(baseMutantIdLiteral),
       operand
     );
@@ -254,7 +254,7 @@ public sealed partial class MutatorAstRewriter(
     return SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
-      mutationGroup.SchemaName,
+      schemaRegistry.GetUniqueSchemaName(mutationGroup),
       SyntaxFactory.Argument(baseMutantIdLiteral),
       operand
     );
