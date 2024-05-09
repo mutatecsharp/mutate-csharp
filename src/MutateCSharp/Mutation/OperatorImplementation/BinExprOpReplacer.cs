@@ -31,20 +31,31 @@ public sealed partial class BinExprOpReplacer(
     var types = nodes.Select(node =>
       SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
-    // Ignore: type contains generic type parameter / is private
-    return types.All(type =>
+    SyntaxNode[] operands = [originalNode.Left, originalNode.Right];
+    var operandSymbols = operands.Select(operand =>
+      SemanticModel.GetSymbolInfo(operand).Symbol!);
+
+    var shouldBeDelegateButCannot =
+      CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
+      && operandSymbols.Any(symbol =>
+        !CodeAnalysisUtil.OperandCanBeDelegate(symbol));
+
+    // Exclude node from mutation:
+    // 1) If type contains generic type parameter;
+    // 2) If type is private (and thus inaccessible);
+    // 3) If expression contains short-circuiting operator and has to be wrapped
+    // in a lambda expression, but contains ref which cannot be wrapped in a lambda
+    return !shouldBeDelegateButCannot && types.All(type =>
       !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
       && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
       ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
-  private static string ExpressionTemplate(SyntaxKind kind, bool isLeftDelegate,
-    bool isRightDelegate)
+  private static string ExpressionTemplate(SyntaxKind kind, bool isDelegate)
   {
-    var insertLeftInvocation = isLeftDelegate ? "()" : string.Empty;
-    var insertRightInvocation = isRightDelegate ? "()" : string.Empty;
+    var insertInvocation = isDelegate ? "()" : string.Empty;
     return
-      $"{{0}}{insertLeftInvocation} {SupportedOperators[kind]} {{1}}{insertRightInvocation}";
+      $"{{0}}{insertInvocation} {SupportedOperators[kind]} {{1}}{insertInvocation}";
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -56,16 +67,8 @@ public sealed partial class BinExprOpReplacer(
       || mutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
-    var leftSymbol = SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
-    var rightSymbol = SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
-
-    var isLeftDelegate = containsShortCircuitOperators
-                         && CodeAnalysisUtil.OperandCanBeDelegate(leftSymbol);
-    var isRightDelegate = containsShortCircuitOperators
-                          && CodeAnalysisUtil.OperandCanBeDelegate(rightSymbol);
-
     return new ExpressionRecord(originalNode.Kind(),
-      ExpressionTemplate(originalNode.Kind(), isLeftDelegate, isRightDelegate));
+      ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators));
   }
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
@@ -81,15 +84,6 @@ public sealed partial class BinExprOpReplacer(
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) ||
       validMutants.Any(op =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(op));
-
-    var leftSymbol = SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
-    var rightSymbol = SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
-
-    var isLeftDelegate = containsShortCircuitOperators
-                         && CodeAnalysisUtil.OperandCanBeDelegate(leftSymbol);
-    var isRightDelegate = containsShortCircuitOperators
-                          && CodeAnalysisUtil.OperandCanBeDelegate(rightSymbol);
-
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
@@ -98,7 +92,7 @@ public sealed partial class BinExprOpReplacer(
     [
       ..attachIdToMutants.Select(entry =>
         (entry.id, new ExpressionRecord(entry.op,
-          ExpressionTemplate(entry.op, isLeftDelegate, isRightDelegate))
+          ExpressionTemplate(entry.op, containsShortCircuitOperators))
         )
       )
     ];
@@ -128,23 +122,12 @@ public sealed partial class BinExprOpReplacer(
       || mutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
-    // Short-circuit evaluation operators are present
-    var leftOperandSymbol =
-      SemanticModel.GetSymbolInfo(originalNode.Left).Symbol!;
-    var rightOperandSymbol =
-      SemanticModel.GetSymbolInfo(originalNode.Right).Symbol!;
-    
-    var isLeftDelegate = containsShortCircuitOperators
-                         && CodeAnalysisUtil.OperandCanBeDelegate(leftOperandSymbol);
-    var isRightDelegate = containsShortCircuitOperators
-                          && CodeAnalysisUtil.OperandCanBeDelegate(rightOperandSymbol);
-
     return
     [
-      isLeftDelegate
+      containsShortCircuitOperators
         ? $"System.Func<{leftOperandType.ToDisplayString()}>"
         : leftOperandType.ToDisplayString(),
-      isRightDelegate
+      containsShortCircuitOperators
         ? $"System.Func<{rightOperandType.ToDisplayString()}>"
         : rightOperandType.ToDisplayString()
     ];

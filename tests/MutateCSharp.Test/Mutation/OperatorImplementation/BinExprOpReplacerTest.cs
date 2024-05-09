@@ -763,7 +763,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData(false, true)]
   [InlineData(true, true)]
   public void
-    ShouldReplaceForRefParametersThatInvolvesShortCircuitingOperatorsWithoutLambda(
+    ShouldNotReplaceForRefParametersThatInvolvesShortCircuitingOperators(
       bool leftRef, bool rightRef)
   {
     var inputUnderMutation =
@@ -783,42 +783,36 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         """;
 
     testOutputHelper.WriteLine(inputUnderMutation);
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+  }
+  
+  [Theory]
+  [InlineData("foo(refBool, b);")]
+  [InlineData("foo(b, refBool);")]
+  [InlineData("foo(refBool, refBool);")]
+  public void
+    ShouldNotReplaceForNestedRefParametersThatInvolvesShortCircuitingOperators(
+      string construct)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
 
-    var mutationGroup = GetMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaReturnType.Should().Be("bool");
-    mutationGroup.SchemaParameterTypes[0].Should()
-      .Be(leftRef ? "bool" : "System.Func<bool>");
-    mutationGroup.SchemaParameterTypes[1].Should()
-      .Be(rightRef ? "bool" : "System.Func<bool>");
+        public class A
+        {
+          public static bool foo(bool x, bool y) => true;
+        
+          public static void Main()
+          {
+            bool b = true;
+            ref bool refBool = ref b;
+            var result = {{construct}}
+          }
+        }
+        """;
 
-    // Check left and right separately for each of original and mutant expression
-    var originalExpression = mutationGroup
-      .SchemaOriginalExpression.ExpressionTemplate
-      .Replace(" ", string.Empty)
-      .Split(BooleanOperators, StringSplitOptions.RemoveEmptyEntries);
-
-    testOutputHelper.WriteLine(string.Join(',', originalExpression));
-
-    // Original expression
-    originalExpression[0].Should().Match<string>(leftOperand =>
-      leftRef ? !leftOperand.EndsWith("()") : leftOperand.EndsWith("()"));
-    originalExpression[1].Should().Match<string>(rightOperand =>
-      rightRef ? !rightOperand.EndsWith("()") : rightOperand.EndsWith("()"));
-
-    // Mutant expressions
-    foreach (var mutant in mutationGroup.SchemaMutantExpressions)
-    {
-      var mutantExpression = mutant.ExpressionTemplate
-        .Replace(" ", string.Empty)
-        .Split(BooleanOperators, StringSplitOptions.RemoveEmptyEntries);
-
-      testOutputHelper.WriteLine(string.Join(',', mutantExpression));
-
-      mutantExpression[0].Should().Match<string>(leftOperand =>
-        leftRef ? !leftOperand.EndsWith("()") : leftOperand.EndsWith("()"));
-      mutantExpression[1].Should().Match<string>(rightOperand =>
-        rightRef ? !rightOperand.EndsWith("()") : rightOperand.EndsWith("()"));
-    }
+    testOutputHelper.WriteLine(inputUnderMutation);
+    ShouldNotHaveValidMutationGroup(inputUnderMutation);
   }
   
   public static IEnumerable<object[]> UnsupportedIntegralOperatorCombinations =

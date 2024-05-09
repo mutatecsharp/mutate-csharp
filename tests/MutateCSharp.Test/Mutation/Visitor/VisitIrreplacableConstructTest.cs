@@ -182,4 +182,44 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     
     TestUtil.NodeShouldNotBeMutated(returnStat.Expression, schemaRegistry);
   }
+
+  [Theory]
+  [InlineData("b1 && b2")]
+  [InlineData("b1 || b1")]
+  [InlineData("b2 && b1")]
+  public void
+    ShouldNotReplaceIfRefParametersAreOperandsForBinaryShortCircuitingOperators(
+      string construct)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+
+      public class A
+      {
+        static bool foo(ref bool b1)
+        {
+          bool b2 = false;
+          return {{construct}};
+        }
+        
+        public static void Main()
+        {
+        }
+      }
+      """;
+
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    
+    var mutatedReturnStatementNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <ReturnStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitReturnStatement(node)
+      );
+    mutatedReturnStatementNode.Should().BeOfType<ReturnStatementSyntax>();
+    var returnStat = (ReturnStatementSyntax)mutatedReturnStatementNode;
+    
+    TestUtil.NodeShouldNotBeMutated(returnStat.Expression, schemaRegistry);
+  }
 }

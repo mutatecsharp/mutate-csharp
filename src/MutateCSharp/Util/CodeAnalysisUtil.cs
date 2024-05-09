@@ -355,6 +355,8 @@ public static partial class CodeAnalysisUtil
   {
     return symbol switch
     {
+      IMethodSymbol methodSymbol => methodSymbol.Parameters.All(OperandCanBeDelegate),
+      IPropertySymbol propertySymbol => propertySymbol.Parameters.All(OperandCanBeDelegate),
       IParameterSymbol paramSymbol => paramSymbol is { RefKind: RefKind.None },
       ILocalSymbol localSymbol => localSymbol is { RefKind: RefKind.None },
       _ => true

@@ -70,7 +70,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
   }
   
   [Fact]
-  public void ShouldReplaceForNestedShortCircuitOperatorExpression()
+  public void ShouldReplaceForNestedShortCircuitOperatorExpressionWithNestedFunc()
   {
     // Example encountered in the wild.
     var inputUnderMutation =

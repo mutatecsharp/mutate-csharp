@@ -154,20 +154,12 @@ public sealed partial class MutatorAstRewriter(
       CodeAnalysisUtil.ShortCircuitOperators.Contains(node.Kind())
       || mutationGroup.SchemaMutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
-    
-    var leftOperandSymbol = semanticModel.GetSymbolInfo(node.Left).Symbol!;
-    var rightOperandSymbol = semanticModel.GetSymbolInfo(node.Right).Symbol!;
-    
-    var isLeftDelegate = containsShortCircuitOperators
-                         && CodeAnalysisUtil.OperandCanBeDelegate(leftOperandSymbol);
-    var isRightDelegate = containsShortCircuitOperators
-                          && CodeAnalysisUtil.OperandCanBeDelegate(rightOperandSymbol);
 
-    var leftArgument = isLeftDelegate
+    var leftArgument = containsShortCircuitOperators
       ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Left)
       : nodeWithMutatedChildren.Left;
 
-    var rightArgument = isRightDelegate
+    var rightArgument = containsShortCircuitOperators
       ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Right)
       : nodeWithMutatedChildren.Right;
 

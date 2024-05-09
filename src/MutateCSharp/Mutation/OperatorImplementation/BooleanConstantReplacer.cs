@@ -13,7 +13,7 @@ public class BooleanConstantReplacer(
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
-  private static readonly ImmutableArray<string> ParameterType = ["bool?"];
+  private static readonly ImmutableArray<string> ParameterType = ["bool"];
   private static readonly ImmutableArray<(int id, ExpressionRecord expr)> 
     MutantExpressions = [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
   
