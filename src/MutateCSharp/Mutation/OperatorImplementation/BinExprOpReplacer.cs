@@ -32,13 +32,10 @@ public sealed partial class BinExprOpReplacer(
       SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
 
     SyntaxNode[] operands = [originalNode.Left, originalNode.Right];
-    var operandSymbols = operands.Select(operand =>
-      SemanticModel.GetSymbolInfo(operand).Symbol!);
 
     var shouldBeDelegateButCannot =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
-      && operandSymbols.Any(symbol =>
-        !CodeAnalysisUtil.OperandCanBeDelegate(symbol));
+      && operands.Any(operand => !SemanticModel.NodeCanBeDelegate(operand));
 
     // Exclude node from mutation:
     // 1) If type contains generic type parameter;

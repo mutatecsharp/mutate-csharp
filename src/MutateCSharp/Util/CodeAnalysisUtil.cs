@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CSharp;
 using Serilog;
 
@@ -351,16 +352,24 @@ public static partial class CodeAnalysisUtil
    * This method determines if the function can capture the value of the ref
    * variable to be considered as operand in the mutated expression.
    */
-  public static bool OperandCanBeDelegate(ISymbol symbol)
+  public static bool NodeCanBeDelegate(this SemanticModel model, SyntaxNode node)
   {
-    return symbol switch
-    {
-      IMethodSymbol methodSymbol => methodSymbol.Parameters.All(OperandCanBeDelegate),
-      IPropertySymbol propertySymbol => propertySymbol.Parameters.All(OperandCanBeDelegate),
-      IParameterSymbol paramSymbol => paramSymbol is { RefKind: RefKind.None },
-      ILocalSymbol localSymbol => localSymbol is { RefKind: RefKind.None },
-      _ => true
-    };
+    return node.DescendantNodesAndSelf().OfType<ExpressionSyntax>()
+      .All(expr =>
+      {
+        var symbol = model.GetSymbolInfo(expr).Symbol!;
+        return symbol switch
+        {
+          IMethodSymbol methodSymbol => methodSymbol.Parameters
+            .All(param => param.RefKind is RefKind.None),
+          IPropertySymbol propertySymbol => propertySymbol.Parameters
+            .All(param => param.RefKind is RefKind.None),
+          IParameterSymbol paramSymbol => paramSymbol is
+            { RefKind: RefKind.None },
+          ILocalSymbol localSymbol => localSymbol is { RefKind: RefKind.None },
+          _ => true
+        };
+      });
   }
 
   public static bool IsSymbolVariable(this ISymbol symbol)
