@@ -23,8 +23,9 @@ public sealed partial class NumericConstantReplacer(
   {
     Log.Debug("Processing numeric constant: {SyntaxNode}", 
       originalNode.GetText().ToString());
+    
     var type = SemanticModel.ResolveTypeSymbol(originalNode)?.SpecialType;
-    return type.HasValue &&
+    return type.HasValue && ReturnTypeSymbol(originalNode) is not null &&
            SupportedNumericTypesToSuffix.ContainsKey(type.Value);
   }
 
@@ -35,34 +36,34 @@ public sealed partial class NumericConstantReplacer(
   }
   
   private bool ReplacementOperatorIsValid(
-    LiteralExpressionSyntax originalNode, CodeAnalysisUtil.Op replacementOp)
+    LiteralExpressionSyntax originalNode, 
+    ITypeSymbol returnType,
+    CodeAnalysisUtil.Op replacementOp)
   {
     if (!PrefixUnaryExprOpReplacer.SupportedOperators.ContainsKey(replacementOp
           .ExprKind))
       return true;
     
     var numericType = SemanticModel.ResolveTypeSymbol(originalNode)!;
-    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)!;
-    
     var resolvedReturnType = SemanticModel.ResolveUnaryPrimitiveReturnType(
       numericType.SpecialType, replacementOp.ExprKind);
     
-    // A mutation is only valid if the mutant expression type is both assignable
-    // to the converted type and the original type.
+    // A mutation is only valid if the mutant expression type is assignable to
+    // the mutant schema return type, determined by the wider type between the
+    // original expression type and converted expression type.
     return !replacementOp.PrimitiveTypesToExclude(numericType.SpecialType) &&
            SemanticModel.Compilation.HasImplicitConversion(
-             resolvedReturnType, returnType) &&
-           SemanticModel.Compilation.HasImplicitConversion(
-             resolvedReturnType, numericType);
+             resolvedReturnType, returnType);
   }
   
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
+    var returnType = ReturnTypeSymbol(originalNode)!;
     var validMutants = SupportedOperators.Values
       .Where(replacement => 
-        ReplacementOperatorIsValid(originalNode, replacement.Op))
+        ReplacementOperatorIsValid(originalNode, returnType, replacement.Op))
       .Select(replacement => replacement.Op.ExprKind);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
@@ -91,7 +92,10 @@ public sealed partial class NumericConstantReplacer(
    */
   protected override string ReturnType(LiteralExpressionSyntax originalNode)
   {
-    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
+    var returnType = DetermineWiderType(
+      SemanticModel.ResolveConvertedTypeSymbol(originalNode)!,
+      SemanticModel.ResolveTypeSymbol(originalNode)!);
+    return returnType!.ToDisplayString();
   }
 
   protected override string
@@ -99,6 +103,36 @@ public sealed partial class NumericConstantReplacer(
   {
     var operandType = SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
     return $"ReplaceNumeric{operandType}ConstantReturn{ReturnType(originalNode)}";
+  }
+
+  private ITypeSymbol? ReturnTypeSymbol(LiteralExpressionSyntax originalNode)
+  {
+    return DetermineWiderType(
+      SemanticModel.ResolveConvertedTypeSymbol(originalNode)!,
+      SemanticModel.ResolveTypeSymbol(originalNode)!);
+  }
+
+  /*
+   * https://stackoverflow.com/questions/60778208/overload-resolution-with-implicit-conversions
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/conversions#102-implicit-conversions
+   * https://github.com/dotnet/roslyn/blob/main/docs/specs/CSharp%206/Better%20Betterness.md
+   * Given types T1 and T2, T1 is wider if no implicit conversion from T1 to T2
+   * exists, and an implicit conversion from T2 to T1 exists.
+   * If an implicit conversion exists from T1 to T2 *and* T2 to T1, we select the
+   * original type as the type.
+   */
+  private ITypeSymbol? DetermineWiderType(ITypeSymbol convertedType, ITypeSymbol exprType)
+  {
+    var exprToConverted = 
+      SemanticModel.Compilation.HasImplicitConversion(exprType, convertedType);
+    var convertedToExpr =
+      SemanticModel.Compilation.HasImplicitConversion(convertedType, exprType);
+    
+    if (exprToConverted && !convertedToExpr) return convertedType;
+    if (!exprToConverted && convertedToExpr) return exprType;
+    // retain original expression type if conversion of both types commute
+    if (exprToConverted && convertedToExpr) return exprType; 
+    return null;
   }
 }
 
