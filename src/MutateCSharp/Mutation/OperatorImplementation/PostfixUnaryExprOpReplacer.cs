@@ -80,10 +80,10 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   {
     // Since the supported postfix unary expressions can be either 
     // postincrement or postdecrement, they are guaranteed to be updatable
-    var operandAbsoluteType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)
-      .GetNullableUnderlyingType()!.ToDisplayString();
-
-    return [$"ref {operandAbsoluteType}"];
+    var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)!;
+    if (!operandType.IsValueType)
+      operandType = operandType.GetNullableUnderlyingType()!;
+    return [$"ref {operandType.ToDisplayString()}"];
   }
 
   protected override string ReturnType(

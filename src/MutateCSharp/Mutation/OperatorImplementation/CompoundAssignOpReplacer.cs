@@ -85,13 +85,16 @@ public sealed partial class CompoundAssignOpReplacer(
   protected override ImmutableArray<string> ParameterTypes(
     AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
   {
-    var updateVariableAbsoluteType =
-      SemanticModel.ResolveTypeSymbol(originalNode.Left)
-        .GetNullableUnderlyingType()!.ToDisplayString();
-    var operandAbsoluteType =
-      SemanticModel.ResolveTypeSymbol(originalNode.Right)
-        .GetNullableUnderlyingType()!.ToDisplayString();
-    return [$"ref {updateVariableAbsoluteType}", $"{operandAbsoluteType}"];
+    var updateVariableType = SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
+    if (updateVariableType.IsValueType)
+      updateVariableType = updateVariableType.GetNullableUnderlyingType()!;
+    
+    var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Right)!;
+    if (operandType.IsValueType)
+      operandType = operandType.GetNullableUnderlyingType()!;
+    
+    return [$"ref {updateVariableType.ToDisplayString()}", 
+      $"{operandType.ToDisplayString()}"];
   }
 
   protected override string ReturnType(AssignmentExpressionSyntax originalNode)

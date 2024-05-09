@@ -67,12 +67,12 @@ public sealed partial class NumericConstantReplacer(
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-
+    
     return
     [
       ..attachIdToMutants.Select(entry =>
-        (entry.id, new ExpressionRecord(entry.op,
-            SupportedOperators[entry.op].Template)))
+        (entry.id, new ExpressionRecord(entry.op, SupportedOperators[entry.op].Template))
+      )
     ];
   }
 

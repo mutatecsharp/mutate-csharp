@@ -47,6 +47,17 @@ public static class MutantSchemataGenerator
     return result;
   }
 
+  // C# treats T and T? equally. Thus, given the same method signature, we can
+  // only have one unique parameter set containing absolute types
+  // Example: the following two method signatures are treated equivalently
+  // public void foo(T t) {}
+  // public void foo(T? t) {}
+  // For reference types, we can assign null to the reference type without having
+  // to make the type parameter signature nullable.
+  // However, this does not hold for value types. We need to make the type parameter
+  // signature nullable for value types.
+  // We type cast the expression to the return type since we take in nullable
+  // for primitive types and return the absolute type.
   private static StringBuilder GenerateSchemaCases(MutationGroup mutationGroup)
   {
     var result = new StringBuilder();
@@ -54,6 +65,7 @@ public static class MutantSchemataGenerator
     // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) { return originalExpression; }
     result.Append(
       $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Count - 1})) {{ return ");
+    // result.Append($"({mutationGroup.SchemaReturnType}) (");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
       mutationGroup.SchemaParameterTypes.Count);
@@ -64,6 +76,7 @@ public static class MutantSchemataGenerator
     for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Count; i++)
     {
       result.Append($"if (ActivatedMutantId.Value == mutantId + {i}) {{ return ");
+      // result.Append($"({mutationGroup.SchemaReturnType}) (");
       result.MaterialiseExpressionFromTemplate(
         mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate,
         mutationGroup.SchemaParameterTypes.Count);
@@ -78,10 +91,11 @@ public static class MutantSchemataGenerator
       "throw new System.InvalidOperationException(\"Mutant ID out of range\");");
     #else
     result.Append("return ");
+    // result.Append($"({mutationGroup.SchemaReturnType}) (");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
       mutationGroup.SchemaParameterTypes.Count);
-    result.Append(';');
+    result.Append(";");
     #endif
     result.AppendLine();
 

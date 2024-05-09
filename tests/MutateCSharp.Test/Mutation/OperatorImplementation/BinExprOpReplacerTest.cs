@@ -617,7 +617,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       var mutationGroup = GetMutationGroup(inputUnderMutation);
       mutationGroup.SchemaReturnType.Should().Be("int?");
       mutationGroup.SchemaParameterTypes.Should()
-        .Equal("int", "int");
+        .Equal(leftType, rightType);
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
         .Be($"{{0}} {originalOperator} {{1}}");
       var mutantExpressionsTemplate =
@@ -680,7 +680,9 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("{0} + {1}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("A", "int");
+    // Reference type: absolute (remove nullable)
+    // Value type: nullable permitted
+    mutationGroup.SchemaParameterTypes.Should().Equal("A", "int?");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["{0} - {1}"]);
@@ -750,7 +752,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaReturnType.Should().Be("A?");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be("{0} + {1}");
-    mutationGroup.SchemaParameterTypes.Should().Equal("A", "int");
+    mutationGroup.SchemaParameterTypes.Should().Equal("A", "int?");
     mutationGroup.SchemaMutantExpressions
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo(["{0} - {1}"]);

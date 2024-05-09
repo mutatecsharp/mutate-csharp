@@ -112,12 +112,15 @@ public sealed partial class BinExprOpReplacer(
     BinaryExpressionSyntax originalNode,
     ImmutableArray<ExpressionRecord> mutantExpressions)
   {
-    var leftOperandAbsoluteType =
-      SemanticModel.ResolveTypeSymbol(originalNode.Left)
-        .GetNullableUnderlyingType()!.ToDisplayString();
-    var rightOperandAbsoluteType =
-      SemanticModel.ResolveTypeSymbol(originalNode.Right)
-        .GetNullableUnderlyingType()!.ToDisplayString();
+    var leftOperandType =
+      SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
+    if (!leftOperandType.IsValueType)
+      leftOperandType = leftOperandType.GetNullableUnderlyingType()!;
+    
+    var rightOperandType =
+      SemanticModel.ResolveTypeSymbol(originalNode.Right)!;
+    if (!rightOperandType.IsValueType)
+      rightOperandType = rightOperandType.GetNullableUnderlyingType()!;
 
     // Check for short circuit operators
     var containsShortCircuitOperators =
@@ -139,11 +142,11 @@ public sealed partial class BinExprOpReplacer(
     return
     [
       isLeftDelegate
-        ? $"System.Func<{leftOperandAbsoluteType}>"
-        : leftOperandAbsoluteType,
+        ? $"System.Func<{leftOperandType.ToDisplayString()}>"
+        : leftOperandType.ToDisplayString(),
       isRightDelegate
-        ? $"System.Func<{rightOperandAbsoluteType}>"
-        : rightOperandAbsoluteType
+        ? $"System.Func<{rightOperandType.ToDisplayString()}>"
+        : rightOperandType.ToDisplayString()
     ];
   }
 

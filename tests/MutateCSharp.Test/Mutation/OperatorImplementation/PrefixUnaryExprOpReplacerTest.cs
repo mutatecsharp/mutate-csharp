@@ -585,7 +585,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     // Type checks (Should take a reference to the assignable value)
     mutationGroup.SchemaParameterTypes.Should()
-      .Equal($"ref {integralType}");
+      .Equal($"ref {integralType}?");
     
     // Note: we omit checking return type due to the complicated unary
     // numeric promotion rules set by the C# language specification:

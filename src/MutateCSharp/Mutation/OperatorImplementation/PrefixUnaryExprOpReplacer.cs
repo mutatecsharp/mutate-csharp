@@ -85,16 +85,17 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     PrefixUnaryExpressionSyntax originalNode,
     ImmutableArray<ExpressionRecord> mutantExpressions)
   {
-    var operandAbsoluteType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)
-      .GetNullableUnderlyingType()!.ToDisplayString();
+    var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)!;
+    if (!operandType.IsValueType)
+      operandType = operandType.GetNullableUnderlyingType()!;
 
     // Check if any of original or mutant expressions update the argument
     return CodeAnalysisUtil.VariableModifyingOperators.Contains(
              originalNode.Kind())
            || mutantExpressions.Any(op =>
              CodeAnalysisUtil.VariableModifyingOperators.Contains(op.Operation))
-      ? [$"ref {operandAbsoluteType}"]
-      : [operandAbsoluteType];
+      ? [$"ref {operandType.ToDisplayString()}"]
+      : [operandType.ToDisplayString()];
   }
 
   protected override string ReturnType(PrefixUnaryExpressionSyntax originalNode)
