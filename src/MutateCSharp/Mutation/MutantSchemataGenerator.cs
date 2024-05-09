@@ -35,7 +35,7 @@ public static class MutantSchemataGenerator
     var result = new StringBuilder();
 
     result.Append(
-      $"public static {mutationGroup.SchemaReturnType} {schemaRegistry.GetUniqueSchemaName(mutationGroup)}({MutantIdType} mutantId"
+      $"internal static {mutationGroup.SchemaReturnType} {schemaRegistry.GetUniqueSchemaName(mutationGroup)}({MutantIdType} mutantId"
     );
 
     for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
