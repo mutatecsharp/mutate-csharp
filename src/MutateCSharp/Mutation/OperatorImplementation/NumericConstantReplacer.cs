@@ -38,9 +38,8 @@ public sealed partial class NumericConstantReplacer(
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
-    var numericType = SemanticModel.ResolveTypeSymbol(originalNode)!.SpecialType;
-    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)!
-      .SpecialType;
+    var numericType = SemanticModel.ResolveTypeSymbol(originalNode)!;
+    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)!;
 
     var validMutants = SupportedOperators.Values.Where(replacement =>
     {
@@ -49,9 +48,11 @@ public sealed partial class NumericConstantReplacer(
         SyntaxKind.NumericLiteralExpression => true,
         _ when PrefixUnaryExprOpReplacer.SupportedOperators.ContainsKey(
             replacement.Op.ExprKind)
-          => !replacement.Op.PrimitiveTypesToExclude(numericType) &&
-            CodeAnalysisUtil.ResolveUnaryPrimitiveReturnType(numericType, replacement.Op.ExprKind)
-              .SpecialType.CanBeImplicitlyConvertedTo(returnType),
+          => !replacement.Op.PrimitiveTypesToExclude(numericType.SpecialType) &&
+            SemanticModel.Compilation.HasImplicitConversion(
+                SemanticModel.ResolveUnaryPrimitiveReturnType(
+                  numericType.SpecialType, replacement.Op.ExprKind),
+                returnType),
         _ when BinExprOpReplacer.SupportedOperators.ContainsKey(replacement.Op
             .ExprKind)
           => true,

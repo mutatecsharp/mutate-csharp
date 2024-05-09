@@ -13,12 +13,6 @@ namespace MutateCSharp.Util;
  */
 public static partial class CodeAnalysisUtil
 {
-  // Default compilation to query special types
-  private static readonly CSharpCompilation DefaultCompilation =
-    CSharpCompilation.Create(string.Empty,
-      references:
-      [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
-
   [Flags]
   public enum SupportedType
   {
@@ -168,11 +162,11 @@ public static partial class CodeAnalysisUtil
    * Implements the unary numeric promotion rule for +, -, ~.
    */
   public static ITypeSymbol ResolveUnaryPrimitiveReturnType(
-    SpecialType operandType, SyntaxKind exprKind)
+    this SemanticModel model, SpecialType operandType, SyntaxKind exprKind)
   {
     if (exprKind is not (SyntaxKind.UnaryMinusExpression
         or SyntaxKind.UnaryPlusExpression or SyntaxKind.BitwiseNotExpression))
-      return DefaultCompilation.GetSpecialType(operandType);
+      return model.Compilation.GetSpecialType(operandType);
 
     var returnType = operandType switch
     {
@@ -185,7 +179,7 @@ public static partial class CodeAnalysisUtil
       _ => operandType
     };
 
-    return DefaultCompilation.GetSpecialType(returnType);
+    return model.Compilation.GetSpecialType(returnType);
   }
 
   public static ITypeSymbol? ResolveTypeSymbol(
@@ -193,7 +187,7 @@ public static partial class CodeAnalysisUtil
   {
     // Resolve null as 'object' type; return type otherwise
     return node.IsKind(SyntaxKind.NullLiteralExpression)
-      ? DefaultCompilation.GetSpecialType(SpecialType.System_Object)
+      ? model.Compilation.GetSpecialType(SpecialType.System_Object)
       : model.GetTypeInfo(node).Type;
   }
 
@@ -202,7 +196,7 @@ public static partial class CodeAnalysisUtil
   {
     // Resolve null as 'object' type; return converted type otherwise
     return node.IsKind(SyntaxKind.NullLiteralExpression)
-      ? DefaultCompilation.GetSpecialType(SpecialType.System_Object)
+      ? model.Compilation.GetSpecialType(SpecialType.System_Object)
       : model.GetTypeInfo(node).ConvertedType;
   }
 
@@ -213,15 +207,6 @@ public static partial class CodeAnalysisUtil
     // are looking for types defined in the core library: we defer to the
     // current assembly to get the type's runtime type
     return sutAssembly.GetType(typeName) ?? Type.GetType(typeName);
-  }
-
-  public static bool CanBeImplicitlyConvertedTo(this SpecialType fromType,
-    SpecialType toType)
-  {
-    var fromTypeSymbol = DefaultCompilation.GetSpecialType(fromType);
-    var toTypeSymbol = DefaultCompilation.GetSpecialType(toType);
-    return DefaultCompilation.HasImplicitConversion(fromTypeSymbol,
-      toTypeSymbol);
   }
 
   public static ITypeSymbol? GetNullableUnderlyingType(this ITypeSymbol? type)

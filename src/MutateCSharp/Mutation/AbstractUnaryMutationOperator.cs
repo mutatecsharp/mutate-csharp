@@ -95,8 +95,8 @@ public abstract class AbstractUnaryMutationOperator<T>(
     // 3) Check if expression type is assignable to original return type,
     // taking into account exclusion rules set by the C# specification
     // (see PrefixUnaryExprOpReplacer)
-    var exprType =
-      CodeAnalysisUtil.ResolveUnaryPrimitiveReturnType(operandType.SpecialType,
+    var exprType = 
+      SemanticModel.ResolveUnaryPrimitiveReturnType(operandType.SpecialType,
         replacementOp.ExprKind);
 
     return !replacementOp.PrimitiveTypesToExclude(operandType.SpecialType)
@@ -104,7 +104,8 @@ public abstract class AbstractUnaryMutationOperator<T>(
              .Any(signature =>
                signature.OperandType.HasFlag(operandTypeClassification)
                && signature.ReturnType.HasFlag(returnTypeClassification))
-           && exprType.SpecialType.CanBeImplicitlyConvertedTo(returnType.SpecialType);
+           && SemanticModel.Compilation.HasImplicitConversion(exprType,
+             returnType);
   }
 
   /*
