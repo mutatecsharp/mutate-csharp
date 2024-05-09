@@ -33,33 +33,37 @@ public sealed partial class NumericConstantReplacer(
   {
     return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
-
+  
+  private bool ReplacementOperatorIsValid(
+    LiteralExpressionSyntax originalNode, CodeAnalysisUtil.Op replacementOp)
+  {
+    if (!PrefixUnaryExprOpReplacer.SupportedOperators.ContainsKey(replacementOp
+          .ExprKind))
+      return true;
+    
+    var numericType = SemanticModel.ResolveTypeSymbol(originalNode)!;
+    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)!;
+    
+    var resolvedReturnType = SemanticModel.ResolveUnaryPrimitiveReturnType(
+      numericType.SpecialType, replacementOp.ExprKind);
+    
+    // A mutation is only valid if the mutant expression type is both assignable
+    // to the converted type and the original type.
+    return !replacementOp.PrimitiveTypesToExclude(numericType.SpecialType) &&
+           SemanticModel.Compilation.HasImplicitConversion(
+             resolvedReturnType, returnType) &&
+           SemanticModel.Compilation.HasImplicitConversion(
+             resolvedReturnType, numericType);
+  }
+  
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
     ValidMutantExpressions(LiteralExpressionSyntax originalNode)
   {
-    var numericType = SemanticModel.ResolveTypeSymbol(originalNode)!;
-    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)!;
-
-    var validMutants = SupportedOperators.Values.Where(replacement =>
-    {
-      return replacement.Op.ExprKind switch
-      {
-        SyntaxKind.NumericLiteralExpression => true,
-        _ when PrefixUnaryExprOpReplacer.SupportedOperators.ContainsKey(
-            replacement.Op.ExprKind)
-          => !replacement.Op.PrimitiveTypesToExclude(numericType.SpecialType) &&
-            SemanticModel.Compilation.HasImplicitConversion(
-                SemanticModel.ResolveUnaryPrimitiveReturnType(
-                  numericType.SpecialType, replacement.Op.ExprKind),
-                returnType),
-        _ when BinExprOpReplacer.SupportedOperators.ContainsKey(replacement.Op
-            .ExprKind)
-          => true,
-        _ => true
-      };
-    }).Select(replacement => replacement.Op.ExprKind);
-
+    var validMutants = SupportedOperators.Values
+      .Where(replacement => 
+        ReplacementOperatorIsValid(originalNode, replacement.Op))
+      .Select(replacement => replacement.Op.ExprKind);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
@@ -84,14 +88,10 @@ public sealed partial class NumericConstantReplacer(
    * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/integral-numeric-types
    * If the literal has no suffix, its type is the first of the following types
    * in which its value can be represented: int, uint, long, ulong.
-   *
-   * Since we can declare literals that are differently typed, and we do not
-   * have mutations that perform type conversions, we handle numeric literals
-   * specially by narrowing the type of the literal.
    */
   protected override string ReturnType(LiteralExpressionSyntax originalNode)
   {
-    return SemanticModel.ResolveConvertedTypeSymbol(originalNode)!.ToDisplayString();
+    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
   }
 
   protected override string
