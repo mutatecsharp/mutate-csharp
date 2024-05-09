@@ -163,9 +163,9 @@ public static partial class CodeAnalysisUtil
    * Implements the unary numeric promotion rule for +, -, ~.
    */
   public static ITypeSymbol ResolveUnaryPrimitiveReturnType(
-    this SemanticModel model, SpecialType operandType, SyntaxKind exprKind)
+    this SemanticModel model, SpecialType operandType, SyntaxKind opKind)
   {
-    if (exprKind is not (SyntaxKind.UnaryMinusExpression
+    if (opKind is not (SyntaxKind.UnaryMinusExpression
         or SyntaxKind.UnaryPlusExpression or SyntaxKind.BitwiseNotExpression))
       return model.Compilation.GetSpecialType(operandType);
 
@@ -181,6 +181,130 @@ public static partial class CodeAnalysisUtil
     };
 
     return model.Compilation.GetSpecialType(returnType);
+  }
+
+  private static SpecialType BinaryNumericPromotionType(SpecialType[] types)
+  {
+    if (types.Any(type => type is SpecialType.System_Decimal))
+    {
+      // Compile-time error occurs if one operand is decimal but the other
+      // is double or float
+      return types.Any(type =>
+        type is SpecialType.System_Double or SpecialType.System_Single) ? SpecialType.None : SpecialType.System_Decimal;
+    }
+    if (types.Any(type => type is SpecialType.System_Double))
+    {
+      return SpecialType.System_Double;
+    }
+    if (types.Any(type => type is SpecialType.System_Single))
+    {
+      return SpecialType.System_Single;
+    }
+    if (types.Any(type => type is SpecialType.System_UInt64))
+    {
+      // Compile-time error occurs if one operand is ulong but the other
+      // is one of sbyte, short, int, or long.
+      return types.Any(type => type 
+        is SpecialType.System_SByte
+        or SpecialType.System_Int16 
+        or SpecialType.System_Int32
+        or SpecialType.System_Int64) ? SpecialType.None : SpecialType.System_UInt64;
+    }
+    if (types.Any(type => type is SpecialType.System_Int64))
+    {
+      return SpecialType.System_Int64;
+    }
+    if (types.Any(type => type is SpecialType.System_UInt32))
+    {
+      return
+        types.Any(type => type is SpecialType.System_SByte
+          or SpecialType.System_Int16 or SpecialType.System_Int32)
+          ? SpecialType.System_Int64
+          : SpecialType.System_UInt32;
+    }
+
+    return SpecialType.System_Int32;
+  }
+
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#12473-binary-numeric-promotions
+   * Implements the binary promotion rule for most supported operators other than
+   * bitwise shift operators.
+   */
+  public static ITypeSymbol? ResolveBinaryPrimitiveReturnType(
+    this SemanticModel model, SpecialType leftOperandType,
+    SpecialType rightOperandType, SyntaxKind opKind)
+  {
+    SpecialType[] types = [leftOperandType, rightOperandType];
+    var leftTypeSymbol = model.Compilation.GetSpecialType(leftOperandType);
+    var rightTypeSymbol = model.Compilation.GetSpecialType(rightOperandType);
+    var returnType = SpecialType.None;
+    
+    if (opKind is SyntaxKind.AddExpression or
+        SyntaxKind.AddAssignmentExpression or
+        SyntaxKind.SubtractExpression or
+        SyntaxKind.SubtractAssignmentExpression or
+        SyntaxKind.MultiplyExpression or
+        SyntaxKind.MultiplyAssignmentExpression or
+        SyntaxKind.DivideExpression or
+        SyntaxKind.DivideAssignmentExpression or
+        SyntaxKind.ModuloExpression or
+        SyntaxKind.ModuloAssignmentExpression or
+        SyntaxKind.BitwiseAndExpression or
+        SyntaxKind.AndAssignmentExpression or
+        SyntaxKind.BitwiseOrExpression or
+        SyntaxKind.OrAssignmentExpression or
+        SyntaxKind.ExclusiveOrExpression or
+        SyntaxKind.ExclusiveOrAssignmentExpression)
+    {
+      if (leftOperandType is SpecialType.System_Boolean ||
+          rightOperandType is SpecialType.System_Boolean)
+      {
+        returnType = SpecialType.System_Boolean;
+      }
+      else
+      {
+        returnType = BinaryNumericPromotionType(types);
+      }
+    }
+    else if (opKind is SyntaxKind.LeftShiftExpression or
+             SyntaxKind.LeftShiftAssignmentExpression or
+             SyntaxKind.RightShiftExpression or
+             SyntaxKind.RightShiftAssignmentExpression)
+    {
+      var intType = model.Compilation.GetSpecialType(SpecialType.System_Int32);
+
+      var rhsAssignableToInt =
+        model.Compilation.HasImplicitConversion(rightTypeSymbol, intType);
+      
+      // In order: int, uint, long, ulong
+      // Perform type resolution for LHS
+      var lhsTypeCandidates =
+        new[]
+        {
+          SpecialType.System_Int32, SpecialType.System_UInt32,
+          SpecialType.System_Int64, SpecialType.System_UInt64
+        }.Select(type => model.Compilation.GetSpecialType(type));
+      
+      var foundCandidate =
+        lhsTypeCandidates.FirstOrDefault(candidateType => rhsAssignableToInt &&
+          model.Compilation.HasImplicitConversion(leftTypeSymbol, candidateType));
+
+      if (foundCandidate is not null) returnType = foundCandidate.SpecialType;
+    }
+    else if (opKind is SyntaxKind.EqualsExpression or
+             SyntaxKind.NotEqualsExpression or
+             SyntaxKind.GreaterThanExpression or
+             SyntaxKind.LessThanExpression or
+             SyntaxKind.GreaterThanOrEqualExpression or
+             SyntaxKind.LessThanOrEqualExpression)
+    {
+      returnType = SpecialType.System_Boolean;
+    }
+
+    return returnType is not SpecialType.None
+      ? model.Compilation.GetSpecialType(returnType)
+      : null;
   }
 
   public static ITypeSymbol? ResolveTypeSymbol(

@@ -61,6 +61,13 @@ public static class SyntaxRewriterUtil
              .Any();
   }
 
+  public static INamedTypeSymbol ConstructNullableValueType(
+    this SemanticModel model, ITypeSymbol typeSymbol)
+  {
+    var nullableType = model.Compilation.GetTypeByMetadataName("System.Nullable`1")!;
+    return nullableType.Construct(typeSymbol);
+  }
+
   /*
    * https://learn.microsoft.com/en-us/dotnet/framework/debug-trace-profile/code-contracts
    * "Code contracts provide a way to specify preconditions, postconditions,

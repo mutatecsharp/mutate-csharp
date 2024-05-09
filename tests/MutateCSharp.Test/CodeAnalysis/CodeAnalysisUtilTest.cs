@@ -38,4 +38,45 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
     compilation.model.NodeCanBeDelegate(binExpr).Should().BeFalse();
   }
+
+  [Fact]
+  public void AddingNullableAnnotationShouldMakePrimitiveTypesNullable()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+      
+      public class A
+      {
+        public static bool? foo(bool? b) 
+        {
+          return b;
+        }
+      
+        public static void Main()
+        {
+        }
+      }
+      """;
+    
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var returnStat = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<ReturnStatementSyntax>().First();
+
+    var compilationNullableBoolType =
+      compilation.model.GetTypeInfo(returnStat.Expression).Type;
+    
+    var nullableType = compilation.model.Compilation.GetTypeByMetadataName("System.Nullable`1");
+
+    var customNullableBoolType =
+      compilation.model.Compilation.GetSpecialType(SpecialType.System_Boolean);
+    customNullableBoolType = nullableType.Construct(customNullableBoolType);
+    
+    testOutputHelper.WriteLine(customNullableBoolType.ToDisplayString());
+
+    compilation.model.Compilation
+      .HasImplicitConversion(customNullableBoolType,
+        compilationNullableBoolType).Should().BeTrue();
+  }
 }

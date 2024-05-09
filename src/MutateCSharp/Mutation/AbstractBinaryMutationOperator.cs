@@ -121,7 +121,6 @@ public abstract class AbstractBinaryMutationOperator<T>(
     if (originalNode.Kind() == replacementOp.ExprKind) return false;
 
     // Type checks
-    // TODO: check for differing types
     var leftOperand = GetLeftOperand(originalNode);
     var rightOperand = GetRightOperand(originalNode);
     if (leftOperand is null || rightOperand is null) return false;
@@ -131,26 +130,24 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var rightOperandType = SemanticModel.ResolveTypeSymbol(rightOperand);
     if (returnType is null || leftOperandType is null || rightOperandType is null) 
       return false;
-    
-    // https://github.com/dotnet/csharplang/issues/871
-    // C# does not allow either operand of short-circuit operators to contain nullable
-    var leftIsNullable = leftOperandType is INamedTypeSymbol
-    {
-      ConstructedFrom.SpecialType: SpecialType.System_Nullable_T
-    };
-    var rightIsNullable = rightOperandType is INamedTypeSymbol
-    {
-      ConstructedFrom.SpecialType: SpecialType.System_Nullable_T
-    };
-
-    if ((leftIsNullable || rightIsNullable) &&
-        CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOp.ExprKind))
-      return false;
 
     // Check for underlying types
     var returnAbsoluteType = returnType.GetNullableUnderlyingType()!;
     var leftOperandAbsoluteType = leftOperandType.GetNullableUnderlyingType()!;
     var rightOperandAbsoluteType = rightOperandType.GetNullableUnderlyingType()!;
+    
+    // https://github.com/dotnet/csharplang/issues/871
+    // C# does not allow either operand of short-circuit operators to contain nullable
+    var leftIsNullable =
+      !SymbolEqualityComparer.IncludeNullability.Equals(leftOperandType,
+        leftOperandAbsoluteType);
+    var rightIsNullable =
+      !SymbolEqualityComparer.IncludeNullability.Equals(rightOperandType,
+        rightOperandAbsoluteType);
+    
+    if ((leftIsNullable || rightIsNullable) &&
+        CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOp.ExprKind))
+      return false;
 
     var returnTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(returnAbsoluteType.SpecialType);
@@ -159,6 +156,17 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var rightOperandTypeClassification =
       CodeAnalysisUtil.GetSpecialTypeClassification(
         rightOperandAbsoluteType.SpecialType);
+    
+    // Check if mutant expression return type is assignable to original return type
+    var mutantExpressionType = SemanticModel.ResolveBinaryPrimitiveReturnType(
+      leftOperandAbsoluteType.SpecialType, rightOperandAbsoluteType.SpecialType,
+      replacementOp.ExprKind);
+    if (mutantExpressionType is null) return false;
+    // Add nullable to type
+    if (leftIsNullable || rightIsNullable)
+      mutantExpressionType =
+        SemanticModel.ConstructNullableValueType(mutantExpressionType);
+    
     // Reject if the replacement operator type group is not the same as the
     // original operator type group
     
@@ -168,7 +176,8 @@ public abstract class AbstractBinaryMutationOperator<T>(
         signature.ReturnType.HasFlag(returnTypeClassification)
         && signature.OperandType.HasFlag(leftOperandTypeClassification)
         && signature.OperandType.HasFlag(rightOperandTypeClassification))
-      && !replacementOp.PrimitiveTypesToExclude(rightOperandAbsoluteType.SpecialType);
+      && !replacementOp.PrimitiveTypesToExclude(rightOperandAbsoluteType.SpecialType)
+      && SemanticModel.Compilation.HasImplicitConversion(mutantExpressionType, returnType);
   }
 
   /*
