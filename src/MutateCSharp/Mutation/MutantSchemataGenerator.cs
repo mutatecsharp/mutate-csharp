@@ -134,7 +134,7 @@ public static class MutantSchemataGenerator
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.Append($"public static class {schemaRegistry.ClassName}");
+    result.Append($"internal class {schemaRegistry.ClassName}");
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
