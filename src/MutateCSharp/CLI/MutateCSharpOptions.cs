@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using CommandLine;
 using MutateCSharp.FileSystem;
 
@@ -8,6 +9,7 @@ internal sealed class MutateCSharpOptions
   private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteProjectPath = string.Empty;
   private readonly string _absoluteSourceFilePath = string.Empty;
+  private readonly string[] _absoluteSourceFilePathsToIgnore = [];
 
   [Option("solution",
     HelpText = "The path to C# solution file (.sln).")]
@@ -41,6 +43,14 @@ internal sealed class MutateCSharpOptions
     HelpText =
       "Restore files to original state after applying mutation testing.")]
   public bool Backup { get; init; }
+
+  [Option("ignore-files",
+    HelpText = "Path(s) to C# source files to ignore (.cs).")]
+  public IEnumerable<string> AbsoluteSourceFilePathsToIgnore
+  {
+    get => _absoluteSourceFilePathsToIgnore;
+    init => _absoluteSourceFilePathsToIgnore = value.ToArray();
+  }
 
   private static string ParseAbsolutePath(string path, FileExtension extension)
   {

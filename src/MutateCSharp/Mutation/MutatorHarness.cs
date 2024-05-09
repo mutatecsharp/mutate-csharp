@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.Loader;
 using Microsoft.CodeAnalysis;
@@ -14,7 +15,7 @@ namespace MutateCSharp.Mutation;
 public static class MutatorHarness
 {
   public static async Task<(Solution, IDictionary<Project, ProjectLevelMutationRegistry>)> 
-    MutateSolution(MSBuildWorkspace workspace, Solution solution)
+    MutateSolution(MSBuildWorkspace workspace, Solution solution, ImmutableArray<string> pathsToIgnore)
   {
     Log.Information("Mutating solution {Solution}.",
       Path.GetFileName(solution.FilePath));
@@ -25,7 +26,8 @@ public static class MutatorHarness
     foreach (var projectId in solution.ProjectIds)
     {
       var project = mutatedSolution.GetProject(projectId)!;
-      var (mutatedProject, projectRegistry) = await MutateProject(workspace, project).ConfigureAwait(false);
+      var (mutatedProject, projectRegistry) = 
+        await MutateProject(workspace, project, pathsToIgnore).ConfigureAwait(false);
       mutatedSolution = mutatedProject.Solution;
 
       if (projectRegistry is not null)
@@ -36,7 +38,7 @@ public static class MutatorHarness
   }
 
   public static async Task<(Project, ProjectLevelMutationRegistry?)>
-    MutateProject(Workspace workspace, Project project,
+    MutateProject(Workspace workspace, Project project, ImmutableArray<string> pathsToIgnore,
       Document? specifiedDocument = default)
   {
     Log.Information("Mutating project {Project}.", project.Name);
@@ -84,14 +86,13 @@ public static class MutatorHarness
     var sutAssembly =
       AssemblyLoadContext.Default.LoadFromStream(portableExecutableStream);
 
-    var idOfDocumentsToMutate = 
-      specifiedDocument is not null
-      ? [specifiedDocument.Id] 
-      : project.DocumentIds;
+    var idOfDocumentsToMutate =
+      GetDocumentsToMutate(ref project, pathsToIgnore, specifiedDocument);
     
     foreach (var documentId in idOfDocumentsToMutate)
     {
       var document = mutatedProject.GetDocument(documentId)!;
+      
       var (mutatedDocument, fileSchemaRegistry) = 
         await MutateDocument(workspace, sutAssembly, document).ConfigureAwait(false);
       
@@ -149,5 +150,22 @@ public static class MutatorHarness
       (CompilationUnitSyntax)Formatter.Format(mutatedAstRoot, workspace);
     
     return (document.WithSyntaxRoot(mutatedAstRoot), mutantSchemaRegistry);
+  }
+
+  private static ImmutableArray<DocumentId> GetDocumentsToMutate(
+    ref readonly Project project, ImmutableArray<string> pathsToIgnore,
+    Document? specifiedDocument)
+  {
+    if (specifiedDocument is not null) return [specifiedDocument.Id];
+    if (pathsToIgnore.IsDefaultOrEmpty)
+      return [..project.Documents.Select(doc => doc.Id)];
+    
+    var ignorePathSet = pathsToIgnore.ToImmutableHashSet();
+
+    return [
+      ..project.Documents.Where(doc =>
+        !ignorePathSet.Contains(Path.GetFullPath(doc.FilePath!)))
+        .Select(doc => doc.Id)
+    ];
   }
 }
