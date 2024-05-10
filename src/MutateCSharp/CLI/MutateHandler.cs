@@ -8,9 +8,9 @@ using Serilog;
 
 namespace MutateCSharp.CLI;
 
-internal static class MutateCSharpHandler
+internal static class MutateHandler
 {
-  internal static async Task RunOptions(MutateCSharpOptions options)
+  internal static async Task RunOptions(MutateOptions options)
   {
     // See https://learn.microsoft.com/en-us/visualstudio/msbuild/find-and-use-msbuild-versions?view=vs-2022
     MSBuildLocator.RegisterDefaults();

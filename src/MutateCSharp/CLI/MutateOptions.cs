@@ -1,23 +1,24 @@
-using System.Collections.Immutable;
 using CommandLine;
 using MutateCSharp.FileSystem;
+using MutateCSharp.Util;
 
 namespace MutateCSharp.CLI;
 
-internal sealed class MutateCSharpOptions
+[Verb("mutate", HelpText = "Commence mutation.")]
+internal sealed class MutateOptions
 {
   private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteProjectPath = string.Empty;
   private readonly string _absoluteSourceFilePath = string.Empty;
   private readonly string[] _absoluteSourceFilePathsToIgnore = [];
-
+  
   [Option("solution",
     HelpText = "The path to C# solution file (.sln).")]
   public string AbsoluteSolutionPath
   {
     get => _absoluteSolutionPath;
     init => _absoluteSolutionPath =
-      ParseAbsolutePath(value, FileExtension.Solution);
+      ParseUtil.ParseAbsolutePath(value, FileExtension.Solution);
   }
 
   [Option("project",
@@ -26,7 +27,7 @@ internal sealed class MutateCSharpOptions
   {
     get => _absoluteProjectPath;
     init => _absoluteProjectPath =
-      ParseAbsolutePath(value, FileExtension.Project);
+      ParseUtil.ParseAbsolutePath(value, FileExtension.Project);
   }
 
   [Option("source-file",
@@ -35,7 +36,7 @@ internal sealed class MutateCSharpOptions
   {
     get => _absoluteSourceFilePath;
     init => _absoluteSourceFilePath =
-      ParseAbsolutePath(value, FileExtension.CSharpSourceFile);
+      ParseUtil.ParseAbsolutePath(value, FileExtension.CSharpSourceFile);
   }
 
   [Option("restore",
@@ -50,20 +51,5 @@ internal sealed class MutateCSharpOptions
   {
     get => _absoluteSourceFilePathsToIgnore;
     init => _absoluteSourceFilePathsToIgnore = value.ToArray();
-  }
-
-  private static string ParseAbsolutePath(string path, FileExtension extension)
-  {
-    if (path.Intersect(Path.GetInvalidPathChars()).Any())
-      throw new ArgumentException("Unable to parse malformed path.");
-
-    var absolutePath = Path.GetFullPath(path);
-
-    if (!File.Exists(absolutePath) ||
-        Path.GetExtension(absolutePath) != extension.ToFriendlyString())
-      throw new ArgumentException(
-        $"{Path.GetFileName(absolutePath)} does not exist or is invalid.");
-
-    return absolutePath;
   }
 }

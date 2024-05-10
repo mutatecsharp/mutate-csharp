@@ -11,10 +11,10 @@ try
     .WriteTo.Console(LogEventLevel.Information)
     .CreateLogger();
 
-  var result = await Parser.Default.ParseArguments<MutateCSharpOptions>(args)
-    .WithNotParsed(MutateCSharpHandler.HandleParseError)
-    .WithParsedAsync(MutateCSharpHandler.RunOptions);
-
+  var result = Parser.Default.ParseArguments<MutateOptions, AnalyseOptions>(args)
+    .WithNotParsed(MutateHandler.HandleParseError);
+  result = await result.WithParsedAsync<MutateOptions>(MutateHandler.RunOptions);
+  result = await result.WithParsedAsync<AnalyseOptions>(AnalyseHandler.RunOptions);
   return result.Tag is ParserResultType.Parsed ? 0 : 1;
 }
 catch (Exception e)
