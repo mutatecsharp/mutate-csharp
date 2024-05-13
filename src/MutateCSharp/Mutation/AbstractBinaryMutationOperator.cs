@@ -17,38 +17,6 @@ public abstract class AbstractBinaryMutationOperator<T>(
   protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
 
-  /*
-   * Value types may be nullable; reference types are guaranteed to be non-nullable.
-   */
-  // protected abstract
-  //   (ITypeSymbol leftTypeSymbol, ITypeSymbol rightTypeSymbol)
-  //   ParameterTypeSymbols(T originalNode);
-
-  /*
-   * Return type may be nullable regardless of value type or reference type.
-   */
-  // protected abstract ITypeSymbol ReturnTypeSymbol(T originalNode);
-
-  public static ExpressionSyntax? GetLeftOperand(T originalNode)
-  {
-    return originalNode switch
-    {
-      BinaryExpressionSyntax expr => expr.Left,
-      AssignmentExpressionSyntax expr => expr.Left,
-      _ => null
-    };
-  }
-
-  public static ExpressionSyntax? GetRightOperand(T originalNode)
-  {
-    return originalNode switch
-    {
-      BinaryExpressionSyntax expr => expr.Right,
-      AssignmentExpressionSyntax expr => expr.Right,
-      _ => null
-    };
-  }
-
   protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
@@ -63,20 +31,20 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var validMutants = SupportedBinaryOperators()
       .Where(replacementOpEntry =>
         originalNode.Kind() != replacementOpEntry.Key);
-
-    // https://github.com/dotnet/csharplang/issues/871
-    // C# does not allow either operand of short-circuit operators to contain nullable
-    if (leftType.IsTypeSymbolNullable() || rightType.IsTypeSymbolNullable())
-    {
-      validMutants = validMutants.Where(replacementOpEntry =>
-        !CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOpEntry.Key));
-    }
     
     // Simple types: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/types#835-simple-types
     // Case 1: Simple types (value types) and string type (reference type)
     if (leftAbsoluteType.SpecialType is not SpecialType.None &&
         rightAbsoluteType.SpecialType is not SpecialType.None)
     {
+      // https://github.com/dotnet/csharplang/issues/871
+      // C# does not allow either operand of short-circuit operators to contain nullable
+      if (leftType.IsTypeSymbolNullable() || rightType.IsTypeSymbolNullable())
+      {
+        validMutants = validMutants.Where(replacementOpEntry =>
+          !CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOpEntry.Key));
+      }
+      
       validMutants = validMutants
         .Where(replacementOpEntry =>
           CanApplyOperatorForSpecialTypes(

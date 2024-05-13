@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -926,5 +927,53 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     notEqMutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be("{0} != {1}");
     notEqMutationGroup.SchemaReturnType.Should().Be("bool");
     notEqMutationGroup.SchemaParameterTypes.Should().Equal("System.Func<A, bool>", "object");
+  }
+
+  [Theory]
+  [InlineData("await foo(6)", true, "true", false)]
+  [InlineData("true", false, "await foo(6)", true)]
+  [InlineData("await foo(6)", true, "await foo(6)", true)]
+  public void ShouldReplaceForAwaitableOperands(
+    string leftConstruct,
+    bool leftAwaitable,
+    string rightConstruct, bool rightAwaitable)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static async System.Threading.Tasks.Task<bool> foo(int x) => true;
+          
+          public static async System.Threading.Tasks.Task Main()
+          {
+            var x = {{leftConstruct}} && {{rightConstruct}};
+          }
+        }
+        """;
+
+    var paramType = (bool awaitable) => awaitable
+      ? "System.Func<System.Threading.Tasks.Task<bool>>"
+      : "System.Func<bool>";
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    mutationGroup.SchemaReturnType.Should()
+      .Be("async System.Threading.Tasks.Task<bool>");
+    mutationGroup.SchemaParameterTypes.Should().Equal(paramType(leftAwaitable),
+      paramType(rightAwaitable));
+
+    var allTemplates = mutationGroup.SchemaMutantExpressions
+      .Select(expr => expr.ExpressionTemplate)
+      .Concat([mutationGroup.SchemaOriginalExpression.ExpressionTemplate]);
+
+    foreach (var exprTemplate in allTemplates)
+    {
+      testOutputHelper.WriteLine(exprTemplate);
+      var awaitOccurence = Regex.Matches(exprTemplate, Regex.Escape("await")).Count;
+      var expectedCount = new[] { leftAwaitable, rightAwaitable }.Count(b => b);
+      awaitOccurence.Should().Be(expectedCount);
+    }
   }
 }

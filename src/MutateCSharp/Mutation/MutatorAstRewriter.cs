@@ -139,7 +139,7 @@ public sealed partial class MutatorAstRewriter(
         .WithLeft((ExpressionSyntax)Visit(node.Left))
         .WithRight((ExpressionSyntax)Visit(node.Right));
     
-    // 4: handle the special case where syntax node is compound
+    // 4: Handle the special case where syntax node is compound
     // assignment expression and RHS is numeric literal
     BinaryExpressionSyntax? nodeWithMutatedChildren;
     
@@ -147,9 +147,10 @@ public sealed partial class MutatorAstRewriter(
         && node.Right.IsKind(SyntaxKind.NumericLiteralExpression))
     {
       var literalSyntax = (LiteralExpressionSyntax)node.Right;
+      var rightOperandType = mutationGroup.ParameterTypeSymbols[1];
       var mutatedLiteral =
         VisitLiteralExpressionWithRequiredReturnType(literalSyntax,
-          mutationGroup.ParameterTypeSymbols[1]);
+          requiredReturnType: rightOperandType);
       nodeWithMutatedChildren = node.WithRight(mutatedLiteral);
     }
     else
@@ -172,16 +173,38 @@ public sealed partial class MutatorAstRewriter(
       CodeAnalysisUtil.ShortCircuitOperators.Contains(node.Kind())
       || mutationGroup.SchemaMutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
+    
+    // Handle awaitable operand expressions
+    var isLeftOperandAwaitable = node.Left is AwaitExpressionSyntax;
+    var isRightOperandAwaitable = node.Right is AwaitExpressionSyntax;
 
-    var leftArgument = containsShortCircuitOperators
-      ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Left)
-      : nodeWithMutatedChildren.Left;
+    var leftArgument = nodeWithMutatedChildren.Left;
+    var rightArgument = nodeWithMutatedChildren.Right;
 
-    var rightArgument = containsShortCircuitOperators
-      ? SyntaxFactory.ParenthesizedLambdaExpression(nodeWithMutatedChildren.Right)
-      : nodeWithMutatedChildren.Right;
+    if (containsShortCircuitOperators)
+    {
+      var leftLambdaArgument =
+        SyntaxFactory.ParenthesizedLambdaExpression(leftArgument);
+      if (isLeftOperandAwaitable)
+      {
+        leftLambdaArgument = leftLambdaArgument.WithAsyncKeyword(
+          SyntaxFactory.Token(SyntaxKind.AsyncKeyword));
+      }
+        
+      
+      var rightLambdaArgument =
+        SyntaxFactory.ParenthesizedLambdaExpression(rightArgument);
+      if (isRightOperandAwaitable)
+      {
+        rightLambdaArgument = rightLambdaArgument.WithAsyncKeyword(
+          SyntaxFactory.Token(SyntaxKind.AsyncKeyword));
+      }
 
-    return SyntaxFactoryUtil.CreateMethodCall(
+      leftArgument = leftLambdaArgument;
+      rightArgument = rightLambdaArgument;
+    }
+
+    var returnExpr = SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
       schemaRegistry.GetUniqueSchemaName(mutationGroup),
@@ -189,6 +212,10 @@ public sealed partial class MutatorAstRewriter(
       leftArgument,
       rightArgument
     );
+
+    return isLeftOperandAwaitable || isRightOperandAwaitable
+      ? SyntaxFactory.AwaitExpression(returnExpr)
+      : returnExpr;
   }
 
   public override SyntaxNode VisitPrefixUnaryExpression(

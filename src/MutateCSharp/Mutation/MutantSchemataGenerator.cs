@@ -65,7 +65,6 @@ public static class MutantSchemataGenerator
     // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) { return originalExpression; }
     result.Append(
       $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Length - 1})) {{ return ");
-    // result.Append($"({mutationGroup.SchemaReturnType}) (");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
       mutationGroup.SchemaParameterTypes.Length);
@@ -76,7 +75,6 @@ public static class MutantSchemataGenerator
     for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Length; i++)
     {
       result.Append($"if (ActivatedMutantId.Value == mutantId + {i}) {{ return ");
-      // result.Append($"({mutationGroup.SchemaReturnType}) (");
       result.MaterialiseExpressionFromTemplate(
         mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate,
         mutationGroup.SchemaParameterTypes.Length);
@@ -91,11 +89,10 @@ public static class MutantSchemataGenerator
       "throw new System.InvalidOperationException(\"Mutant ID out of range\");");
     #else
     result.Append("return ");
-    // result.Append($"({mutationGroup.SchemaReturnType}) (");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
       mutationGroup.SchemaParameterTypes.Length);
-    result.Append(";");
+    result.Append(';');
     #endif
     result.AppendLine();
 

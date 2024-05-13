@@ -48,11 +48,15 @@ public sealed partial class BinExprOpReplacer(
     ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
-  private static string ExpressionTemplate(SyntaxKind kind, bool isDelegate)
+  private static string ExpressionTemplate(SyntaxKind kind, bool isDelegate,
+    bool isLeftAwaitable, bool isRightAwaitable)
   {
     var insertInvocation = isDelegate ? "()" : string.Empty;
+    var leftModifier = isLeftAwaitable ? "await " : string.Empty;
+    var rightModifier = isRightAwaitable ? "await " : string.Empty;
+
     return
-      $"{{0}}{insertInvocation} {SupportedOperators[kind]} {{1}}{insertInvocation}";
+      $"{leftModifier}{{0}}{insertInvocation} {SupportedOperators[kind]} {rightModifier}{{1}}{insertInvocation}";
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -65,8 +69,13 @@ public sealed partial class BinExprOpReplacer(
       || mutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
+    // Check for awaitable operands
+    var isLeftOperandAwaitable = originalNode.Left is AwaitExpressionSyntax;
+    var isRightOperandAwaitable = originalNode.Right is AwaitExpressionSyntax;
+
     return new ExpressionRecord(originalNode.Kind(),
-      ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators));
+      ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators,
+        isLeftOperandAwaitable, isRightOperandAwaitable));
   }
 
   protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
@@ -87,11 +96,16 @@ public sealed partial class BinExprOpReplacer(
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
 
+    // Check for awaitable operands
+    var isLeftOperandAwaitable = originalNode.Left is AwaitExpressionSyntax;
+    var isRightOperandAwaitable = originalNode.Right is AwaitExpressionSyntax;
+
     return
     [
       ..attachIdToMutants.Select(entry =>
         (entry.id, new ExpressionRecord(entry.op,
-          ExpressionTemplate(entry.op, containsShortCircuitOperators))
+          ExpressionTemplate(entry.op, containsShortCircuitOperators,
+            isLeftOperandAwaitable, isRightOperandAwaitable))
         )
       )
     ];
@@ -122,13 +136,14 @@ public sealed partial class BinExprOpReplacer(
     var leftOperandAbsoluteType = leftOperandType.GetNullableUnderlyingType();
     var rightOperandAbsoluteType = rightOperandType.GetNullableUnderlyingType();
     var returnAbsoluteType = returnType.GetNullableUnderlyingType();
-    
+
     // If the determined type of an integer literal is int and the value
     // represented by the literal is within the range of the destination type,
     // the value can be implicitly converted to sbyte, byte, short, ushort,
     // uint, ulong, nint or nuint.
     // We handle the case where the type of int literals can be implicitly narrowed
-    if (leftOperandAbsoluteType.IsNumeric() && rightOperandAbsoluteType.IsNumeric())
+    if (leftOperandAbsoluteType.IsNumeric() &&
+        rightOperandAbsoluteType.IsNumeric())
     {
       if (originalNode.Left.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
@@ -136,7 +151,7 @@ public sealed partial class BinExprOpReplacer(
       {
         leftOperandAbsoluteType = returnAbsoluteType;
       }
-      
+
       if (originalNode.Right.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
             originalNode.Right, returnType.SpecialType))
@@ -145,24 +160,27 @@ public sealed partial class BinExprOpReplacer(
       }
 
       if (SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
-            originalNode.Kind(), 
+            originalNode.Kind(),
             returnAbsoluteType.SpecialType,
             leftOperandAbsoluteType.SpecialType,
-            rightOperandAbsoluteType.SpecialType) 
+            rightOperandAbsoluteType.SpecialType)
           is { } result)
       {
         // Reconstruct the nullable type
         return new CodeAnalysisUtil.MethodSignature(
           returnType.IsTypeSymbolNullable()
-          ? SemanticModel.ConstructNullableValueTypeSymbol(result.returnSymbol)
-          : result.returnSymbol,
+            ? SemanticModel.ConstructNullableValueTypeSymbol(
+              result.returnSymbol)
+            : result.returnSymbol,
           [
             leftOperandType.IsTypeSymbolNullable()
-            ? SemanticModel.ConstructNullableValueTypeSymbol(result.leftSymbol)
-            : result.leftSymbol,
+              ? SemanticModel.ConstructNullableValueTypeSymbol(
+                result.leftSymbol)
+              : result.leftSymbol,
             rightOperandType.IsTypeSymbolNullable()
-            ? SemanticModel.ConstructNullableValueTypeSymbol(result.rightSymbol)
-            : result.rightSymbol
+              ? SemanticModel.ConstructNullableValueTypeSymbol(
+                result.rightSymbol)
+              : result.rightSymbol
           ]);
       }
 
@@ -191,7 +209,8 @@ public sealed partial class BinExprOpReplacer(
     if (!rightOperandType.IsValueType)
       rightOperandType = rightOperandType.GetNullableUnderlyingType();
 
-    return new CodeAnalysisUtil.MethodSignature(returnType, [leftOperandType, rightOperandType]);
+    return new CodeAnalysisUtil.MethodSignature(returnType,
+      [leftOperandType, rightOperandType]);
   }
 
   protected override ImmutableArray<string> SchemaParameterTypeDisplays(
@@ -200,7 +219,20 @@ public sealed partial class BinExprOpReplacer(
     ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-        {} typeSignature) return [];
+        { } typeSignature) return [];
+
+    var leftTypeDisplay = typeSignature.OperandTypes[0].ToDisplayString();
+    var rightTypeDisplay = typeSignature.OperandTypes[1].ToDisplayString();
+
+    // Check for awaitable operands
+    var isLeftOperandAwaitable = originalNode.Left is AwaitExpressionSyntax;
+    var isRightOperandAwaitable = originalNode.Right is AwaitExpressionSyntax;
+
+    // Wrap operand type with Task monad if operand is awaitable
+    if (isLeftOperandAwaitable)
+      leftTypeDisplay = $"System.Threading.Tasks.Task<{leftTypeDisplay}>";
+    if (isRightOperandAwaitable)
+      rightTypeDisplay = $"System.Threading.Tasks.Task<{rightTypeDisplay}>";
 
     // Check for short circuit operators
     var containsShortCircuitOperators =
@@ -208,24 +240,32 @@ public sealed partial class BinExprOpReplacer(
       || mutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
-    return
-    [
-      ConstructLambdaType(typeSignature.OperandTypes[0].ToDisplayString()),
-      ConstructLambdaType(typeSignature.OperandTypes[1].ToDisplayString())
-    ];
+    // Wrap operand type with Func if short-circuit operators exist in mutation group
+    if (containsShortCircuitOperators)
+    {
+      leftTypeDisplay = $"System.Func<{leftTypeDisplay}>";
+      rightTypeDisplay = $"System.Func<{rightTypeDisplay}>";
+    }
 
-    string ConstructLambdaType(string typeDisplay) =>
-      containsShortCircuitOperators
-        ? $"System.Func<{typeDisplay}>"
-        : typeDisplay;
+    return [leftTypeDisplay, rightTypeDisplay];
   }
-  
+
   protected override string SchemaReturnTypeDisplay(
     BinaryExpressionSyntax originalNode,
     ITypeSymbol? requiredReturnType)
   {
-    return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-      { } typeSignature ? string.Empty : typeSignature.ReturnType.ToDisplayString();
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } typeSignature) return string.Empty;
+
+    var returnTypeDisplay = typeSignature.ReturnType.ToDisplayString();
+
+    // If there exists awaitable expression in either operand,
+    // the return type should become async Task<bool>
+    SyntaxNode[] operands = [originalNode.Left, originalNode.Right];
+    // Check for awaitable operands
+    return operands.Any(operand => operand is AwaitExpressionSyntax)
+      ? $"async System.Threading.Tasks.Task<{returnTypeDisplay}>"
+      : returnTypeDisplay;
   }
 
   /*

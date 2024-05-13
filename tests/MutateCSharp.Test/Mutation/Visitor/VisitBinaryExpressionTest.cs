@@ -118,4 +118,96 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
     notEqMutatedArgs[1].Expression.Should()
       .NotBeOfType<ParenthesizedLambdaExpressionSyntax>();
   }
+
+  [Theory]
+  [InlineData("await foo(6)", true, "true", false)]
+  [InlineData("true", false,"await foo(6)", true)]
+  [InlineData("await foo(6)", true, "await foo(6)", true)]
+  public void ShouldReplaceForAwaitableOperands(string leftConstruct, bool leftAwaitable, 
+    string rightConstruct, bool rightAwaitable)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+
+      public class A
+      {
+        public static async System.Threading.Tasks.Task<bool> foo(int x) => true;
+        
+        public static async System.Threading.Tasks.Task Main()
+        {
+          var x = {{leftConstruct}} && {{rightConstruct}};
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <BinaryExpressionSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+      );
+    mutatedNode.Should().BeOfType<AwaitExpressionSyntax>();
+    var awaitExpr = (AwaitExpressionSyntax)mutatedNode;
+      
+    var binaryExprArguments = TestUtil.GetReplacedNodeArguments(awaitExpr.Expression, schemaRegistry);
+    // Left argument should be async () => leftOperand since the mutation group
+    // includes short-circuit operators
+
+    var left = (ParenthesizedLambdaExpressionSyntax)binaryExprArguments[0].Expression;
+    var right = (ParenthesizedLambdaExpressionSyntax)binaryExprArguments[1].Expression;
+    
+    testOutputHelper.WriteLine(left.ToFullString());
+    testOutputHelper.WriteLine(right.ToFullString());
+
+    left.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword).Should()
+      .Be(leftAwaitable);
+    right.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword).Should()
+      .Be(rightAwaitable);
+  }
+  
+  [Fact]
+  public void ShouldNotReplaceNonImmediateChildThatContainsAwaitableOperands()
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static async System.Threading.Tasks.Task<bool> foo(int x) => true;
+          public static bool bar(bool x) => true;
+          
+          public static async System.Threading.Tasks.Task Main()
+          {
+            var x = bar(await foo(6)) && true;
+          }
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <BinaryExpressionSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+      );
+    mutatedNode.Should().BeOfType<InvocationExpressionSyntax>();
+      
+    var binaryExprArguments = TestUtil.GetReplacedNodeArguments(mutatedNode, schemaRegistry);
+    // Left argument should not have async since the original argument is not await
+    var left = (ParenthesizedLambdaExpressionSyntax)binaryExprArguments[0].Expression;
+    var right = (ParenthesizedLambdaExpressionSyntax)binaryExprArguments[1].Expression;
+    
+    testOutputHelper.WriteLine(left.ToFullString());
+    testOutputHelper.WriteLine(right.ToFullString());
+
+    left.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword).Should().BeFalse();
+    right.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword).Should().BeFalse();
+  }
 }
