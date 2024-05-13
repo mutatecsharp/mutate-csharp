@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MutateCSharp.Util;
 using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
@@ -13,10 +14,16 @@ public class BooleanConstantReplacer(
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
-  private static readonly ImmutableArray<string> ParameterType = ["bool"];
-  private static readonly ImmutableArray<(int id, ExpressionRecord expr)> 
-    MutantExpressions = [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
-  
+  private static readonly ImmutableArray<(int id, ExpressionRecord expr)>
+    MutantExpressions =
+      [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
+
+  private readonly ITypeSymbol _booleanTypeSymbol =
+    semanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+
+  private readonly ImmutableArray<ITypeSymbol> _booleanOperandSymbol =
+    [semanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean)];
+
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
     Log.Debug("Processing boolean constant: {SyntaxNode}",
@@ -26,30 +33,41 @@ public class BooleanConstantReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
+    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _,
+    ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(LiteralExpressionSyntax _)
+    ValidMutantExpressions(LiteralExpressionSyntax _,
+      ITypeSymbol? requiredReturnType)
   {
     return MutantExpressions;
   }
 
-  protected override ImmutableArray<string> ParameterTypes(
-    LiteralExpressionSyntax _, ImmutableArray<ExpressionRecord> __)
+  protected override CodeAnalysisUtil.MethodSignature?
+    NonMutatedTypeSymbols(LiteralExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
-    return ParameterType;
+    return new CodeAnalysisUtil.MethodSignature(_booleanTypeSymbol,
+      _booleanOperandSymbol);
   }
 
-  protected override string ReturnType(LiteralExpressionSyntax _)
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(LiteralExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions, ITypeSymbol? requiredReturnType)
+  {
+    return ["bool"];
+  }
+
+  protected override string SchemaReturnTypeDisplay(LiteralExpressionSyntax originalNode,
+    ITypeSymbol? requiredReturnType)
   {
     return "bool";
   }
 
-  protected override string SchemaBaseName(LiteralExpressionSyntax _)
+  protected override string SchemaBaseName()
   {
     return "ReplaceBooleanConstant";
   }

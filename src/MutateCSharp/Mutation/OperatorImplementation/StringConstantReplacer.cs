@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MutateCSharp.Util;
 using Serilog;
 
 namespace MutateCSharp.Mutation.OperatorImplementation;
@@ -14,8 +15,12 @@ public class StringConstantReplacer(
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
-  private static readonly ImmutableArray<string> ParameterType = ["string"];
-  
+  private readonly ITypeSymbol _stringTypeSymbol =
+    semanticModel.Compilation.GetSpecialType(SpecialType.System_String);
+
+  private readonly ImmutableArray<ITypeSymbol> _stringOperandSymbol =
+    [semanticModel.Compilation.GetSpecialType(SpecialType.System_String)];
+    
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
     Log.Debug("Processing string constant: {SyntaxNode}", 
@@ -24,12 +29,12 @@ public class StringConstantReplacer(
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
+    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _, ITypeSymbol? requiredReturnType)
     => new(originalNode.Kind(), "{0}");
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(LiteralExpressionSyntax originalNode)
+    ValidMutantExpressions(LiteralExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
   {
     var result = new List<(int, ExpressionRecord)>();
 
@@ -42,18 +47,26 @@ public class StringConstantReplacer(
     return [..result];
   }
 
-  protected override ImmutableArray<string> ParameterTypes(
-    LiteralExpressionSyntax _, ImmutableArray<ExpressionRecord> __)
+  protected override CodeAnalysisUtil.MethodSignature
+    NonMutatedTypeSymbols(LiteralExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
-    return ParameterType;
+    return new CodeAnalysisUtil.MethodSignature(_stringTypeSymbol, _stringOperandSymbol);
   }
 
-  protected override string ReturnType(LiteralExpressionSyntax _)
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(LiteralExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions, ITypeSymbol? requiredReturnType)
+  {
+    return ["string"];
+  }
+
+  protected override string SchemaReturnTypeDisplay(LiteralExpressionSyntax originalNode,
+    ITypeSymbol? requiredReturnType)
   {
     return "string";
   }
 
-  protected override string SchemaBaseName(LiteralExpressionSyntax _)
+  protected override string SchemaBaseName()
   {
     return "ReplaceStringConstant";
   }

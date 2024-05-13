@@ -29,7 +29,7 @@ public sealed partial class BinExprOpReplacer(
       return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node)!.GetNullableUnderlyingType());
 
     SyntaxNode[] operands = [originalNode.Left, originalNode.Right];
 
@@ -43,9 +43,9 @@ public sealed partial class BinExprOpReplacer(
     // 3) If expression contains short-circuiting operator and has to be wrapped
     // in a lambda expression, but contains ref which cannot be wrapped in a lambda
     return !shouldBeDelegateButCannot && types.All(type =>
-      !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
+      !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)
       && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
-      ) && SupportedOperators.ContainsKey(originalNode.Kind());
+    ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
   private static string ExpressionTemplate(SyntaxKind kind, bool isDelegate)
@@ -57,7 +57,8 @@ public sealed partial class BinExprOpReplacer(
 
   protected override ExpressionRecord OriginalExpression(
     BinaryExpressionSyntax originalNode,
-    ImmutableArray<ExpressionRecord> mutantExpressions)
+    ImmutableArray<ExpressionRecord> mutantExpressions,
+    ITypeSymbol? requiredReturnType)
   {
     var containsShortCircuitOperators =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
@@ -68,14 +69,15 @@ public sealed partial class BinExprOpReplacer(
       ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators));
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators() => SupportedOperators;
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(BinaryExpressionSyntax originalNode)
+    ValidMutantExpressions(BinaryExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode).ToArray();
+    var validMutants = ValidMutants(originalNode, requiredReturnType).ToArray();
 
     var containsShortCircuitOperators =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) ||
@@ -99,19 +101,106 @@ public sealed partial class BinExprOpReplacer(
   // To preserve the semantics in mutant schemata, we defer the expression
   // evaluation by wrapping the expression in lambda iff any of the original
   // expression or mutant expressions involve the use of && or ||
-  protected override ImmutableArray<string> ParameterTypes(
-    BinaryExpressionSyntax originalNode,
-    ImmutableArray<ExpressionRecord> mutantExpressions)
+  //   
+  // If the operand types are value types, we adhere to the C# language specification
+  // by promoting the parameter types corresponding to the method signatures
+  // of the predefined operators, which resolves the issue as follows:
+  //   
+  // Example:
+  // ulong x = 10;
+  // var y = (x << 10) + 1;
+  // (x << 10) is recognised as ulong, and 1 as int,
+  // but ulong + int does not type check
+  protected override CodeAnalysisUtil.MethodSignature?
+    NonMutatedTypeSymbols(BinaryExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
-    var leftOperandType =
-      SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
-    if (!leftOperandType.IsValueType)
-      leftOperandType = leftOperandType.GetNullableUnderlyingType()!;
+    var leftOperandType = SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
+    var rightOperandType = SemanticModel.ResolveTypeSymbol(originalNode.Right)!;
+    var returnType = SemanticModel.ResolveTypeSymbol(originalNode)!;
+
+    var leftOperandAbsoluteType = leftOperandType.GetNullableUnderlyingType();
+    var rightOperandAbsoluteType = rightOperandType.GetNullableUnderlyingType();
+    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
     
-    var rightOperandType =
-      SemanticModel.ResolveTypeSymbol(originalNode.Right)!;
+    // If the determined type of an integer literal is int and the value
+    // represented by the literal is within the range of the destination type,
+    // the value can be implicitly converted to sbyte, byte, short, ushort,
+    // uint, ulong, nint or nuint.
+    // We handle the case where the type of int literals can be implicitly narrowed
+    if (leftOperandAbsoluteType.IsNumeric() && rightOperandAbsoluteType.IsNumeric())
+    {
+      if (originalNode.Left.IsKind(SyntaxKind.NumericLiteralExpression)
+          && SemanticModel.CanImplicitlyConvertNumericLiteral(
+            originalNode.Left, returnType.SpecialType))
+      {
+        leftOperandAbsoluteType = returnAbsoluteType;
+      }
+      
+      if (originalNode.Right.IsKind(SyntaxKind.NumericLiteralExpression)
+          && SemanticModel.CanImplicitlyConvertNumericLiteral(
+            originalNode.Right, returnType.SpecialType))
+      {
+        rightOperandAbsoluteType = returnAbsoluteType;
+      }
+
+      if (SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
+            originalNode.Kind(), 
+            returnAbsoluteType.SpecialType,
+            leftOperandAbsoluteType.SpecialType,
+            rightOperandAbsoluteType.SpecialType) 
+          is { } result)
+      {
+        // Reconstruct the nullable type
+        return new CodeAnalysisUtil.MethodSignature(
+          returnType.IsTypeSymbolNullable()
+          ? SemanticModel.ConstructNullableValueTypeSymbol(result.returnSymbol)
+          : result.returnSymbol,
+          [
+            leftOperandType.IsTypeSymbolNullable()
+            ? SemanticModel.ConstructNullableValueTypeSymbol(result.leftSymbol)
+            : result.leftSymbol,
+            rightOperandType.IsTypeSymbolNullable()
+            ? SemanticModel.ConstructNullableValueTypeSymbol(result.rightSymbol)
+            : result.rightSymbol
+          ]);
+      }
+
+      // Application of overload resolution failed
+      return null;
+    }
+
+    // Check if null keyword exists in binary expression
+    // Since null does not have a type in C#, the helper method resolves it to
+    // the object type by default. We intercept the resolved type and change it
+    // to the corresponding nullable type if the other operand is a value type.
+    // This allows syntax containing equality operators to be mutated.
+    // Ignore this case as the mutations are redundant
+    if (leftOperandType.IsValueType &&
+        originalNode.Right.IsKind(SyntaxKind.NullLiteralExpression) ||
+        rightOperandType.IsValueType &&
+        originalNode.Left.IsKind(SyntaxKind.NullLiteralExpression))
+    {
+      return null;
+    }
+
+    // Either left or right operand is reference type; null can be of object type
+    // Remove nullable since a reference type T? can be cast to T
+    if (!leftOperandType.IsValueType)
+      leftOperandType = leftOperandType.GetNullableUnderlyingType();
     if (!rightOperandType.IsValueType)
-      rightOperandType = rightOperandType.GetNullableUnderlyingType()!;
+      rightOperandType = rightOperandType.GetNullableUnderlyingType();
+
+    return new CodeAnalysisUtil.MethodSignature(returnType, [leftOperandType, rightOperandType]);
+  }
+
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(
+    BinaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
+    ITypeSymbol? requiredReturnType)
+  {
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        {} typeSignature) return [];
 
     // Check for short circuit operators
     var containsShortCircuitOperators =
@@ -121,23 +210,40 @@ public sealed partial class BinExprOpReplacer(
 
     return
     [
-      containsShortCircuitOperators
-        ? $"System.Func<{leftOperandType.ToDisplayString()}>"
-        : leftOperandType.ToDisplayString(),
-      containsShortCircuitOperators
-        ? $"System.Func<{rightOperandType.ToDisplayString()}>"
-        : rightOperandType.ToDisplayString()
+      ConstructLambdaType(typeSignature.OperandTypes[0].ToDisplayString()),
+      ConstructLambdaType(typeSignature.OperandTypes[1].ToDisplayString())
     ];
+
+    string ConstructLambdaType(string typeDisplay) =>
+      containsShortCircuitOperators
+        ? $"System.Func<{typeDisplay}>"
+        : typeDisplay;
+  }
+  
+  protected override string SchemaReturnTypeDisplay(
+    BinaryExpressionSyntax originalNode,
+    ITypeSymbol? requiredReturnType)
+  {
+    return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+      { } typeSignature ? string.Empty : typeSignature.ReturnType.ToDisplayString();
   }
 
-  protected override string ReturnType(BinaryExpressionSyntax originalNode)
-  {
-    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
-  }
+  /*
+   * A special case of equality expressions are of the form x == null, which
+   * we assign the null type to object. Any reference type inherits the object
+   * type, and there is an overload for the operator== and operator!= for the
+   * object class that calls the type equals operator in the default implementation,
+   * which allows the compilation to succeed.
+   *
+   * Since either left or right operand can be a value type, and that the
+   * operator== is not defined between any value type V and an object type, we
+   * take care to define the null type as V? where there *is* an operator==
+   * defined for the two V? operands, when x is of value type.
+   */
 
-  protected override string SchemaBaseName(BinaryExpressionSyntax originalNode)
+  protected override string SchemaBaseName()
   {
-    return $"ReplaceBinExprOpReturn{ReturnType(originalNode)}";
+    return "ReplaceBinExprOp";
   }
 }
 
@@ -163,12 +269,12 @@ public sealed partial class BinExprOpReplacer
       = specialType =>
         specialType is not
           (SpecialType.System_Char or
-          SpecialType.System_SByte or 
-          SpecialType.System_Byte or 
-          SpecialType.System_Int16 or 
+          SpecialType.System_SByte or
+          SpecialType.System_Byte or
+          SpecialType.System_Int16 or
           SpecialType.System_UInt16 or
           SpecialType.System_Int32);
-  
+
   // Both ExprKind and TokenKind represents the operator and are equivalent
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
@@ -181,100 +287,76 @@ public sealed partial class BinExprOpReplacer
           SyntaxKind.AddExpression,
           new(SyntaxKind.AddExpression,
             SyntaxKind.PlusToken,
-            WellKnownMemberNames.AdditionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.AdditionOperatorName)
         },
         {
           SyntaxKind.SubtractExpression,
           new(SyntaxKind.SubtractExpression,
             SyntaxKind.MinusToken,
-            WellKnownMemberNames.SubtractionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.SubtractionOperatorName)
         },
         {
           SyntaxKind.MultiplyExpression,
           new(SyntaxKind.MultiplyExpression,
             SyntaxKind.AsteriskToken,
-            WellKnownMemberNames.MultiplyOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.MultiplyOperatorName)
         },
         {
           SyntaxKind.DivideExpression,
           new(SyntaxKind.DivideExpression,
             SyntaxKind.SlashToken,
-            WellKnownMemberNames.DivisionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.DivisionOperatorName)
         },
         {
           SyntaxKind.ModuloExpression,
           new(SyntaxKind.ModuloExpression,
             SyntaxKind.PercentToken,
-            WellKnownMemberNames.ModulusOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.ModulusOperatorName)
         },
         // Supported boolean/integral bitwise logical operations (&, |, ^)
         {
           SyntaxKind.BitwiseAndExpression,
           new(SyntaxKind.BitwiseAndExpression,
             SyntaxKind.AmpersandToken,
-            WellKnownMemberNames.BitwiseAndOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.BitwiseAndOperatorName)
         },
         {
           SyntaxKind.BitwiseOrExpression,
           new(SyntaxKind.BitwiseOrExpression,
             SyntaxKind.BarToken,
-            WellKnownMemberNames.BitwiseOrOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.BitwiseOrOperatorName)
         },
         {
           SyntaxKind.ExclusiveOrExpression,
           new(SyntaxKind.ExclusiveOrExpression,
             SyntaxKind.CaretToken,
-            WellKnownMemberNames.ExclusiveOrOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.ExclusiveOrOperatorName)
         },
         // Supported boolean logical operations (&&, ||)
         {
           SyntaxKind.LogicalAndExpression,
           new(SyntaxKind.LogicalAndExpression,
             SyntaxKind.AmpersandAmpersandToken,
-            WellKnownMemberNames.LogicalAndOperatorName,
-            CodeAnalysisUtil.BooleanLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.LogicalAndOperatorName)
         },
         {
           SyntaxKind.LogicalOrExpression,
           new(SyntaxKind.LogicalOrExpression,
             SyntaxKind.BarBarToken,
-            WellKnownMemberNames.LogicalOrOperatorName,
-            CodeAnalysisUtil.BooleanLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.LogicalOrOperatorName)
         },
         // Supported integral bitwise shift operations (<<, >>, >>>)
         {
           SyntaxKind.LeftShiftExpression,
           new(SyntaxKind.LeftShiftExpression,
             SyntaxKind.LessThanLessThanToken,
-            WellKnownMemberNames.LeftShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature,
-            PrimitiveTypesToExclude: ExcludeIfRightOperandNotImplicitlyConvertableToInt)
+            WellKnownMemberNames.LeftShiftOperatorName)
         },
         {
           SyntaxKind.RightShiftExpression,
           new(SyntaxKind.RightShiftExpression,
             SyntaxKind.GreaterThanGreaterThanToken,
-            WellKnownMemberNames.RightShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature,
-            PrimitiveTypesToExclude: ExcludeIfRightOperandNotImplicitlyConvertableToInt)
+            WellKnownMemberNames.RightShiftOperatorName)
         },
         // Note: .NET 6.0 does not support unsigned right shift operator
         // {
@@ -289,50 +371,38 @@ public sealed partial class BinExprOpReplacer
           SyntaxKind.EqualsExpression,
           new(SyntaxKind.EqualsExpression,
             SyntaxKind.EqualsEqualsToken,
-            WellKnownMemberNames.EqualityOperatorName,
-            CodeAnalysisUtil.EqualityTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.EqualityOperatorName)
         },
         {
           SyntaxKind.NotEqualsExpression,
           new(SyntaxKind.NotEqualsExpression,
             SyntaxKind.ExclamationEqualsToken,
-            WellKnownMemberNames.InequalityOperatorName,
-            CodeAnalysisUtil.EqualityTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.InequalityOperatorName)
         },
         // Supported inequality comparison operators (<, <=, >, >=)
         {
           SyntaxKind.LessThanExpression,
           new(SyntaxKind.LessThanExpression,
             SyntaxKind.LessThanToken,
-            WellKnownMemberNames.LessThanOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.LessThanOperatorName)
         },
         {
           SyntaxKind.LessThanOrEqualExpression,
           new(SyntaxKind.LessThanOrEqualExpression,
             SyntaxKind.LessThanEqualsToken,
-            WellKnownMemberNames.LessThanOrEqualOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.LessThanOrEqualOperatorName)
         },
         {
           SyntaxKind.GreaterThanExpression,
           new(SyntaxKind.GreaterThanExpression,
             SyntaxKind.GreaterThanToken,
-            WellKnownMemberNames.GreaterThanOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.GreaterThanOperatorName)
         },
         {
           SyntaxKind.GreaterThanOrEqualExpression,
           new(SyntaxKind.GreaterThanOrEqualExpression,
             SyntaxKind.GreaterThanEqualsToken,
-            WellKnownMemberNames.GreaterThanOrEqualOperatorName,
-            CodeAnalysisUtil.InequalityTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.GreaterThanOrEqualOperatorName)
         }
       }.ToFrozenDictionary();
 

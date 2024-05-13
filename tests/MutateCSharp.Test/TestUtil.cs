@@ -148,7 +148,7 @@ public static class TestUtil
       .NotBeEmpty("because at least one construct of specified type exists");
 
     var mutationGroups = constructsUnderTest
-      .Select(mutationOperator.CreateMutationGroup)
+      .Select(construct => mutationOperator.CreateMutationGroup(construct))
       .Where(group => group != null)
       .Select(group => group!)
       .ToArray();

@@ -61,7 +61,7 @@ public static class SyntaxRewriterUtil
              .Any();
   }
 
-  public static INamedTypeSymbol ConstructNullableValueType(
+  public static INamedTypeSymbol ConstructNullableValueTypeSymbol(
     this SemanticModel model, ITypeSymbol typeSymbol)
   {
     var nullableType = model.Compilation.GetTypeByMetadataName("System.Nullable`1")!;

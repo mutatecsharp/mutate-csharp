@@ -79,4 +79,40 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
       .HasImplicitConversion(customNullableBoolType,
         compilationNullableBoolType).Should().BeTrue();
   }
+
+  [Theory]
+  // [InlineData(SpecialType.System_Char)]
+  [InlineData(SpecialType.System_Byte)]
+  [InlineData(SpecialType.System_SByte)]
+  [InlineData(SpecialType.System_UInt16)]
+  [InlineData(SpecialType.System_Int16)]
+  [InlineData(SpecialType.System_UInt32)]
+  [InlineData(SpecialType.System_Int32)]
+  [InlineData(SpecialType.System_UInt64)]
+  [InlineData(SpecialType.System_Int64)]
+  [InlineData(SpecialType.System_Single)]
+  [InlineData(SpecialType.System_Double)]
+  [InlineData(SpecialType.System_Decimal)]
+  public void VerifyNumericLiteralCanBeImplicitlyConvertedToTargetType(
+   SpecialType type)
+  {
+    var inputUnderMutation =
+      """
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            var x = 1;
+          }
+        }
+        """;
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var comp = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var literal = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<LiteralExpressionSyntax>().First();
+    comp.model.CanImplicitlyConvertNumericLiteral(literal, type).Should()
+      .BeTrue();
+  }
 }

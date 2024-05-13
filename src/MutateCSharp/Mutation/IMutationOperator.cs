@@ -6,5 +6,6 @@ public interface IMutationOperator
 {
   public bool CanBeApplied(SyntaxNode? originalNode);
 
-  public MutationGroup? CreateMutationGroup(SyntaxNode? originalNode);
+  public MutationGroup? CreateMutationGroup(SyntaxNode? originalNode, 
+    ITypeSymbol? requiredReturnType = default);
 }

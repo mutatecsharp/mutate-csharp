@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
@@ -64,7 +65,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       .BeEquivalentTo($"{{0}}() {originalOperator} {{1}}()");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressions.Count.Should()
+    mutationGroup.SchemaMutantExpressions.Length.Should()
       .Be(expectedReplacementOperators.Length);
 
     // The expressions should match (regardless of order)
@@ -94,10 +95,13 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     new HashSet<string>
       { "+", "-", "*", "/", "%", ">>", "<<", "^", "&", "|" };
 
+  // Note: all integral types narrower than int has its return type promoted to
+  // int for non-literals
   public static IEnumerable<object[]> IntegralTypedIntAssignableMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
-      ["char", "short", "sbyte", "int", "byte", "ushort"], SupportedIntegralOperators);
-
+      ["int"], SupportedIntegralOperators);
+      // ["char", "short", "sbyte", "int", "byte", "ushort"], SupportedIntegralOperators);
+  
   [Theory]
   [MemberData(nameof(IntegralTypedIntAssignableMutations))]
   public void
@@ -299,6 +303,9 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       mutationGroup.SchemaMutantExpressions.Select(mutant =>
         mutant.ExpressionTemplate).ToHashSet();
     mutantExpressions.Should().NotContain(originalOperator);
+    
+    testOutputHelper.WriteLine(string.Join(",", mutantExpressions));
+    
     mutantExpressions.Count.Should()
       .Be(expectedReplacementOperators.Length);
 
@@ -873,6 +880,12 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
           }
         }
         """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var construct = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<BinaryExpressionSyntax>().First();
+    testOutputHelper.WriteLine($"{construct.Kind()}");
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     var invalidExpression = $"{{0}} {originalOperator} {{1}}";

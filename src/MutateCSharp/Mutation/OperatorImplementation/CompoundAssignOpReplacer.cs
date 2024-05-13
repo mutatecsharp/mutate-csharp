@@ -30,6 +30,8 @@ public sealed partial class CompoundAssignOpReplacer(
     Log.Debug("Processing compound assignment: {SyntaxNode}",
       originalNode.GetText().ToString());
 
+    // The return type of the compound assignment expression
+    // of the form x (op)= y is the same as the left operand
     SyntaxNode[] nodes = [originalNode.Left, originalNode.Right];
 
     // Ignore: Cannot obtain type information
@@ -38,9 +40,11 @@ public sealed partial class CompoundAssignOpReplacer(
     return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
-
-    // Ignore: type contains generic type parameter / is private
+      SemanticModel.ResolveTypeSymbol(node)!.GetNullableUnderlyingType());
+    
+    // Exclude node from mutation:
+    // 1) If type contains generic type parameter;
+    // 2) If type is private (and thus inaccessible).
     return types.All(type =>
       !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
       && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
@@ -52,14 +56,14 @@ public sealed partial class CompoundAssignOpReplacer(
     return $"{{0}} {SupportedOperators[kind]} {{1}}";
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators()
   {
     return SupportedOperators;
   }
 
   protected override ExpressionRecord OriginalExpression(
-    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
+    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _, ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -67,45 +71,118 @@ public sealed partial class CompoundAssignOpReplacer(
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(AssignmentExpressionSyntax originalNode)
+    ValidMutantExpressions(AssignmentExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode);
+    var validMutants = ValidMutants(originalNode, requiredReturnType);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
     return [
       ..attachIdToMutants.Select(entry =>
-        (entry.Item1,
-          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
+        (entry.id,
+          new ExpressionRecord(entry.op, ExpressionTemplate(entry.op))
         )
       )
     ];
   }
 
-  protected override ImmutableArray<string> ParameterTypes(
-    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _)
+  /*
+   * A special case of equality expressions are of the form x == null, which
+   * we assign the null type to object. Any reference type inherits the object
+   * type, and there is an overload for the operator== and operator!= for the
+   * object class that calls the type equals operator in the default implementation,
+   * which allows the compilation to succeed.
+   *
+   * Since either left or right operand can be a value type, and that the
+   * operator== is not defined between any value type V and an object type, we
+   * take care to define the null type as V? where there *is* an operator==
+   * defined for the two V? operands, when x is of value type.
+   */
+  protected override CodeAnalysisUtil.MethodSignature?
+    NonMutatedTypeSymbols(AssignmentExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
+    // It is guaranteed that the updateVariableType is the exact type, as it
+    // is a variable and not a literal
     var updateVariableType = SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
-    if (updateVariableType.IsValueType)
-      updateVariableType = updateVariableType.GetNullableUnderlyingType()!;
-    
     var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Right)!;
-    if (operandType.IsValueType)
-      operandType = operandType.GetNullableUnderlyingType()!;
+
+    var varAbsoluteType = updateVariableType.GetNullableUnderlyingType();
+    var operandAbsoluteType = operandType.GetNullableUnderlyingType();
     
-    return [$"ref {updateVariableType.ToDisplayString()}", 
-      $"{operandType.ToDisplayString()}"];
+    // It is guaranteed the left operand is an assignable variable, not a literal
+    if (varAbsoluteType.IsNumeric() && operandAbsoluteType.IsNumeric())
+    {
+      // If right operand is literal, check for narrowing
+      if (originalNode.Right.IsKind(SyntaxKind.NumericLiteralExpression)
+          && SemanticModel.CanImplicitlyConvertNumericLiteral(
+            originalNode.Right, varAbsoluteType.SpecialType))
+      {
+        operandAbsoluteType = varAbsoluteType;
+      }
+
+      if (SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
+            originalNode.Kind(), varAbsoluteType.SpecialType,
+            varAbsoluteType.SpecialType,
+            operandAbsoluteType.SpecialType) is not { } result)
+        return null; // Fail to resolve overloads
+      
+      // Reconstruct nullable value type (if relevant)
+      var retSymbol = updateVariableType.IsTypeSymbolNullable()
+        ? SemanticModel.ConstructNullableValueTypeSymbol(result.returnSymbol)
+        : result.returnSymbol;
+
+      var operandSymbol = operandType.IsTypeSymbolNullable()
+        ? SemanticModel.ConstructNullableValueTypeSymbol(result.rightSymbol)
+        : result.rightSymbol;
+
+      return new CodeAnalysisUtil.MethodSignature(retSymbol,
+        [retSymbol, operandSymbol]);
+    }
+    
+    // Check if null keyword exists in binary expression
+    // Since null does not have a type in C#, the helper method resolves it to
+    // the object type by default. We intercept the resolved type and change it
+    // to the corresponding nullable type if the other operand is a value type.
+    // Addendum: any compound assignment operation with null yields null;
+    // it is thus redundant so we filter this out
+    if (updateVariableType.IsValueType &&
+        originalNode.Right.IsKind(SyntaxKind.NullLiteralExpression))
+    {
+      return null;
+    }
+    
+    // Either left or right operand is reference type; null can be of object type
+    // Remove nullable since a reference type T? can be cast to T
+    if (!updateVariableType.IsValueType)
+      updateVariableType = updateVariableType.GetNullableUnderlyingType();
+      
+    if (!operandType.IsValueType)
+      operandType = operandType.GetNullableUnderlyingType();
+
+    return new CodeAnalysisUtil.MethodSignature(updateVariableType,
+      [updateVariableType, operandType]);
   }
 
-  protected override string ReturnType(AssignmentExpressionSyntax originalNode)
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(
+    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> mutantExpressions,
+    ITypeSymbol? requiredReturnType)
   {
-    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        {} typeSymbols) return [];
+    return [$"ref {typeSymbols.ReturnType.ToDisplayString()}", typeSymbols.OperandTypes[1].ToDisplayString()];
   }
 
-  protected override string SchemaBaseName(
-    AssignmentExpressionSyntax originalNode)
+  protected override string SchemaReturnTypeDisplay(AssignmentExpressionSyntax originalNode,
+    ITypeSymbol? requiredReturnType)
   {
-    return $"ReplaceCompoundAssignOp{ReturnType(originalNode)}";
+    return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+      { } typeSymbols ? string.Empty : typeSymbols.ReturnType.ToDisplayString();
+  }
+
+  protected override string SchemaBaseName()
+  {
+    return "ReplaceCompoundAssignOp";
   }
 }
 
@@ -150,83 +227,63 @@ public sealed partial class CompoundAssignOpReplacer
           SyntaxKind.AddAssignmentExpression,
           new(SyntaxKind.AddAssignmentExpression,
             SyntaxKind.PlusEqualsToken,
-            WellKnownMemberNames.AdditionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.AdditionOperatorName)
         },
         {
           SyntaxKind.SubtractAssignmentExpression,
           new(SyntaxKind.SubtractAssignmentExpression,
             SyntaxKind.MinusEqualsToken,
-            WellKnownMemberNames.SubtractionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.SubtractionOperatorName)
         },
         {
           SyntaxKind.MultiplyAssignmentExpression,
           new(SyntaxKind.MultiplyAssignmentExpression,
             SyntaxKind.AsteriskEqualsToken,
-            WellKnownMemberNames.MultiplyOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.MultiplyOperatorName)
         },
         {
           SyntaxKind.DivideAssignmentExpression,
           new(SyntaxKind.DivideAssignmentExpression,
             SyntaxKind.SlashEqualsToken,
-            WellKnownMemberNames.DivisionOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.DivisionOperatorName)
         },
         {
           SyntaxKind.ModuloAssignmentExpression,
           new(SyntaxKind.ModuloAssignmentExpression,
             SyntaxKind.PercentEqualsToken,
-            WellKnownMemberNames.ModulusOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.ModulusOperatorName)
         },
         // Supported boolean/integral bitwise logical operations (&=, |=, ^=)
         {
           SyntaxKind.AndAssignmentExpression,
           new(SyntaxKind.AndAssignmentExpression,
             SyntaxKind.AmpersandEqualsToken,
-            WellKnownMemberNames.BitwiseAndOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.BitwiseAndOperatorName)
         },
         {
           SyntaxKind.OrAssignmentExpression,
           new(SyntaxKind.OrAssignmentExpression,
             SyntaxKind.BarEqualsToken,
-            WellKnownMemberNames.BitwiseOrOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.BitwiseOrOperatorName)
         },
         {
           SyntaxKind.ExclusiveOrAssignmentExpression,
           new(SyntaxKind.ExclusiveOrAssignmentExpression,
             SyntaxKind.CaretEqualsToken,
-            WellKnownMemberNames.ExclusiveOrOperatorName,
-            CodeAnalysisUtil.BitwiseLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.ExclusiveOrOperatorName)
         },
         // Supported integral bitwise shift operations (<<=, >>=, >>>=)
         {
           SyntaxKind.LeftShiftAssignmentExpression,
           new(SyntaxKind.LeftShiftAssignmentExpression,
             SyntaxKind.LessThanLessThanEqualsToken,
-            WellKnownMemberNames.LeftShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature,
-            PrimitiveTypesToExclude: ExcludeIfRightOperandNotImplicitlyConvertableToInt)
+            WellKnownMemberNames.LeftShiftOperatorName)
         },
         {
           SyntaxKind.RightShiftAssignmentExpression,
           new(SyntaxKind.RightShiftAssignmentExpression,
             SyntaxKind.GreaterThanGreaterThanEqualsToken,
-            WellKnownMemberNames.RightShiftOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature,
-            PrimitiveTypesToExclude: ExcludeIfRightOperandNotImplicitlyConvertableToInt)
+            WellKnownMemberNames.RightShiftOperatorName)
         },
         // .NET 6.0 does not support unsigned right shift assignment operator
         // {

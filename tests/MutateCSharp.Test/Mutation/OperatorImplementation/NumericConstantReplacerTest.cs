@@ -79,14 +79,14 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   // We omit ushort types, as C# does not support initialisation
   // of literals of these types.
   [Theory]
-  [InlineData("uint", "uint", "uint x = 42u;")]
-  [InlineData("uint", "uint", "UInt32 x = 42u;")]
-  [InlineData("ulong", "ulong", "ulong x = 42ul;")]
-  [InlineData("ulong", "ulong", "UInt64 x = 42ul;")]
-  [InlineData("uint",  "int", "uint x = 42;")]
-  [InlineData("ulong", "int", "ulong x = 42;")]
+  [InlineData("uint", "uint x = 42u;")]
+  [InlineData("uint", "UInt32 x = 42u;")]
+  [InlineData("ulong", "ulong x = 42ul;")]
+  [InlineData("ulong", "UInt64 x = 42ul;")]
+  [InlineData("uint",  "uint x = 42;")]
+  [InlineData("ulong", "ulong x = 42;")]
   public void ShouldReplaceForNumericUnsignedConstantsExceptNegativeOfItself(
-    string returnType, string operandType, string constructUnderMutation)
+    string returnType, string constructUnderMutation)
   {
     var inputUnderMutation =
       $$"""
@@ -104,8 +104,8 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     testOutputHelper.WriteLine(inputUnderMutation);
 
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([operandType]);
-    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(operandType);
+    mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([returnType]);
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(returnType);
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .BeEquivalentTo("{0}");
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
@@ -284,7 +284,7 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("int")]
   [InlineData("ulong")]
   [InlineData("long")]
-  public void ShouldReplaceBasedOnSuffixTypeOnly(string type)
+  public void ShouldReplaceBasedOnReturnType(string type)
   {
     var inputUnderMutation = 
       $$"""
@@ -302,7 +302,7 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     testOutputHelper.WriteLine(inputUnderMutation);
 
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
-    mutationGroup.SchemaReturnType.Should().Be("int");
-    mutationGroup.SchemaParameterTypes.Should().Equal("int");
+    mutationGroup.SchemaReturnType.Should().Be(type);
+    mutationGroup.SchemaParameterTypes.Should().Equal(type);
   }
 }

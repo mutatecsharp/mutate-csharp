@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
@@ -144,7 +145,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
   
   public static IEnumerable<object[]> IntegralTypedNonIntAssignableMutations =
     TestUtil.GenerateTestCaseCombinationsBetweenTypeAndMutations(
-      ["long","uint", "ulong"],
+      ["long", "uint", "ulong"],
       SupportedNonIntAssignableIntegralOperators);
 
   [Theory]
@@ -247,6 +248,9 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
      // operator to itself
      var mutantExpressions =
        TestUtil.GetMutantExpressionTemplates(mutationGroup).ToArray();
+     
+     testOutputHelper.WriteLine(string.Join(",", mutantExpressions));
+     
      mutantExpressions.Length.Should().Be(expectedReplacementOperators.Length);
 
      // The expressions should match (regardless of order)
@@ -489,7 +493,7 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be("int?");
-    mutationGroup.SchemaParameterTypes.Should().Equal("ref int", "int");
+    mutationGroup.SchemaParameterTypes.Should().Equal("ref int?", "int");
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
       .Be($"{{0}} {originalOperator} {{1}}");
     var mutantExpressionsTemplate =
@@ -591,5 +595,60 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaMutantExpressions
       .Any(expr => expr.ExpressionTemplate.Equals(invalidExpression))
       .Should().BeFalse();
+  }
+
+  public static IEnumerable<object[]> AllPredefinedTypeMutations =
+    IntegralTypedIntAssignableMutations
+      .Concat(IntegralTypedNonIntAssignableMutations)
+      .Concat(FloatingPointTypedMutations);
+  
+  [Theory]
+  [MemberData(nameof(AllPredefinedTypeMutations))]
+  public void ShouldReplaceForLiteralsWithoutSuffixOrCast(
+      string integralType, string originalOperator,
+      string[] expectedReplacementOperators)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            {{integralType}} x = 1;
+            x {{originalOperator}} 1;
+          }
+        }
+        """;
+    
+    // Skip test if the input does not compile
+    if (TestUtil.GetCompilation(CSharpSyntaxTree.ParseText(inputUnderMutation))
+        .GetDiagnostics()
+        .Any(d => d.Severity == DiagnosticSeverity.Error))
+    {
+      testOutputHelper.WriteLine("We can safely skip the test as the original input does not compile");
+      return;
+    }
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    // Type checks
+    mutationGroup.SchemaParameterTypes.Should()
+      .Equal($"ref {integralType}", integralType);
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(integralType);
+
+    // Expression template checks
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo($"{{0}} {originalOperator} {{1}}");
+    // The mutation operator should not be able to mutate the compound assignment
+    // operator to itself
+    var mutantExpressions = TestUtil.GetMutantExpressionTemplates(mutationGroup).ToArray();
+    mutantExpressions.Length.Should().Be(expectedReplacementOperators.Length);
+
+    // The expressions should match (regardless of order)
+    var validMutantExpressionsTemplate
+      = expectedReplacementOperators.Select(op => $"{{0}} {op} {{1}}");
+    mutantExpressions.Should().BeEquivalentTo(validMutantExpressionsTemplate);
   }
 }

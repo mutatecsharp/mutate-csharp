@@ -17,6 +17,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
   public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators();
 
+  
   public static ExpressionSyntax? GetOperand(T originalNode)
   {
     return originalNode switch
@@ -27,43 +28,49 @@ public abstract class AbstractUnaryMutationOperator<T>(
     };
   }
 
-  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode)
+  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType)
   {
-    var operandNode = GetOperand(originalNode);
-    if (operandNode == null) return Array.Empty<SyntaxKind>();
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature)
+      return [];
+    var operandAbsoluteType =
+      methodSignature.OperandTypes[0].GetNullableUnderlyingType();
 
-    var operandType = 
-      SemanticModel.ResolveTypeSymbol(operandNode)?.GetNullableUnderlyingType();
-    var returnType = SemanticModel.ResolveTypeSymbol(originalNode)?.GetNullableUnderlyingType();
-    
-    if (operandType is null)
-    {
-      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
-        operandNode.GetText(), operandNode.GetLocation().GetLineSpan().StartLinePosition.Line);
-      return Array.Empty<SyntaxKind>();
-    }
-    
-    if (returnType is null)
-    {
-      Log.Warning("Type symbol not available for {TypeSymbol} (line {Line})", 
-        originalNode.GetText(), originalNode.GetLocation().GetLineSpan().StartLinePosition.Line);
-      return Array.Empty<SyntaxKind>();
-    }
-
-    // Case 1: Predefined types
-    if (operandType.SpecialType != SpecialType.None)
-      return SupportedUnaryOperators()
-        .Where(replacementOpEntry =>
-          CanApplyOperatorForSpecialTypes(originalNode,
-            replacementOpEntry.Value))
-        .Select(replacementOpEntry => replacementOpEntry.Key);
-
-    // Case 2: User-defined types (type.SpecialType == SpecialType.None)
-    return SupportedUnaryOperators()
+    var validMutants = SupportedUnaryOperators()
       .Where(replacementOpEntry =>
-        CanApplyOperatorForUserDefinedTypes(originalNode,
-          replacementOpEntry.Value))
-      .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
+        originalNode.Kind() != replacementOpEntry.Key);
+
+    if (!IsOperandAssignable(originalNode))
+    {
+      // Remove candidate operators that modify variable if the operand is not
+      // assignable (example: !x where x is const and cannot be updated)
+      validMutants = validMutants.Where(replacementOpEntry =>
+        !CodeAnalysisUtil.VariableModifyingOperators.Contains(
+          replacementOpEntry.Key));
+    }
+
+    // Case 1: Special types (simple types, string)
+    if (operandAbsoluteType.SpecialType is not SpecialType.None)
+    {
+      validMutants = validMutants
+        .Where(replacementOpEntry =>
+          CanApplyOperatorForSpecialTypes(
+            methodSignature.ReturnType,
+            methodSignature.OperandTypes[0],
+            replacementOpEntry.Value));
+    }
+    else
+    {
+      // Case 2: User-defined types (type.SpecialType == SpecialType.None)
+      validMutants = validMutants
+        .Where(replacementOpEntry =>
+          CanApplyOperatorForUserDefinedTypes(
+            methodSignature.ReturnType,
+            methodSignature.OperandTypes[0],
+            replacementOpEntry.Value));
+    }
+    
+    return validMutants.Select(op => op.Key);
   }
 
   /*
@@ -73,39 +80,25 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 3) The replacement return type must be assignable to the original return type.
    */
   protected bool CanApplyOperatorForSpecialTypes(
-    T originalNode, CodeAnalysisUtil.Op replacementOp)
+    ITypeSymbol returnType, ITypeSymbol operandType, CodeAnalysisUtil.Op replacementOp)
   {
-    // Reject if the replacement candidate is the same as the original operator
-    if (originalNode.Kind() == replacementOp.ExprKind) return false;
+    // 1) Obtain underlying types (if nullable)
+    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
+    var operandAbsoluteType = operandType.GetNullableUnderlyingType();
 
-    // 1) Get the operand type name and return type name
-    var operand = GetOperand(originalNode);
-    if (operand == null) return false;
-    var operandType = SemanticModel.ResolveTypeSymbol(operand)?.GetNullableUnderlyingType();
-    var returnType = SemanticModel.ResolveConvertedTypeSymbol(originalNode)?.GetNullableUnderlyingType();
-    if (operandType is null || returnType is null) return false;
-    
-    // 2) Replacement operator is valid if its return type is in the same
-    // type group as the original operator type group
-    var operandTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(operandType.SpecialType);
-    var returnTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(returnType.SpecialType);
+    var mutantExpressionType = 
+      SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
+        replacementOp.ExprKind, returnAbsoluteType.SpecialType, 
+        operandAbsoluteType.SpecialType);
+    if (!mutantExpressionType.HasValue) return false;
 
-    // 3) Check if expression type is assignable to original return type,
-    // taking into account exclusion rules set by the C# specification
-    // (see PrefixUnaryExprOpReplacer)
-    var exprType = 
-      SemanticModel.ResolveUnaryPrimitiveReturnType(operandType.SpecialType,
-        replacementOp.ExprKind);
+    var (resolvedReturnType, resolvedOperandType) = mutantExpressionType.Value;
 
-    return !replacementOp.PrimitiveTypesToExclude(operandType.SpecialType)
-           && replacementOp.TypeSignatures
-             .Any(signature =>
-               signature.OperandType.HasFlag(operandTypeClassification)
-               && signature.ReturnType.HasFlag(returnTypeClassification))
-           && SemanticModel.Compilation.HasImplicitConversion(exprType,
-             returnType);
+    // Check if expression type is assignable to original return type
+    return SemanticModel.Compilation.HasImplicitConversion(
+             operandAbsoluteType, resolvedOperandType)
+           && SemanticModel.Compilation.HasImplicitConversion(
+             resolvedReturnType, returnAbsoluteType);
   }
 
   /*
@@ -144,42 +137,30 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 2) op2 should take a parameters of type A/A?;
    * 3) op2 should return type B.
    */
-  protected bool CanApplyOperatorForUserDefinedTypes(T originalNode,
-    CodeAnalysisUtil.Op replacementOp)
+  protected bool CanApplyOperatorForUserDefinedTypes(ITypeSymbol returnType,
+    ITypeSymbol operandType, CodeAnalysisUtil.Op replacementOp)
   {
-    // Reject if the replacement candidate is the same as the original operator
-    if (originalNode.Kind() == replacementOp.ExprKind) return false;
-
-    // 1) Get the operand type name and return type name
-    var operand = GetOperand(originalNode);
-    if (operand == null) return false;
-    
-    var operandTypeSymbol = 
-      SemanticModel.ResolveTypeSymbol(operand).GetNullableUnderlyingType();
-    var returnTypeSymbol =
-      SemanticModel.ResolveTypeSymbol(originalNode)?.GetNullableUnderlyingType();
-    if (operandTypeSymbol is null || returnTypeSymbol is null) return false;
+    // 1) Get nullable underlying type
+    var operandAbsoluteType = operandType.GetNullableUnderlyingType();
+    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
     
     // 2) Get operand type and return type in runtime
-    // If we cannot locate the type from the assembly of SUT, this means we
-    // are looking for types defined in the core library: we defer to the
-    // current assembly to get the type's runtime type
     var operandAbsoluteRuntimeType =
-      operandTypeSymbol.GetRuntimeType(SutAssembly);
+      operandAbsoluteType.GetRuntimeType(SutAssembly);
     var returnAbsoluteRuntimeType =
-      returnTypeSymbol.GetRuntimeType(SutAssembly);
+      returnAbsoluteType.GetRuntimeType(SutAssembly);
 
     if (operandAbsoluteRuntimeType is null)
     {
       Log.Debug("Assembly type information not available for {OperandType}",
-        operandTypeSymbol.ToClrTypeName());
+        operandType.ToClrTypeName());
       return false;
     }
       
     if (returnAbsoluteRuntimeType is null)
     {
       Log.Debug("Assembly type information not available for {OperandType}",
-        returnTypeSymbol.ToClrTypeName());
+        returnType.ToClrTypeName());
       return false;
     }
 
@@ -189,16 +170,31 @@ public abstract class AbstractUnaryMutationOperator<T>(
       var replacementOpMethod =
         operandAbsoluteRuntimeType.GetMethod(replacementOp.MemberName,
           [operandAbsoluteRuntimeType]);
+      
+      // Return type could be of value type, in which case a nullable type
+      // should be constructed
+      var returnRuntimeType = 
+        returnAbsoluteType.IsValueType && returnType.IsTypeSymbolNullable()
+        ? returnAbsoluteRuntimeType.ConstructNullableValueType(sutAssembly)
+        : returnAbsoluteRuntimeType;
 
       // 4) Replacement operator is valid if its return type is assignable to
       // the original operator return type
       return replacementOpMethod is not null &&
-             replacementOpMethod.ReturnType.IsAssignableTo(
-               returnAbsoluteRuntimeType);
+             replacementOpMethod.ReturnType.IsAssignableTo(returnRuntimeType);
     }
     catch (AmbiguousMatchException)
     {
       return false;
     }
+  }
+  
+  private bool IsOperandAssignable(T originalNode)
+  {
+    var operand = GetOperand(originalNode)!;
+    return CodeAnalysisUtil.VariableModifyingOperators.Contains(
+             originalNode.Kind())
+           || (SemanticModel.GetSymbolInfo(operand).Symbol?.IsSymbolVariable() 
+               ?? false);
   }
 }

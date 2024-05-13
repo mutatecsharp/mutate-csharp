@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using MutateCSharp.Mutation.Registry;
 using Serilog;
@@ -16,18 +17,37 @@ internal static class AnalyseHandler
         FileStream(options.AbsoluteRegistryPath, FileMode.Open, FileAccess.Read);
       var mutationRegistry =
         await JsonSerializer.DeserializeAsync<ProjectLevelMutationRegistry>(fs);
-
-      var totalMutations = 0;
-      foreach (var entry in mutationRegistry!.ProjectRelativePathToRegistry)
+      if (mutationRegistry is null)
       {
-        Log.Information("{MutationCount} mutations in {File}", entry.Value.Mutations.Count, entry.Key);
-        totalMutations += entry.Value.Mutations.Count;
+        Log.Error("Registry has been corrupted. To resolve this, rerun the mutate phase to obtain a fresh registry set.");
+        return;
       }
-      Log.Information("Total mutation count: {TotalMutationCount}", totalMutations);
+      
+      DisplayMutationInfo(mutationRegistry);
     }
     else
     {
       Log.Error("No mutation registry specified.");
     }
+  }
+
+  internal static void DisplayMutationInfo(
+    ProjectLevelMutationRegistry mutationRegistry)
+  {
+    var totalMutations = 0;
+    
+    // Sort by path for nicer output
+    var registrySortedByPath =
+      mutationRegistry.ProjectRelativePathToRegistry
+        .OrderBy(entry => entry.Key)
+        .ToImmutableSortedDictionary();
+    
+    foreach (var entry in registrySortedByPath)
+    {
+      Log.Information("{MutationCount} mutations in {File}", entry.Value.Mutations.Count, entry.Key);
+      totalMutations += entry.Value.Mutations.Count;
+    }
+    
+    Log.Information("Total mutation count: {TotalMutationCount}", totalMutations);
   }
 }

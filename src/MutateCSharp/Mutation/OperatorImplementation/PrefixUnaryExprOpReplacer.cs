@@ -34,9 +34,11 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node)!.GetNullableUnderlyingType());
 
-    // Ignore: type contains generic type parameter
+    // Exclude node from mutation:
+    // 1) If type contains generic type parameter;
+    // 2) If type is private (and thus inaccessible).
     return types.All(type =>
       !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
       && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
@@ -50,7 +52,8 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
   protected override ExpressionRecord OriginalExpression(
     PrefixUnaryExpressionSyntax originalNode,
-    ImmutableArray<ExpressionRecord> _)
+    ImmutableArray<ExpressionRecord> _, 
+    ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -58,17 +61,10 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(PrefixUnaryExpressionSyntax originalNode)
+    ValidMutantExpressions(PrefixUnaryExpressionSyntax originalNode, 
+      ITypeSymbol? requiredReturnType)
   {
-    // Perform additional filtering for assignable variables
-    // TODO: move assignable logic validation to abstract class
-    var validMutants = ValidMutants(originalNode).ToHashSet();
-    if (!IsOperandAssignable(originalNode))
-    {
-      validMutants.Remove(SyntaxKind.PreIncrementExpression);
-      validMutants.Remove(SyntaxKind.PreDecrementExpression);
-    }
-
+    var validMutants = ValidMutants(originalNode, requiredReturnType);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
@@ -80,48 +76,90 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       )
     ];
   }
-
-  protected override ImmutableArray<string> ParameterTypes(
-    PrefixUnaryExpressionSyntax originalNode,
-    ImmutableArray<ExpressionRecord> mutantExpressions)
+  
+  // check for required return type and operator for type compatability
+  protected override CodeAnalysisUtil.MethodSignature?
+    NonMutatedTypeSymbols(PrefixUnaryExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
     var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)!;
+    var returnType = SemanticModel.ResolveTypeSymbol(originalNode)!;
+    var operandAbsoluteType = operandType.GetNullableUnderlyingType();
+    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
+    // Don't have to check for the null keyword since no unary operator is
+    // applicable to the null keyword (null has no type in C#)
+    if (operandAbsoluteType.IsNumeric())
+    {
+      if (originalNode.Operand.IsKind(SyntaxKind.NumericLiteralExpression)
+          && SemanticModel.CanImplicitlyConvertNumericLiteral(
+            originalNode.Operand, returnType.SpecialType))
+      {
+        operandAbsoluteType = returnAbsoluteType;
+      }
+      
+      if (SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
+            originalNode.Kind(), returnAbsoluteType.SpecialType,
+            operandAbsoluteType.SpecialType) is { } result)
+      {
+        // Reconstruct if nullable
+        return new CodeAnalysisUtil.MethodSignature(
+          returnType.IsTypeSymbolNullable()
+            ? SemanticModel.ConstructNullableValueTypeSymbol(
+              result.returnSymbol)
+            : result.returnSymbol,
+          [
+            operandType.IsTypeSymbolNullable()
+              ? SemanticModel.ConstructNullableValueTypeSymbol(
+                result.operandSymbol)
+              : result.operandSymbol
+          ]
+        ); 
+      }
+      
+      return null;
+    }
+    
+    // Remove nullable if operand is of reference type, since reference type
+    // T? can be cast to T
     if (!operandType.IsValueType)
-      operandType = operandType.GetNullableUnderlyingType()!;
+      operandType = operandType.GetNullableUnderlyingType();
 
+    return new CodeAnalysisUtil.MethodSignature(returnType, [operandType]);
+  }
+
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(
+    PrefixUnaryExpressionSyntax originalNode, 
+    ImmutableArray<ExpressionRecord> mutantExpressions,
+    ITypeSymbol? requiredReturnType)
+  {
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature) return [];
+    
     // Check if any of original or mutant expressions update the argument
     return CodeAnalysisUtil.VariableModifyingOperators.Contains(
              originalNode.Kind())
            || mutantExpressions.Any(op =>
              CodeAnalysisUtil.VariableModifyingOperators.Contains(op.Operation))
-      ? [$"ref {operandType.ToDisplayString()}"]
-      : [operandType.ToDisplayString()];
+      ? [$"ref {methodSignature.OperandTypes[0].ToDisplayString()}"]
+      : [methodSignature.OperandTypes[0].ToDisplayString()];
   }
 
-  protected override string ReturnType(PrefixUnaryExpressionSyntax originalNode)
+  protected override string SchemaReturnTypeDisplay(PrefixUnaryExpressionSyntax originalNode,
+    ITypeSymbol? requiredReturnType)
   {
-    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
+    return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+      { } typeSignature ? string.Empty : typeSignature.ReturnType.ToDisplayString();
   }
 
-  protected override string SchemaBaseName(
-    PrefixUnaryExpressionSyntax originalNode)
+  protected override string SchemaBaseName()
   {
-    return $"ReplacePrefixUnaryExprOpReturn{ReturnType(originalNode)}";
+    return "ReplacePrefixUnaryExprOp";
   }
 
   public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators()
   {
     return SupportedOperators;
-  }
-
-  private bool IsOperandAssignable(PrefixUnaryExpressionSyntax originalNode)
-  {
-    return originalNode.Kind()
-             is SyntaxKind.PreIncrementExpression
-             or SyntaxKind.PreDecrementExpression
-           || (SemanticModel.GetSymbolInfo(originalNode.Operand).Symbol?
-             .IsSymbolVariable() ?? false);
   }
 }
 
@@ -135,51 +173,37 @@ public sealed partial class PrefixUnaryExprOpReplacer
           SyntaxKind.UnaryPlusExpression, // +x
           new(SyntaxKind.UnaryPlusExpression,
             SyntaxKind.PlusToken,
-            WellKnownMemberNames.UnaryPlusOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.UnaryPlusOperatorName)
         },
         {
           SyntaxKind.UnaryMinusExpression, // -x
           new(SyntaxKind.UnaryMinusExpression,
             SyntaxKind.MinusToken,
-            WellKnownMemberNames.UnaryNegationOperatorName,
-            CodeAnalysisUtil.ArithmeticTypeSignature,
-            // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/arithmetic-operators
-            // ulong type does not support unary - operator.
-            PrimitiveTypesToExclude: type => type is SpecialType.System_UInt64)
+            WellKnownMemberNames.UnaryNegationOperatorName)
         },
         {
           SyntaxKind.BitwiseNotExpression, // ~x
           new(SyntaxKind.BitwiseNotExpression,
             SyntaxKind.TildeToken,
-            WellKnownMemberNames.OnesComplementOperatorName,
-            CodeAnalysisUtil.BitwiseShiftTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.OnesComplementOperatorName)
         },
         {
           SyntaxKind.LogicalNotExpression, // !x
           new(SyntaxKind.LogicalNotExpression,
             SyntaxKind.ExclamationToken,
-            WellKnownMemberNames.LogicalNotOperatorName,
-            CodeAnalysisUtil.BooleanLogicalTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.LogicalNotOperatorName)
         },
         {
           SyntaxKind.PreIncrementExpression, // ++x
           new(SyntaxKind.PreIncrementExpression,
             SyntaxKind.PlusPlusToken,
-            WellKnownMemberNames.IncrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.IncrementOperatorName)
         },
         {
           SyntaxKind.PreDecrementExpression, // --x
           new(SyntaxKind.PreDecrementExpression,
             SyntaxKind.MinusMinusToken,
-            WellKnownMemberNames.DecrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.DecrementOperatorName)
         }
       }.ToFrozenDictionary();
 

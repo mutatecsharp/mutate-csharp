@@ -70,32 +70,32 @@ public sealed partial class MutatorAstRewriter(
       .WithTrailingTrivia(nodeWithMutatedChildren.GetTrailingTrivia());
   }
 
-  public override SyntaxNode VisitLiteralExpression(
-    LiteralExpressionSyntax node)
+  public ExpressionSyntax VisitLiteralExpressionWithRequiredReturnType(LiteralExpressionSyntax node,
+    ITypeSymbol? requiredReturnType = default)
   {
-    // 1: Mutate all children nodes
-    var nodeWithMutatedChildren =
-      (LiteralExpressionSyntax)base.VisitLiteralExpression(node)!;
+    // 1: Apply mutation operator to obtain possible mutations
+    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, requiredReturnType);
+    if (mutationGroup is null) return node;
 
-    // 2: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node);
-    if (mutationGroup is null) return nodeWithMutatedChildren;
-
-    // 3: Get assignment of mutant IDs for the mutation group
+    // 2: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
       schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
 
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
 
-    // 4: Mutate node
+    // 3: Mutate node
     return SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       schemaRegistry.ClassName,
       schemaRegistry.GetUniqueSchemaName(mutationGroup),
       baseMutantIdLiteral,
-      nodeWithMutatedChildren
-    );
+      node);
+  }
+
+  public override ExpressionSyntax VisitLiteralExpression(LiteralExpressionSyntax node)
+  {
+    return VisitLiteralExpressionWithRequiredReturnType(node, null);
   }
 
   public override SyntaxNode VisitBinaryExpression(BinaryExpressionSyntax node)
@@ -122,33 +122,51 @@ public sealed partial class MutatorAstRewriter(
       node.Left.ContainsDeclarationPatternSyntax();
     var rightContainsDeclarationSyntax =
       node.Right.ContainsDeclarationPatternSyntax();
-
-    var leftChild = leftContainsDeclarationSyntax 
-      ? node.Left
-      : (ExpressionSyntax)Visit(node.Left);
-    var rightChild = rightContainsDeclarationSyntax
-      ? node.Right
-      : (ExpressionSyntax)Visit(node.Right);
-    var nodeWithMutatedChildren =
-      node.WithLeft(leftChild).WithRight(rightChild);
     
     // 2: Do not mutate current node if any descendants of current node contain
     // declaration pattern syntax
     if (leftContainsDeclarationSyntax || rightContainsDeclarationSyntax)
-      return nodeWithMutatedChildren;
+      return node
+        .WithLeft(leftContainsDeclarationSyntax ? 
+          node.Left : (ExpressionSyntax)Visit(node.Left))
+        .WithRight(rightContainsDeclarationSyntax ?
+          node.Right : (ExpressionSyntax)Visit(node.Right));
 
     // 3: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node);
-    if (mutationGroup is null) return nodeWithMutatedChildren;
+    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, null);
+    if (mutationGroup is null)
+      return node
+        .WithLeft((ExpressionSyntax)Visit(node.Left))
+        .WithRight((ExpressionSyntax)Visit(node.Right));
+    
+    // 4: handle the special case where syntax node is compound
+    // assignment expression and RHS is numeric literal
+    BinaryExpressionSyntax? nodeWithMutatedChildren;
+    
+    if (CompoundAssignOpReplacer.SupportedOperators.ContainsKey(node.Kind())
+        && node.Right.IsKind(SyntaxKind.NumericLiteralExpression))
+    {
+      var literalSyntax = (LiteralExpressionSyntax)node.Right;
+      var mutatedLiteral =
+        VisitLiteralExpressionWithRequiredReturnType(literalSyntax,
+          mutationGroup.ParameterTypeSymbols[1]);
+      nodeWithMutatedChildren = node.WithRight(mutatedLiteral);
+    }
+    else
+    {
+      nodeWithMutatedChildren = node
+        .WithLeft((ExpressionSyntax)Visit(node.Left))
+        .WithRight((ExpressionSyntax)Visit(node.Right));
+    }
 
-    // 4: Get assignment of mutant IDs for the mutation group
+    // 5: Get assignment of mutant IDs for the mutation group
     var baseMutantId =
       schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
 
     var baseMutantIdLiteral = SyntaxFactory.LiteralExpression(
       SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(baseMutantId));
 
-    // 5: Mutate node
+    // 6: Mutate node
     // Handle short-circuit operators
     var containsShortCircuitOperators =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(node.Kind())
@@ -186,7 +204,7 @@ public sealed partial class MutatorAstRewriter(
       (PrefixUnaryExpressionSyntax)base.VisitPrefixUnaryExpression(node)!;
 
     // 2: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node);
+    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, null);
     if (mutationGroup is null) return nodeWithMutatedChildren;
 
     // 3: Get assignment of mutant IDs for the mutation group
@@ -226,7 +244,7 @@ public sealed partial class MutatorAstRewriter(
       (PostfixUnaryExpressionSyntax)base.VisitPostfixUnaryExpression(node)!;
 
     // 2: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node);
+    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, null);
     if (mutationGroup is null) return nodeWithMutatedChildren;
 
     // 3: Get assignment of mutant IDs for the mutation group

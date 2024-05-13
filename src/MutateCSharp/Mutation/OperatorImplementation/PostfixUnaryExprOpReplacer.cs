@@ -29,7 +29,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
       return false;
 
     var types = nodes.Select(node =>
-      SemanticModel.ResolveTypeSymbol(node).GetNullableUnderlyingType()!);
+      SemanticModel.ResolveTypeSymbol(node)!.GetNullableUnderlyingType()!);
 
     // Ignore: type contains generic type parameter / is private
     return types.All(type =>
@@ -45,7 +45,8 @@ public sealed partial class PostfixUnaryExprOpReplacer(
 
   protected override ExpressionRecord OriginalExpression(
     PostfixUnaryExpressionSyntax originalNode,
-    ImmutableArray<ExpressionRecord> mutantExpressions)
+    ImmutableArray<ExpressionRecord> mutantExpressions, 
+    ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -59,9 +60,10 @@ public sealed partial class PostfixUnaryExprOpReplacer(
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(PostfixUnaryExpressionSyntax originalNode)
+    ValidMutantExpressions(PostfixUnaryExpressionSyntax originalNode, 
+      ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode);
+    var validMutants = ValidMutants(originalNode, requiredReturnType);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
@@ -74,28 +76,47 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     ];
   }
 
-  protected override ImmutableArray<string> ParameterTypes(
-    PostfixUnaryExpressionSyntax originalNode,
-    ImmutableArray<ExpressionRecord> _)
+  protected override CodeAnalysisUtil.MethodSignature?
+    NonMutatedTypeSymbols(PostfixUnaryExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
+  {
+    var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)!;
+    var returnType = SemanticModel.ResolveTypeSymbol(originalNode)!;
+    // Don't have to check for the null keyword since no unary operator is
+    // applicable to the null keyword (null has no type in C#)
+    
+    // Don't have to resolve for numeric literals; it is guaranteed the operand
+    // is assignable variable
+    
+    // Remove nullable if operand is of reference type, since reference type
+    // T? can be cast to T
+    if (!operandType.IsValueType)
+      operandType = operandType.GetNullableUnderlyingType();
+
+    return new CodeAnalysisUtil.MethodSignature(returnType, [operandType]);
+  }
+
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(
+    PostfixUnaryExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> mutantExpressions,
+    ITypeSymbol? requiredReturnType)
   {
     // Since the supported postfix unary expressions can be either 
     // postincrement or postdecrement, they are guaranteed to be updatable
-    var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Operand)!;
-    if (!operandType.IsValueType)
-      operandType = operandType.GetNullableUnderlyingType()!;
-    return [$"ref {operandType.ToDisplayString()}"];
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature) return [];
+    return [$"ref {methodSignature.OperandTypes[0]}"];
   }
 
-  protected override string ReturnType(
-    PostfixUnaryExpressionSyntax originalNode)
+  protected override string SchemaReturnTypeDisplay(PostfixUnaryExpressionSyntax originalNode,
+    ITypeSymbol? requiredReturnType)
   {
-    return SemanticModel.ResolveTypeSymbol(originalNode)!.ToDisplayString();
+    return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+      { } typeSignature ? string.Empty : typeSignature.ReturnType.ToDisplayString();
   }
 
-  protected override string SchemaBaseName(
-    PostfixUnaryExpressionSyntax originalNode)
+  protected override string SchemaBaseName()
   {
-    return $"ReplacePostfixUnaryExprOpReturn{ReturnType(originalNode)}";
+    return "ReplacePostfixUnaryExprOp";
   }
 }
 
@@ -109,17 +130,13 @@ public sealed partial class PostfixUnaryExprOpReplacer
           SyntaxKind.PostIncrementExpression, // x++
           new(SyntaxKind.PostIncrementExpression,
             SyntaxKind.PlusPlusToken,
-            WellKnownMemberNames.IncrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.IncrementOperatorName)
         },
         {
           SyntaxKind.PostDecrementExpression, //x--
           new(SyntaxKind.PostDecrementExpression,
             SyntaxKind.MinusMinusToken,
-            WellKnownMemberNames.DecrementOperatorName,
-            CodeAnalysisUtil.IncrementOrDecrementTypeSignature,
-            PrimitiveTypesToExclude: CodeAnalysisUtil.NothingToExclude)
+            WellKnownMemberNames.DecrementOperatorName)
         }
       }.ToFrozenDictionary();
 

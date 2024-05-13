@@ -50,7 +50,7 @@ public class FileLevelMutantSchemaRegistry
     if (!_mutationGroupsToSuffix.ContainsKey(mutationGroup))
       _mutationGroupsToSuffix[mutationGroup] = _suffixIdGenerator++;
     _baseIdToMutationGroup[baseId] = mutationGroup;
-    _mutantIdGenerator += mutationGroup.SchemaMutantExpressions.Count;
+    _mutantIdGenerator += mutationGroup.SchemaMutantExpressions.Length;
     return baseId;
   }
 
@@ -70,7 +70,7 @@ public class FileLevelMutantSchemaRegistry
     
     foreach (var (baseId, group) in _baseIdToMutationGroup)
     {
-      for (var i = 0; i < group.SchemaMutantExpressions.Count; i++)
+      for (var i = 0; i < group.SchemaMutantExpressions.Length; i++)
       {
         var mutation = new Mutation
         {

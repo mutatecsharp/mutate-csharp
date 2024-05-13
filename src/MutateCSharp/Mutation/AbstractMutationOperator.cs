@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
+using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation;
 
@@ -20,32 +21,38 @@ public abstract class AbstractMutationOperator<T>(
     // The type check guarantees originalNode cannot be null
     return originalNode is T node && CanBeApplied(node);
   }
-
-  public MutationGroup? CreateMutationGroup(SyntaxNode? originalNode)
+  
+  public MutationGroup? CreateMutationGroup(SyntaxNode? originalNode, 
+    ITypeSymbol? requiredReturnType)
   {
     // Guard against nullable values in the validation check
     if (!CanBeApplied(originalNode)) return null;
     var node = (T)originalNode!;
+    var typeSymbols = NonMutatedTypeSymbols(node, requiredReturnType);
+    if (typeSymbols is null) return null;
 
-    var mutationsWithId = ValidMutantExpressions(node);
+    var mutationsWithId = ValidMutantExpressions(node, requiredReturnType);
     if (mutationsWithId.Length == 0) return null;
 
     var mutations =
       mutationsWithId.Select(entry => entry.expr).ToImmutableArray();
     var uniqueMutantsId =
       string.Join(string.Empty, mutationsWithId.Select(entry => entry.exprIdInMutator));
-
+    
     // Replace (?, .) characters in schema's base name that contains the return type
-    var schemaName = SchemaBaseName(node)
+    var returnTypeDisplay = SchemaReturnTypeDisplay(node, requiredReturnType);
+    var schemaName = $"{SchemaBaseName()}Return{returnTypeDisplay}"
       .Replace(".", string.Empty)
       .Replace("?", "Nullable");
     
     return new MutationGroup
     {
       SchemaName = $"{schemaName}{uniqueMutantsId}",
-      SchemaParameterTypes = ParameterTypes(node, mutations),
-      SchemaReturnType = ReturnType(node),
-      SchemaOriginalExpression = OriginalExpression(node, mutations),
+      SchemaParameterTypes = SchemaParameterTypeDisplays(node, mutations, requiredReturnType),
+      ParameterTypeSymbols = typeSymbols.OperandTypes,
+      SchemaReturnType = returnTypeDisplay,
+      ReturnTypeSymbol = typeSymbols.ReturnType,
+      SchemaOriginalExpression = OriginalExpression(node, mutations, requiredReturnType),
       SchemaMutantExpressions = mutations,
       OriginalLocation = node.GetLocation()
     };
@@ -54,7 +61,7 @@ public abstract class AbstractMutationOperator<T>(
   protected abstract bool CanBeApplied(T originalNode);
 
   protected abstract ExpressionRecord OriginalExpression(T originalNode,
-    ImmutableArray<ExpressionRecord> mutantExpressions);
+    ImmutableArray<ExpressionRecord> mutantExpressions, ITypeSymbol? requiredReturnType);
 
   // Generate list of valid mutations for the currently visited node, in the
   // form of string template to be formatted later to insert arguments.
@@ -62,19 +69,26 @@ public abstract class AbstractMutationOperator<T>(
   // the context of the mutation operator class.
   protected abstract
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(T originalNode);
+    ValidMutantExpressions(T originalNode, ITypeSymbol? requiredReturnType);
+  
+  /*
+   * Type symbols of the syntax node under mutation before it is mutated.
+   * Value types may be nullable; reference types are guaranteed to be non-nullable.
+   * Return type may be nullable regardless of value type or reference type.
+   */
+  protected abstract CodeAnalysisUtil.MethodSignature?
+    NonMutatedTypeSymbols(T originalNode, ITypeSymbol? requiredReturnType);
+  
+  protected abstract ImmutableArray<string> 
+    SchemaParameterTypeDisplays(T originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions, ITypeSymbol? requiredReturnType);
 
-  // Parameter type of the programming construct.
-  protected abstract ImmutableArray<string> ParameterTypes(T originalNode,
-    ImmutableArray<ExpressionRecord> mutantExpressions);
-
-  // Return type of the programming construct (expression, statement)
-  // represented by type of node under mutation.
-  protected abstract string ReturnType(T originalNode);
+  protected abstract string SchemaReturnTypeDisplay(T originalNode,
+    ITypeSymbol? requiredReturnType);
 
   // The method name used to identify the replacement operation.
   // Note: this is not unique as there can be multiple expressions of the
   // same form and type replaced; these can call the same method
   // (The deduplication process will be handled in MutantSchemataGenerator)
-  protected abstract string SchemaBaseName(T originalNode);
+  protected abstract string SchemaBaseName();
 }

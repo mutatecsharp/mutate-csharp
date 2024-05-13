@@ -38,7 +38,7 @@ public static class MutantSchemataGenerator
       $"internal static {mutationGroup.SchemaReturnType} {schemaRegistry.GetUniqueSchemaName(mutationGroup)}({MutantIdType} mutantId"
     );
 
-    for (var i = 0; i < mutationGroup.SchemaParameterTypes.Count; i++)
+    for (var i = 0; i < mutationGroup.SchemaParameterTypes.Length; i++)
       result.Append(
         $", {mutationGroup.SchemaParameterTypes[i]} {PredefinedParameterNames[i]}");
 
@@ -64,22 +64,22 @@ public static class MutantSchemataGenerator
 
     // Out of range case: if (!ActivatedInRange(mutantId, mutantId + n)) { return originalExpression; }
     result.Append(
-      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Count - 1})) {{ return ");
+      $"if (!ActivatedInRange(mutantId, mutantId + {mutationGroup.SchemaMutantExpressions.Length - 1})) {{ return ");
     // result.Append($"({mutationGroup.SchemaReturnType}) (");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
-      mutationGroup.SchemaParameterTypes.Count);
+      mutationGroup.SchemaParameterTypes.Length);
     result.Append("; }");
     result.AppendLine();
 
     // Case: if (_activatedMutantId == mutantId + i) { return mutatedExpression; }
-    for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Count; i++)
+    for (var i = 0; i < mutationGroup.SchemaMutantExpressions.Length; i++)
     {
       result.Append($"if (ActivatedMutantId.Value == mutantId + {i}) {{ return ");
       // result.Append($"({mutationGroup.SchemaReturnType}) (");
       result.MaterialiseExpressionFromTemplate(
         mutationGroup.SchemaMutantExpressions[i].ExpressionTemplate,
-        mutationGroup.SchemaParameterTypes.Count);
+        mutationGroup.SchemaParameterTypes.Length);
       result.Append("; }");
       result.AppendLine();
     }
@@ -94,7 +94,7 @@ public static class MutantSchemataGenerator
     // result.Append($"({mutationGroup.SchemaReturnType}) (");
     result.MaterialiseExpressionFromTemplate(
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate,
-      mutationGroup.SchemaParameterTypes.Count);
+      mutationGroup.SchemaParameterTypes.Length);
     result.Append(";");
     #endif
     result.AppendLine();

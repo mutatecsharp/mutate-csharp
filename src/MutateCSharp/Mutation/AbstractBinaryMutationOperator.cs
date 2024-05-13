@@ -14,8 +14,20 @@ public abstract class AbstractBinaryMutationOperator<T>(
   : AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T : ExpressionSyntax // currently support binary expression and assignment expression
 {
-  public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+  protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
+
+  /*
+   * Value types may be nullable; reference types are guaranteed to be non-nullable.
+   */
+  // protected abstract
+  //   (ITypeSymbol leftTypeSymbol, ITypeSymbol rightTypeSymbol)
+  //   ParameterTypeSymbols(T originalNode);
+
+  /*
+   * Return type may be nullable regardless of value type or reference type.
+   */
+  // protected abstract ITypeSymbol ReturnTypeSymbol(T originalNode);
 
   public static ExpressionSyntax? GetLeftOperand(T originalNode)
   {
@@ -37,61 +49,61 @@ public abstract class AbstractBinaryMutationOperator<T>(
     };
   }
 
-  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode)
+  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType)
   {
-    var left = GetLeftOperand(originalNode);
-    var right = GetRightOperand(originalNode);
-    if (left == null || right == null) return Array.Empty<SyntaxKind>();
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature) return [];
 
-    var leftType = SemanticModel.ResolveTypeSymbol(left).GetNullableUnderlyingType();
-    var rightType = SemanticModel.ResolveTypeSymbol(right).GetNullableUnderlyingType();
-    var returnType = SemanticModel.ResolveTypeSymbol(originalNode).GetNullableUnderlyingType();
+    var leftType = methodSignature.OperandTypes[0];
+    var rightType = methodSignature.OperandTypes[1];
+    
+    var leftAbsoluteType = leftType.GetNullableUnderlyingType();
+    var rightAbsoluteType = rightType.GetNullableUnderlyingType();
 
-    if (leftType is null)
+    var validMutants = SupportedBinaryOperators()
+      .Where(replacementOpEntry =>
+        originalNode.Kind() != replacementOpEntry.Key);
+
+    // https://github.com/dotnet/csharplang/issues/871
+    // C# does not allow either operand of short-circuit operators to contain nullable
+    if (leftType.IsTypeSymbolNullable() || rightType.IsTypeSymbolNullable())
     {
-      Log.Warning("Type information not available for {Expression} (line {Line})", 
-        left.GetText(), left.GetLocation().GetLineSpan().StartLinePosition.Line);
-      return Array.Empty<SyntaxKind>();
+      validMutants = validMutants.Where(replacementOpEntry =>
+        !CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOpEntry.Key));
+    }
+    
+    // Simple types: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/types#835-simple-types
+    // Case 1: Simple types (value types) and string type (reference type)
+    if (leftAbsoluteType.SpecialType is not SpecialType.None &&
+        rightAbsoluteType.SpecialType is not SpecialType.None)
+    {
+      validMutants = validMutants
+        .Where(replacementOpEntry =>
+          CanApplyOperatorForSpecialTypes(
+            leftAbsoluteType,
+            rightAbsoluteType,
+            methodSignature.ReturnType.GetNullableUnderlyingType(),
+            replacementOpEntry.Value));
+    }
+    else
+    {
+      // Case 2: User-defined types
+      // At this point, either the left and/or right operand is user-defined
+      // Since overloaded operators can return types that do not relate to the
+      // current class, we should check the overloaded operators from the
+      // operand types
+      // We attempt overload resolution as specified in
+      // https://learn.microsoft.com/en-us/dotnet/visual-basic/reference/language-specification/overload-resolution
+      validMutants = validMutants
+        .Where(replacementOpEntry =>
+          CanApplyOperatorForUserDefinedTypes(
+            methodSignature.ReturnType,
+            methodSignature.OperandTypes[0],
+            methodSignature.OperandTypes[1],
+            replacementOpEntry.Value));
     }
 
-    if (rightType is null)
-    {
-      Log.Warning("Type information not available for {Expression} (line {Line})", 
-        right.GetText(), right.GetLocation().GetLineSpan().StartLinePosition.Line);
-      return Array.Empty<SyntaxKind>();
-    }
-
-    if (returnType is null)
-    {
-      Log.Warning("Type information not available for {Expression} (line {Line})", 
-        originalNode.GetText(), originalNode.GetLocation().GetLineSpan().StartLinePosition.Line);
-      return Array.Empty<SyntaxKind>();
-    }
-
-    // Case 1: Predefined types
-    // Binary operators can take operand of separate types, warranting the
-    // necessity to check the operand type
-    if (leftType.SpecialType != SpecialType.None
-        && rightType.SpecialType != SpecialType.None)
-      return SupportedBinaryOperators()
-        .Where(replacementOpEntry
-          => CanApplyOperatorForSpecialTypes(
-            originalNode, replacementOpEntry.Value))
-        .Select(replacementOpEntry => replacementOpEntry.Key);
-
-    // Case 2: User-defined types
-    // At this point, either the left or right operand is user-defined
-    // Since overloaded operators can return types that do not relate to the
-    // current class, we should check the overloaded operators from the
-    // operand types
-    //
-    // We attempt overload resolution as specified in
-    // https://learn.microsoft.com/en-us/dotnet/visual-basic/reference/language-specification/overload-resolution
-    return SupportedBinaryOperators()
-      .Where(replacementOpEntry
-        => CanApplyOperatorForUserDefinedTypes(originalNode,
-          replacementOpEntry.Value))
-      .Select(replacementOpMethodEntry => replacementOpMethodEntry.Key);
+    return validMutants.Select(op => op.Key);
   }
 
   /*
@@ -114,70 +126,33 @@ public abstract class AbstractBinaryMutationOperator<T>(
      * 3) The replacement return type must be assignable to the original return type.
  */
   private bool CanApplyOperatorForSpecialTypes(
-    T originalNode, CodeAnalysisUtil.Op replacementOp)
+    ITypeSymbol leftAbsoluteType,
+    ITypeSymbol rightAbsoluteType,
+    ITypeSymbol returnType,
+    CodeAnalysisUtil.Op replacementOp)
   {
-    // Operator checks
-    // Reject if the replacement candidate is the same as the original operator
-    if (originalNode.Kind() == replacementOp.ExprKind) return false;
+    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
+    
+    // Obtain mutant expression return type for the replacement operator
+    var mutantExpressionType = 
+      SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
+      replacementOp.ExprKind, returnAbsoluteType.SpecialType,
+      leftAbsoluteType.SpecialType, rightAbsoluteType.SpecialType);
+    if (!mutantExpressionType.HasValue) return false;
 
-    // Type checks
-    var leftOperand = GetLeftOperand(originalNode);
-    var rightOperand = GetRightOperand(originalNode);
-    if (leftOperand is null || rightOperand is null) return false;
-
-    var returnType = SemanticModel.ResolveTypeSymbol(originalNode);
-    var leftOperandType = SemanticModel.ResolveTypeSymbol(leftOperand);
-    var rightOperandType = SemanticModel.ResolveTypeSymbol(rightOperand);
-    if (returnType is null || leftOperandType is null || rightOperandType is null) 
-      return false;
-
-    // Check for underlying types
-    var returnAbsoluteType = returnType.GetNullableUnderlyingType()!;
-    var leftOperandAbsoluteType = leftOperandType.GetNullableUnderlyingType()!;
-    var rightOperandAbsoluteType = rightOperandType.GetNullableUnderlyingType()!;
+    var (resolvedReturnType, resolvedLeftType, resolvedRightType) =
+      mutantExpressionType.Value;
     
-    // https://github.com/dotnet/csharplang/issues/871
-    // C# does not allow either operand of short-circuit operators to contain nullable
-    var leftIsNullable =
-      !SymbolEqualityComparer.IncludeNullability.Equals(leftOperandType,
-        leftOperandAbsoluteType);
-    var rightIsNullable =
-      !SymbolEqualityComparer.IncludeNullability.Equals(rightOperandType,
-        rightOperandAbsoluteType);
-    
-    if ((leftIsNullable || rightIsNullable) &&
-        CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOp.ExprKind))
-      return false;
-
-    var returnTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(returnAbsoluteType.SpecialType);
-    var leftOperandTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(leftOperandAbsoluteType.SpecialType);
-    var rightOperandTypeClassification =
-      CodeAnalysisUtil.GetSpecialTypeClassification(
-        rightOperandAbsoluteType.SpecialType);
-    
-    // Check if mutant expression return type is assignable to original return type
-    var mutantExpressionType = SemanticModel.ResolveBinaryPrimitiveReturnType(
-      leftOperandAbsoluteType.SpecialType, rightOperandAbsoluteType.SpecialType,
-      replacementOp.ExprKind);
-    if (mutantExpressionType is null) return false;
-    // Add nullable to type
-    if (leftIsNullable || rightIsNullable)
-      mutantExpressionType =
-        SemanticModel.ConstructNullableValueType(mutantExpressionType);
-    
-    // Reject if the replacement operator type group is not the same as the
-    // original operator type group
-    
-    // Only check right operand type for exclusion -> see BinExprOpReplacer for more info
-    return replacementOp.TypeSignatures
-      .Any(signature => 
-        signature.ReturnType.HasFlag(returnTypeClassification)
-        && signature.OperandType.HasFlag(leftOperandTypeClassification)
-        && signature.OperandType.HasFlag(rightOperandTypeClassification))
-      && !replacementOp.PrimitiveTypesToExclude(rightOperandAbsoluteType.SpecialType)
-      && SemanticModel.Compilation.HasImplicitConversion(mutantExpressionType, returnType);
+    // Check if mutant expression return type has an implicit conversion to the
+    // original return type, and if each of the original expression operand type
+    // has an implicit conversion to the corresponding mutant expression operand
+    // type
+    return SemanticModel.Compilation.HasImplicitConversion(
+             resolvedReturnType, returnType)
+           && SemanticModel.Compilation.HasImplicitConversion(
+             leftAbsoluteType, resolvedLeftType)
+           && SemanticModel.Compilation.HasImplicitConversion(
+             rightAbsoluteType, resolvedRightType);
   }
 
   /*
@@ -225,28 +200,19 @@ public abstract class AbstractBinaryMutationOperator<T>(
    * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#1264-overload-resolution
    */
   public bool CanApplyOperatorForUserDefinedTypes(
-    T originalNode, CodeAnalysisUtil.Op replacementOp)
+    ITypeSymbol returnType, ITypeSymbol leftType, ITypeSymbol rightType,
+    CodeAnalysisUtil.Op replacementOp)
   {
-    // Reject if the original operator is the same as the replacement operator
-    if (originalNode.Kind() == replacementOp.ExprKind) return false;
-
     // 1) Get the types of variables involved in the original binary operator
-    var left = GetLeftOperand(originalNode);
-    var right = GetRightOperand(originalNode);
-    if (left == null || right == null) return false;
-
-    var leftAbsoluteType = 
-      SemanticModel.ResolveTypeSymbol(left)?.GetNullableUnderlyingType();
-    var rightAbsoluteType =
-      SemanticModel.ResolveTypeSymbol(right)?.GetNullableUnderlyingType();
-    var returnMaybeNullableType = SemanticModel.ResolveTypeSymbol(originalNode);
-
-    if (leftAbsoluteType is null || rightAbsoluteType is null ||
-        returnMaybeNullableType is null) return false;
+    // Note that while reference parameter types are guaranteed to be non-nullable,
+    // any of these operators could be overloaded to accept primitive-typed
+    // parameters, or return a value of primitive type
+    var leftAbsoluteType = leftType.GetNullableUnderlyingType();
+    var rightAbsoluteType = rightType.GetNullableUnderlyingType();
 
     // 2) Check if user-defined operator exists
-    if (HasUnambiguousUserDefinedOperator(replacementOp, leftAbsoluteType,
-          rightAbsoluteType, returnMaybeNullableType.GetNullableUnderlyingType()!))
+    if (HasUnambiguousUserDefinedOperator(replacementOp, 
+          leftAbsoluteType, rightAbsoluteType, returnType))
     {
       return true;
     }
@@ -256,7 +222,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
           is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
     {
       return CanApplyEqualityOperator(
-        leftAbsoluteType, rightAbsoluteType, returnMaybeNullableType);
+        leftAbsoluteType, rightAbsoluteType, returnType);
     }
 
     return false;
@@ -269,46 +235,57 @@ public abstract class AbstractBinaryMutationOperator<T>(
    *
    * A binary (in)equality expression should have either left operand or
    * right operand implicitly convertable to the other.
+   *
+   * A special case of equality expressions are of the form x == null, which
+   * we assign the null type to object. Any reference type inherits the object
+   * type, and there is an overload for the operator== and operator!= for the
+   * object class that calls the type equals operator in the default implementation,
+   * which allows the compilation to succeed.
+   *
+   * Since either left or right operand can be a value type, and that the
+   * operator== is not defined between any value type V and an object type, we
+   * take care to define the null type as V? where there *is* an operator==
+   * defined for the two V? operands, when x is of value type.
    */
   private bool CanApplyEqualityOperator(
-    ITypeSymbol leftType, ITypeSymbol rightType, ITypeSymbol returnType)
+    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnType)
   {
     var operandTypeChecks =
-      SemanticModel.Compilation.HasImplicitConversion(leftType, rightType)
-           || SemanticModel.Compilation.HasImplicitConversion(
-             rightType, leftType);
+      SemanticModel.Compilation.HasImplicitConversion(leftAbsoluteType, rightAbsoluteType)
+      || SemanticModel.Compilation.HasImplicitConversion(rightAbsoluteType, leftAbsoluteType);
 
     var boolType =
       SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
 
     return operandTypeChecks &&
-           SemanticModel.Compilation.HasImplicitConversion(boolType,
-             returnType);
+           SemanticModel.Compilation.HasImplicitConversion(boolType, returnType);
   }
 
   private bool HasUnambiguousUserDefinedOperator(CodeAnalysisUtil.Op replacementOp,
-    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnAbsoluteType)
+    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnType)
   {
-    var leftRuntimeType = leftAbsoluteType.GetRuntimeType(SutAssembly);
-    var rightRuntimeType = rightAbsoluteType.GetRuntimeType(SutAssembly);
-    var returnRuntimeType = returnAbsoluteType.GetRuntimeType(SutAssembly);
+    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
+    
+    var leftAbsoluteRuntimeType = leftAbsoluteType.GetRuntimeType(SutAssembly);
+    var rightAbsoluteRuntimeType = rightAbsoluteType.GetRuntimeType(SutAssembly);
+    var returnAbsoluteRuntimeType = returnAbsoluteType.GetRuntimeType(SutAssembly);
     
     // Type information not available in SUT assembly and mscorlib assembly
-    if (leftRuntimeType is null)
+    if (leftAbsoluteRuntimeType is null)
     {
       Log.Debug("Assembly type information not available for {LeftType}",
         leftAbsoluteType.ToClrTypeName());
       return false;
     }
 
-    if (rightRuntimeType is null)
+    if (rightAbsoluteRuntimeType is null)
     {
       Log.Debug("Assembly type information not available for {RightType}",
         rightAbsoluteType.ToClrTypeName());
       return false;
     }
 
-    if (returnRuntimeType is null)
+    if (returnAbsoluteRuntimeType is null)
     {
       Log.Debug("Assembly type information not available for {ReturnType}",
         returnAbsoluteType.ToClrTypeName());
@@ -323,7 +300,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // but not both at the same time
     var (leftReplacementOpMethod, rightReplacementOpMethod) =
       GetResolvedBinaryOverloadedOperator(
-        replacementOp, leftRuntimeType, rightRuntimeType);
+        replacementOp, leftAbsoluteRuntimeType, rightAbsoluteRuntimeType);
 
     // No match for the overloaded operator from both operand types is found
     if (leftReplacementOpMethod == null && rightReplacementOpMethod == null)
@@ -339,6 +316,13 @@ public abstract class AbstractBinaryMutationOperator<T>(
     if (replacementOpMethod == null)
       replacementOpMethod = DetermineBetterFunctionMember(
         leftReplacementOpMethod!, rightReplacementOpMethod!);
+    
+    // Return type could be of value type, in which case a nullable type
+    // should be constructed if the original return type is nullable
+    var returnRuntimeType =
+      returnAbsoluteType.IsValueType && returnType.IsTypeSymbolNullable()
+      ? returnAbsoluteRuntimeType.ConstructNullableValueType(sutAssembly)
+      : returnAbsoluteRuntimeType;
     
     // 5) Check if replacement operator method return type is assignable to
     // original operator method return type
