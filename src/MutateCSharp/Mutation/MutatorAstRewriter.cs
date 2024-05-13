@@ -272,6 +272,27 @@ public sealed partial class MutatorAstRewriter(
 }
 
 /*
+ * Special cases to handle programming constructs that when mutated causes
+ * compilation errors due to safety guards built into the language semantics.
+ */
+public sealed partial class MutatorAstRewriter
+{
+  /*
+   * If the end point of the statement list of a switch section is reachable,
+   * a compile-time error occurs. This is known as the “no fall through” rule.
+   * When mutating the body of switch case statements that allows the code to
+   * reach the end point of a switch section, we insert a break statement to
+   * ensure no fall through.
+   */
+  public override SyntaxNode VisitSwitchSection(SwitchSectionSyntax node)
+  {
+    // Add break statement at the end
+    return node.WithStatements(
+      node.Statements.Add(SyntaxFactory.BreakStatement()));
+  }
+}
+
+/*
  * Special cases to handle programming constructs that should not be mutated,
  * as the values need to be known at compile-time.
  */
