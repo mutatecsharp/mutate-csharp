@@ -775,10 +775,11 @@ public static partial class CodeAnalysisUtil
   public static bool CanImplicitlyConvertNumericLiteral(this SemanticModel model,
     SyntaxNode node, SpecialType destinationType)
   {
-    if (!node.IsKind(SyntaxKind.NumericLiteralExpression)) return false;
-    var literalExpression = (LiteralExpressionSyntax)node;
+    if (!node.IsKind(SyntaxKind.NumericLiteralExpression) 
+        || destinationType is SpecialType.None) return false;
     
     // Determine the type of the numeric literal based on its suffix
+    var literalExpression = (LiteralExpressionSyntax)node;
     var literalType = DetermineNumericLiteralType(literalExpression);
     if (literalType is SpecialType.None) return false;
     

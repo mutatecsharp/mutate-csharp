@@ -222,4 +222,41 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     
     TestUtil.NodeShouldNotBeMutated(returnStat.Expression, schemaRegistry);
   }
+
+  [Fact]
+  public void ShouldNotReplaceNumericLiteralIfItIsAssignedToEnum()
+  {
+    const string inputUnderMutation =
+      """
+      using System;
+
+      public enum Enum
+      {
+        First,
+        Second,
+        Third
+      }
+
+      public class A
+      {
+        public static void Main()
+        {
+          Enum x = 0;
+        }
+      }
+      """;
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <LiteralExpressionSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitLiteralExpression(node)
+      );
+    mutatedNode.Should().BeOfType<LiteralExpressionSyntax>();
+    var literalSyntax = (LiteralExpressionSyntax)mutatedNode;
+    
+    TestUtil.NodeShouldNotBeMutated(literalSyntax, schemaRegistry);
+  }
 }
