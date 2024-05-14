@@ -31,6 +31,16 @@ public static class SyntaxRewriterUtil
       underlyingTypeSymbol.ToDisplayString());
     return true;
   }
+
+  public static bool IsSymbolResolvableLogged(ref readonly SemanticModel model,
+    SyntaxNode node)
+  {
+    var symbol = model.GetSymbolInfo(node).Symbol;
+    if (symbol is not null) return true;
+    Log.Debug("The symbol for {Expression} cannot be resolved (line {Line}). Ignoring...", 
+      node.ToString(), node.GetLocation().GetLineSpan().StartLinePosition.Line);
+    return false;
+  }
   
   /*
    * Case 1:
@@ -66,6 +76,24 @@ public static class SyntaxRewriterUtil
   {
     var nullableType = model.Compilation.GetTypeByMetadataName("System.Nullable`1")!;
     return nullableType.Construct(typeSymbol);
+  }
+
+  /*
+   * Insert "return default;" if the last statement is not a return statement
+   * as a catch-all approach.
+   */
+  public static BlockSyntax InsertDefaultReturnStatement(BlockSyntax block)
+  {
+    if (block.Statements.LastOrDefault() is { } lastStatement &&
+        !lastStatement.IsKind(SyntaxKind.ReturnStatement))
+    {
+      var returnDefaultStatement = SyntaxFactory.ReturnStatement(
+        SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression));
+
+      return block.WithStatements(block.Statements.Add(returnDefaultStatement));
+    }
+
+    return block;
   }
 
   /*

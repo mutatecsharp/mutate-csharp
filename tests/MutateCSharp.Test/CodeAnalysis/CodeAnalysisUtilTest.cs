@@ -115,4 +115,70 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
     comp.model.CanImplicitlyConvertNumericLiteral(literal, type).Should()
       .BeTrue();
   }
+
+  [Fact]
+  public void CheckForLambdaReturnVoidType()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void ReturnVoid() {}
+        public static int ReturnNonVoid() => 1;
+        public static void Main()
+        {
+          var x = () => { ReturnVoid(); };
+          var y = () => { return ReturnNonVoid(); };
+        }
+      }
+      """;
+    
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var comp = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var lambdas = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<ParenthesizedLambdaExpressionSyntax>().ToArray();
+    
+    var voidReturningLambdaSymbol = (IMethodSymbol) comp.model.GetSymbolInfo(lambdas[0]).Symbol!;
+    var nonVoidReturningLambdaSymbol = (IMethodSymbol) comp.model.GetSymbolInfo(lambdas[1]).Symbol!;
+
+    voidReturningLambdaSymbol.ReturnsVoid.Should().BeTrue();
+    nonVoidReturningLambdaSymbol.ReturnsVoid.Should().BeFalse();
+  }
+  
+  [Fact]
+  public void CheckForMethodDeclarationReturnVoidType()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void ReturnVoid() {}
+        public static int ReturnNonVoid() => 1;
+        public static void Main()
+        {
+          var x = () => { ReturnVoid(); };
+          var y = () => { return ReturnNonVoid(); };
+        }
+      }
+      """;
+    
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var methodDecl = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<MethodDeclarationSyntax>().ToArray();
+    
+    testOutputHelper.WriteLine(methodDecl[0].ReturnType.ToString());
+
+    var predefinedVoid = methodDecl[0].ReturnType as PredefinedTypeSyntax;
+    predefinedVoid.Should().NotBeNull();
+    predefinedVoid.Keyword.IsKind(SyntaxKind.VoidKeyword).Should().BeTrue();
+
+    if (methodDecl[1].ReturnType is PredefinedTypeSyntax notVoid)
+    {
+      notVoid.Keyword.IsKind(SyntaxKind.VoidKeyword).Should().BeFalse();
+    }
+  }
 }

@@ -301,6 +301,9 @@ public sealed partial class MutatorAstRewriter(
 /*
  * Special cases to handle programming constructs that when mutated causes
  * compilation errors due to safety guards built into the language semantics.
+ *
+ * There are two situations in which it is a compile-time error for the
+ * end point of a statement to be reachable. We handle them here.
  */
 public sealed partial class MutatorAstRewriter
 {
@@ -316,6 +319,68 @@ public sealed partial class MutatorAstRewriter
     // Add break statement at the end
     return node.WithStatements(
       node.Statements.Add(SyntaxFactory.BreakStatement()));
+  }
+
+  /*
+   * It is a compile-time error for the end point of the block of a function
+   * member or an anonymous function that computes a value to be reachable.
+   * If this error occurs, it typically is an indication that a return
+   * statement is missing.
+   */
+  public override SyntaxNode VisitMethodDeclaration(
+    MethodDeclarationSyntax node)
+  {
+    var nodeWithMutatedChildren = (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;
+    
+    // Trivial case: method has void return type / empty body
+    if (node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax &&
+        predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword) ||
+        nodeWithMutatedChildren.Body is null)
+    {
+      return nodeWithMutatedChildren;
+    }
+    
+    // Add return statement
+    return nodeWithMutatedChildren.WithBody(
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
+  }
+
+  public override SyntaxNode VisitParenthesizedLambdaExpression(
+    ParenthesizedLambdaExpressionSyntax node)
+  {
+    var nodeWithMutatedChildren = (ParenthesizedLambdaExpressionSyntax)base.VisitParenthesizedLambdaExpression(node)!;
+    
+    // Unable to resolve symbol
+    if (!SyntaxRewriterUtil.IsSymbolResolvableLogged(in semanticModel, node) ||
+        semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol)
+      return nodeWithMutatedChildren;
+    
+    // Trivial case: method has void return type / empty body
+    if (methodSymbol.ReturnsVoid || nodeWithMutatedChildren.Block is null) 
+      return nodeWithMutatedChildren;
+    
+    // Add return statement
+    return nodeWithMutatedChildren.WithBody(
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Block));
+  }
+  
+  public override SyntaxNode VisitSimpleLambdaExpression(
+    SimpleLambdaExpressionSyntax node)
+  {
+    var nodeWithMutatedChildren = (SimpleLambdaExpressionSyntax)base.VisitSimpleLambdaExpression(node)!;
+    
+    // Unable to resolve symbol
+    if (!SyntaxRewriterUtil.IsSymbolResolvableLogged(in semanticModel, node) ||
+        semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol)
+      return nodeWithMutatedChildren;
+    
+    // Trivial case: method has void return type / empty body
+    if (methodSymbol.ReturnsVoid || nodeWithMutatedChildren.Block is null) 
+      return nodeWithMutatedChildren;
+    
+    // Add return statement
+    return nodeWithMutatedChildren.WithBody(
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Block));
   }
 }
 
