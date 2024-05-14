@@ -316,7 +316,7 @@ public sealed partial class MutatorAstRewriter
    */
   public override SyntaxNode VisitSwitchSection(SwitchSectionSyntax node)
   {
-    // Add break statement at the end
+    // Add break statement at the end unconditionally
     return node.WithStatements(
       node.Statements.Add(SyntaxFactory.BreakStatement()));
   }
@@ -332,15 +332,24 @@ public sealed partial class MutatorAstRewriter
   {
     var nodeWithMutatedChildren = (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;
     
-    // Trivial case: method has void return type / empty body
-    if (node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax &&
-        predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword) ||
-        nodeWithMutatedChildren.Body is null)
+    // Trivial case: method has void/Task return type / empty body
+    // Do not insert return statements at the end of enumerable methods
+    if (nodeWithMutatedChildren.Body is null || 
+        semanticModel.GetDeclaredSymbol(node) is not { } methodSymbol ||
+        semanticModel.IsTypeVoid(methodSymbol.ReturnType))
     {
       return nodeWithMutatedChildren;
     }
     
-    // Add return statement
+    // Add yield break statement for iterators
+    if (semanticModel.IsEnumerable(methodSymbol.ReturnType))
+    {
+      return nodeWithMutatedChildren.WithBody(
+        SyntaxRewriterUtil.InsertDefaultYieldStatement(nodeWithMutatedChildren
+          .Body));
+    }
+
+    // Add return statement for regular methods
     return nodeWithMutatedChildren.WithBody(
       SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
   }
@@ -349,24 +358,36 @@ public sealed partial class MutatorAstRewriter
      PropertyDeclarationSyntax node)
   {
     var nodeWithMutatedChildren = (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node)!;
-    if (nodeWithMutatedChildren.AccessorList is null)
+    if (nodeWithMutatedChildren.AccessorList is null || 
+        semanticModel.GetDeclaredSymbol(node) is not {} propertySymbol ||
+        semanticModel.IsTypeVoid(propertySymbol.Type))
       return nodeWithMutatedChildren;
 
     var modifiedAccessorList = new List<AccessorDeclarationSyntax>();
 
     foreach (var accessor in nodeWithMutatedChildren.AccessorList.Accessors)
     {
-      if (accessor.IsKind(SyntaxKind.GetAccessorDeclaration) &&
-          accessor.Body is not null)
+      // Getters must have a non-void return type
+      if (!accessor.IsKind(SyntaxKind.GetAccessorDeclaration) || accessor.Body is null)
       {
-        // Insert return statement
+        modifiedAccessorList.Add(accessor);
+        continue;
+      }
+
+      if (semanticModel.IsEnumerable(propertySymbol.Type))
+      {
+        // Add yield break statement if yield statements are not present at
+        // the endpoint
         var modifiedAccessor = accessor.WithBody(
-          SyntaxRewriterUtil.InsertDefaultReturnStatement(accessor.Body));
+          SyntaxRewriterUtil.InsertDefaultYieldStatement(accessor.Body));
         modifiedAccessorList.Add(modifiedAccessor);
       }
       else
       {
-        modifiedAccessorList.Add(accessor);
+        // Insert return statement if it does not exist at the endpoint
+        var modifiedAccessor = accessor.WithBody(
+          SyntaxRewriterUtil.InsertDefaultReturnStatement(accessor.Body));
+        modifiedAccessorList.Add(modifiedAccessor);
       }
     }
     
@@ -381,14 +402,19 @@ public sealed partial class MutatorAstRewriter
   {
     var nodeWithMutatedChildren = (ParenthesizedLambdaExpressionSyntax)base.VisitParenthesizedLambdaExpression(node)!;
     
-    // Unable to resolve symbol
-    if (!SyntaxRewriterUtil.IsSymbolResolvableLogged(in semanticModel, node) ||
-        semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol)
-      return nodeWithMutatedChildren;
-    
     // Trivial case: method has void return type / empty body
-    if (methodSymbol.ReturnsVoid || nodeWithMutatedChildren.Block is null) 
+    if (nodeWithMutatedChildren.Block is null ||
+      semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol ||
+       semanticModel.IsTypeVoid(methodSymbol.ReturnType))
       return nodeWithMutatedChildren;
+
+    if (semanticModel.IsEnumerable(methodSymbol.ReturnType))
+    {
+      // Add yield break statement if yield statements are not present at
+      // the endpoint
+      return nodeWithMutatedChildren.WithBody(
+        SyntaxRewriterUtil.InsertDefaultYieldStatement(nodeWithMutatedChildren.Block));
+    }
     
     // Add return statement
     return nodeWithMutatedChildren.WithBody(
@@ -400,14 +426,19 @@ public sealed partial class MutatorAstRewriter
   {
     var nodeWithMutatedChildren = (SimpleLambdaExpressionSyntax)base.VisitSimpleLambdaExpression(node)!;
     
-    // Unable to resolve symbol
-    if (!SyntaxRewriterUtil.IsSymbolResolvableLogged(in semanticModel, node) ||
-        semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol)
+    // Trivial case: method has void return type / empty body
+    if (nodeWithMutatedChildren.Block is null ||
+        semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol ||
+        semanticModel.IsTypeVoid(methodSymbol.ReturnType))
       return nodeWithMutatedChildren;
     
-    // Trivial case: method has void return type / empty body
-    if (methodSymbol.ReturnsVoid || nodeWithMutatedChildren.Block is null) 
-      return nodeWithMutatedChildren;
+    if (semanticModel.IsEnumerable(methodSymbol.ReturnType))
+    {
+      // Add yield break statement if yield statements are not present at
+      // the endpoint
+      return nodeWithMutatedChildren.WithBody(
+        SyntaxRewriterUtil.InsertDefaultYieldStatement(nodeWithMutatedChildren.Block));
+    }
     
     // Add return statement
     return nodeWithMutatedChildren.WithBody(

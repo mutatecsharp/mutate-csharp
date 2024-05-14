@@ -95,6 +95,25 @@ public static class SyntaxRewriterUtil
 
     return block;
   }
+  
+  /*
+   * Insert "yield break;" if the last statement is not a yield statement
+   * as a catch-all approach.
+   */
+  public static BlockSyntax InsertDefaultYieldStatement(BlockSyntax block)
+  {
+    if (block.Statements.LastOrDefault() is { } lastStatement &&
+        !lastStatement.IsKind(SyntaxKind.YieldBreakStatement) &&
+        !lastStatement.IsKind(SyntaxKind.YieldReturnStatement))
+    {
+      var yieldBreakStatement = SyntaxFactory.YieldStatement(
+        SyntaxKind.YieldBreakStatement);
+
+      return block.WithStatements(block.Statements.Add(yieldBreakStatement));
+    }
+
+    return block;
+  }
 
   /*
    * https://learn.microsoft.com/en-us/dotnet/framework/debug-trace-profile/code-contracts

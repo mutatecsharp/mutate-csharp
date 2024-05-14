@@ -909,6 +909,31 @@ public static partial class CodeAnalysisUtil
     return SupportedType.Numeric.HasFlag(
       GetSpecialTypeClassification(typeSymbol.SpecialType));
   }
+
+  public static bool IsEnumerable(this SemanticModel model,
+    ITypeSymbol typeSymbol)
+  {
+    SpecialType[] enumerableInterfaces =
+    [
+      SpecialType.System_Collections_Generic_IEnumerable_T,
+      SpecialType.System_Collections_IEnumerable
+    ];
+
+    return enumerableInterfaces.Any(type =>
+      typeSymbol.AllInterfaces.Contains(
+        model.Compilation.GetSpecialType(type)));
+  }
+
+  public static bool IsTypeVoid(this SemanticModel model, ITypeSymbol typeSymbol)
+  {
+    var voidType = model.Compilation.GetSpecialType(SpecialType.System_Void);
+    var taskType =
+      model.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
+
+    return typeSymbol.Equals(voidType, SymbolEqualityComparer.Default) ||
+           taskType is not null &&
+           typeSymbol.Equals(taskType, SymbolEqualityComparer.Default);
+  }
   
   public static readonly
     FrozenDictionary<SyntaxKind, ImmutableArray<(SpecialType returnType,

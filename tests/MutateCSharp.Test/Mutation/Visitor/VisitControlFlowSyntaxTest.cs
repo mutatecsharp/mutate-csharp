@@ -114,6 +114,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   [InlineData("int", "while(true) { return 1; }", true)]
   [InlineData("int", "return 1;", false)]
   [InlineData("void", "", false)]
+  [InlineData("async System.Threading.Tasks.Task", "", false)]
   public void ShouldInsertReturnDefaultStatementForMethodDeclarations(
     string returnType, string construct, bool shouldReplace)
   {
@@ -131,9 +132,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
         public static void Main() {}
       }
       """;
-    
+
     testOutputHelper.WriteLine(inputUnderMutation);
-    
     var schemaRegistry = new FileLevelMutantSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
@@ -164,8 +164,60 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", "yield return 1;", false)]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", " while (true) { yield return 1; } ", true)]
+  public void ShouldInsertYieldBreakStatementForMethodDeclarations(
+    string returnType, string construct, bool shouldReplace)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static {{returnType}} foo()
+          {
+            {{construct}}
+          }
+        
+          public static void Main() {}
+        }
+        """;
+
+    testOutputHelper.WriteLine(inputUnderMutation);
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <MethodDeclarationSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitMethodDeclaration(node)
+      );
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+
+    var methodDecl = (MethodDeclarationSyntax)mutatedNode;
+    var lastStat = methodDecl.Body.Statements.LastOrDefault();
+    
+    if (shouldReplace)
+    {
+      lastStat.ToFullString()
+        .Contains("break", StringComparison.OrdinalIgnoreCase)
+        .Should().BeTrue();
+    }
+    else
+    {
+      methodDecl.Body.Statements.Where(node =>
+          node.ToFullString()
+            .Contains("break", StringComparison.OrdinalIgnoreCase))
+        .Should().BeEmpty();
+    }
+  }
+  
+  [Theory]
   [InlineData("() => { foo(); }", false)]
   [InlineData("() => { return 1; }", false)]
+  [InlineData("async () => { foo(); }", false)]
   [InlineData("() => { while (true) { return 1; } }", true)]
   public void ShouldInsertReturnDefaultStatementForParenthesizedLambdaExpressions(
     string construct, bool shouldReplace)
@@ -269,16 +321,17 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
-  [InlineData("init { Foo = 2; }", false)]
-  [InlineData("set {}", false)]
-  [InlineData("set; get;", false)]
-  [InlineData("get { return 1; }", false)]
-  [InlineData("set { Foo = 2; } get { return 1; }", false)]
-  [InlineData("get { while (true) { return 1; } }", true)]
-  [InlineData("get { while (true) { return 1; } } set { Foo = 2; }", true)]
-  [InlineData("init {} get { while (true) { return 1; } }", true)]
+  [InlineData("int", "init { Foo = 2; }", false)]
+  [InlineData("int","set {}", false)]
+  [InlineData("int","set; get;", false)]
+  [InlineData("int","get { return 1; }", false)]
+  [InlineData("int","set { Foo = 2; } get { return 1; }", false)]
+  [InlineData("System.Threading.Tasks.Task", "get {}", false)]
+  [InlineData("int","get { while (true) { return 1; } }", true)]
+  [InlineData("int","get { while (true) { return 1; } } set { Foo = 2; }", true)]
+  [InlineData("int","init {} get { while (true) { return 1; } }", true)]
   public void ShouldInsertReturnDefaultStatementForPropertyGetAccessors(
-    string construct, bool shouldReplace)
+    string returnType, string construct, bool shouldReplace)
   {
     var inputUnderMutation =
       $$"""
@@ -286,7 +339,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
 
         public class A
         {
-          public int Foo
+          public {{returnType}} Foo
           {
             {{construct}}
           }
@@ -321,6 +374,57 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       mutatedNode.AccessorList.Accessors.All(node =>
           !node.ToFullString()
             .Contains("default", StringComparison.OrdinalIgnoreCase))
+        .Should().BeTrue();
+    }
+  }
+  
+  [Theory]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", "set {} get { yield return 1; }", false)]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", "get { while (true) { yield return 1; } }", true)]
+  public void ShouldInsertYieldReturnStatementForPropertyGetAccessors(
+    string returnType, string construct, bool shouldReplace)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public {{returnType}} Foo
+          {
+            {{construct}}
+          }
+        
+          public static void Main() {}
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var mutatedNode = (PropertyDeclarationSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+      <PropertyDeclarationSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitPropertyDeclaration(node)
+      );
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+
+    if (shouldReplace)
+    {
+      var getter = mutatedNode.AccessorList.Accessors
+        .First(accessor => accessor.IsKind(SyntaxKind.GetAccessorDeclaration));
+      getter.Body.Statements.Last().ToFullString().Contains("break").Should()
+        .BeTrue();
+    }
+    else
+    {
+      // Check default literal does not exist
+      mutatedNode.AccessorList.Accessors.All(node =>
+          !node.ToFullString()
+            .Contains("break", StringComparison.OrdinalIgnoreCase))
         .Should().BeTrue();
     }
   }
