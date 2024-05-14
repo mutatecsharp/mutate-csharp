@@ -259,4 +259,75 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     
     TestUtil.NodeShouldNotBeMutated(literalSyntax, schemaRegistry);
   }
+  
+  [Fact]
+  public void ShouldNotReplaceNodeWithTypeParameterAlsoDefinedAsAClass()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+      using System.Collections.Generic;
+      
+      public class T {}
+      
+      public class A<T> where T: class
+      {
+        static A<T> foo()
+        {
+          var result = new A<T>();
+          var validate = result != null;
+          var prefix = !result;
+          return result;
+        }
+        
+        public static bool operator!(A<T> a) => false;
+        
+        public class U
+        { 
+          static bool foo()
+          { 
+            var result = new A<T>();
+            var validate = result != null;
+            var prefix = !result;
+            return true;
+          }
+        }
+      }
+      
+      public class B
+      {
+        public static void Main() 
+        {
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var rewriter = new MutatorAstRewriter(
+      compilation.sutAssembly, compilation.model, schemaRegistry);
+    var binExprs = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<BinaryExpressionSyntax>();
+
+    foreach (var binExpr in binExprs)
+    {
+      var mutatedBinNode = rewriter.VisitBinaryExpression(binExpr);
+      testOutputHelper.WriteLine(mutatedBinNode.ToFullString());
+      mutatedBinNode.Should().BeOfType<BinaryExpressionSyntax>();
+    }
+    
+    var unaryExprs = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<PrefixUnaryExpressionSyntax>();
+
+    foreach (var unaryExpr in unaryExprs)
+    {
+      var mutatedUnaryNode = rewriter.VisitPrefixUnaryExpression(unaryExpr);
+      testOutputHelper.WriteLine(mutatedUnaryNode.ToFullString());
+      mutatedUnaryNode.Should().BeOfType<PrefixUnaryExpressionSyntax>();
+    }
+  }
 }
