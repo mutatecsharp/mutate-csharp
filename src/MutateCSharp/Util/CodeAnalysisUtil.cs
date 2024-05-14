@@ -397,6 +397,8 @@ public static partial class CodeAnalysisUtil
   private static ITypeSymbol? ResolveUnaryPrimitiveOperandType(
     this SemanticModel model, SpecialType operandType, SyntaxKind opKind)
   {
+    if (operandType is SpecialType.None) return null;
+    
     if (opKind is SyntaxKind.UnaryMinusExpression
         or SyntaxKind.UnaryPlusExpression
         or SyntaxKind.PreIncrementExpression
@@ -826,6 +828,9 @@ public static partial class CodeAnalysisUtil
       SyntaxKind operatorKind, SpecialType returnType, SpecialType leftType,
       SpecialType rightType)
   {
+    if (returnType is SpecialType.None || leftType is SpecialType.None ||
+        rightType is SpecialType.None) return null;
+    
     var candidates =
       PredefinedBinaryOperatorMethodSignatures[operatorKind];
       
