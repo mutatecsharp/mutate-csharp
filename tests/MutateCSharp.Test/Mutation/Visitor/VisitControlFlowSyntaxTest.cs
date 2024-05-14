@@ -267,4 +267,61 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
         .Should().BeEmpty();
     }
   }
+  
+  [Theory]
+  [InlineData("init { Foo = 2; }", false)]
+  [InlineData("set {}", false)]
+  [InlineData("set; get;", false)]
+  [InlineData("get { return 1; }", false)]
+  [InlineData("set { Foo = 2; } get { return 1; }", false)]
+  [InlineData("get { while (true) { return 1; } }", true)]
+  [InlineData("get { while (true) { return 1; } } set { Foo = 2; }", true)]
+  [InlineData("init {} get { while (true) { return 1; } }", true)]
+  public void ShouldInsertReturnDefaultStatementForPropertyGetAccessors(
+    string construct, bool shouldReplace)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public int Foo
+          {
+            {{construct}}
+          }
+        
+          public static void Main() {}
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var mutatedNode = (PropertyDeclarationSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+      <PropertyDeclarationSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitPropertyDeclaration(node)
+      );
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+
+    if (shouldReplace)
+    {
+      var getter = mutatedNode.AccessorList.Accessors
+        .First(accessor => accessor.IsKind(SyntaxKind.GetAccessorDeclaration));
+      getter.Body.Statements.Last().ToFullString().Contains("default").Should()
+        .BeTrue();
+    }
+    else
+    {
+      // Check default literal does not exist
+      mutatedNode.AccessorList.Accessors.All(node =>
+          !node.ToFullString()
+            .Contains("default", StringComparison.OrdinalIgnoreCase))
+        .Should().BeTrue();
+    }
+  }
 }

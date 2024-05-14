@@ -344,6 +344,37 @@ public sealed partial class MutatorAstRewriter
     return nodeWithMutatedChildren.WithBody(
       SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
   }
+  
+  public override SyntaxNode VisitPropertyDeclaration(
+     PropertyDeclarationSyntax node)
+  {
+    var nodeWithMutatedChildren = (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node)!;
+    if (nodeWithMutatedChildren.AccessorList is null)
+      return nodeWithMutatedChildren;
+
+    var modifiedAccessorList = new List<AccessorDeclarationSyntax>();
+
+    foreach (var accessor in nodeWithMutatedChildren.AccessorList.Accessors)
+    {
+      if (accessor.IsKind(SyntaxKind.GetAccessorDeclaration) &&
+          accessor.Body is not null)
+      {
+        // Insert return statement
+        var modifiedAccessor = accessor.WithBody(
+          SyntaxRewriterUtil.InsertDefaultReturnStatement(accessor.Body));
+        modifiedAccessorList.Add(modifiedAccessor);
+      }
+      else
+      {
+        modifiedAccessorList.Add(accessor);
+      }
+    }
+    
+    // Add return statement
+    return nodeWithMutatedChildren.WithAccessorList(
+      SyntaxFactory.AccessorList(
+        SyntaxFactory.List(modifiedAccessorList)));
+  }
 
   public override SyntaxNode VisitParenthesizedLambdaExpression(
     ParenthesizedLambdaExpressionSyntax node)
