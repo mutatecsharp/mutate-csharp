@@ -149,7 +149,7 @@ public sealed partial class NumericConstantReplacer(
       var narrowerType = SemanticModel.DetermineNarrowerNumericType(
         absoluteConvertedTypeSymbol, literalAbsoluteType); 
         
-      return new CodeAnalysisUtil.MethodSignature(absoluteConvertedTypeSymbol, [narrowerType]);
+      return new CodeAnalysisUtil.MethodSignature(narrowerType, [narrowerType]);
     }
 
     return null;
