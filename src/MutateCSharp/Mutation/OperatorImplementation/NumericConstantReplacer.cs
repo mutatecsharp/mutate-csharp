@@ -30,7 +30,7 @@ public sealed partial class NumericConstantReplacer(
       originalNode.GetText().ToString());
     
     var type = SemanticModel.ResolveTypeSymbol(originalNode)?.SpecialType;
-    return type.HasValue && SupportedNumericTypesToSuffix.ContainsKey(type.Value);
+    return type.HasValue;
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -97,7 +97,9 @@ public sealed partial class NumericConstantReplacer(
     ];
   }
 
-  /*
+  /* The parameter type must always be a numeric type to allow arithmetic
+   * mutations.
+   * 
    * If the determined type of an integer literal is int and the value
    * represented by the literal is within the range of the destination type,
    * the value can be implicitly converted to sbyte, byte, short, ushort,
@@ -106,6 +108,7 @@ public sealed partial class NumericConstantReplacer(
   protected override CodeAnalysisUtil.MethodSignature? NonMutatedTypeSymbols(
     LiteralExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
   {
+    var literalAbsoluteType = semanticModel.ResolveTypeSymbol(originalNode)!;
     // Determine if there is an implicit conversion from the literal to the
     // required type; otherwise do not convert
     if (requiredReturnType is not null)
@@ -116,7 +119,10 @@ public sealed partial class NumericConstantReplacer(
       if (SemanticModel.CanImplicitlyConvertNumericLiteral(
             originalNode, absoluteRequiredReturnType.SpecialType))
       {
-        return new CodeAnalysisUtil.MethodSignature(absoluteRequiredReturnType,
+        return new CodeAnalysisUtil.MethodSignature(
+          absoluteRequiredReturnType.IsNumeric() 
+            ? absoluteRequiredReturnType
+            : literalAbsoluteType,
           [absoluteRequiredReturnType]);
       }
 
@@ -139,7 +145,10 @@ public sealed partial class NumericConstantReplacer(
     if (SemanticModel.CanImplicitlyConvertNumericLiteral(
           originalNode, absoluteConvertedTypeSymbol.SpecialType))
     {
-      return new CodeAnalysisUtil.MethodSignature(absoluteConvertedTypeSymbol,
+      return new CodeAnalysisUtil.MethodSignature(
+        absoluteConvertedTypeSymbol.IsNumeric() 
+          ? absoluteConvertedTypeSymbol
+          : literalAbsoluteType,
         [absoluteConvertedTypeSymbol]);
     }
 
@@ -203,24 +212,6 @@ public sealed partial class NumericConstantReplacer(
  */
 public sealed partial class NumericConstantReplacer
 {
-  // C# does not support specifying short, ushort, byte, and sbyte literals
-  // These types have to be obtained through casting / explicit conversion / assignment
-  private static readonly FrozenDictionary<SpecialType, string>
-    SupportedNumericTypesToSuffix =
-      new Dictionary<SpecialType, string>
-      {
-        // Signed numeric types
-        { SpecialType.System_Int32, "" },
-        { SpecialType.System_Int64, "L" },
-        // Unsigned numeric types
-        { SpecialType.System_UInt32, "U" },
-        { SpecialType.System_UInt64, "UL" },
-        // Floating point types
-        { SpecialType.System_Single, "f" },
-        { SpecialType.System_Double, "d" },
-        { SpecialType.System_Decimal, "m" }
-      }.ToFrozenDictionary();
-
   private static readonly FrozenDictionary<
       SyntaxKind, (CodeAnalysisUtil.Op Op, string Template)>
     SupportedOperators
