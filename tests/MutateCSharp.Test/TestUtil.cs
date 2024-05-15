@@ -23,7 +23,8 @@ public static class TestUtil
   [
     MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
     MetadataReference.CreateFromFile(Path.Combine(DotnetAssemblyDirectory, "System.Linq.dll")),
-    MetadataReference.CreateFromFile(Path.Combine(DotnetAssemblyDirectory, "System.Runtime.dll"))
+    MetadataReference.CreateFromFile(Path.Combine(DotnetAssemblyDirectory, "System.Runtime.dll")),
+    MetadataReference.CreateFromFile(Path.Combine(DotnetAssemblyDirectory, "System.Runtime.Numerics.dll")),
   ];
 
   public static CSharpCompilation GetCompilation(SyntaxTree tree)

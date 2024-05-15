@@ -1091,6 +1091,28 @@ public static partial class CodeAnalysisUtil
 
     return null;
   }
+  
+  /*
+   * https://stackoverflow.com/questions/60778208/overload-resolution-with-implicit-conversions
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/conversions#102-implicit-conversions
+   * https://github.com/dotnet/roslyn/blob/main/docs/specs/CSharp%206/Better%20Betterness.md
+   * Given types T1 and T2, T1 is wider if no implicit conversion from T1 to T2
+   * exists, and an implicit conversion from T2 to T1 exists.
+   * We select the converted type by default as a fallback.
+   */
+  public static ITypeSymbol DetermineNarrowerNumericType(
+    this SemanticModel model,
+    ITypeSymbol convertedType, ITypeSymbol exprType)
+  {
+    var exprToConverted =
+      model.Compilation.HasImplicitConversion(exprType, convertedType);
+
+    // Select the converted type if there is no implicit conversion between
+    // both types: the literal's exact type will be the converted type
+    // Example: there is no implicit conversion between signed and unsigned
+    // integral types
+    return exprToConverted ? exprType : convertedType;
+  }
 
   public static bool IsAString(this SyntaxNode node)
   {

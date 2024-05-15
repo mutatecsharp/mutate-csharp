@@ -1,7 +1,10 @@
 using FluentAssertions;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
@@ -304,5 +307,31 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaReturnType.Should().Be(type);
     mutationGroup.SchemaParameterTypes.Should().Equal(type);
+  }
+
+  [Fact]
+  public void ShouldAlwaysAssignNumericLiteralANumericType()
+  {
+    // Example encountered in the wild.
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = string.Format("{0}", 0);
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroups = GetAllValidMutationGroups(inputUnderMutation);
+    mutationGroups.Length.Should().Be(1);
+    
+    mutationGroups[0].SchemaReturnType.Should().Be("object");
+    mutationGroups[0].SchemaParameterTypes.Should().Equal("int");
   }
 }

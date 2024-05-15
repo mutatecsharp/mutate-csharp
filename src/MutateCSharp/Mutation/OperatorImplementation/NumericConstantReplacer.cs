@@ -40,7 +40,6 @@ public sealed partial class NumericConstantReplacer(
   }
   
   private bool ReplacementOperatorIsValid(
-    LiteralExpressionSyntax originalNode, 
     CodeAnalysisUtil.MethodSignature typeSymbols,
     CodeAnalysisUtil.Op replacementOp)
   {
@@ -83,7 +82,7 @@ public sealed partial class NumericConstantReplacer(
     if (typeSymbols is null) return [];
     var validMutants = SupportedOperators.Values
       .Where(replacement => 
-        ReplacementOperatorIsValid(originalNode, typeSymbols, replacement.Op))
+        ReplacementOperatorIsValid(typeSymbols, replacement.Op))
       .Select(replacement => replacement.Op.ExprKind);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
@@ -119,11 +118,10 @@ public sealed partial class NumericConstantReplacer(
       if (SemanticModel.CanImplicitlyConvertNumericLiteral(
             originalNode, absoluteRequiredReturnType.SpecialType))
       {
-        return new CodeAnalysisUtil.MethodSignature(
-          absoluteRequiredReturnType.IsNumeric() 
-            ? absoluteRequiredReturnType
-            : literalAbsoluteType,
-          [absoluteRequiredReturnType]);
+        var narrowerType = SemanticModel.DetermineNarrowerNumericType(
+          absoluteRequiredReturnType, literalAbsoluteType); 
+          
+        return new CodeAnalysisUtil.MethodSignature(absoluteRequiredReturnType, [narrowerType]);
       }
 
       return null;
@@ -145,11 +143,13 @@ public sealed partial class NumericConstantReplacer(
     if (SemanticModel.CanImplicitlyConvertNumericLiteral(
           originalNode, absoluteConvertedTypeSymbol.SpecialType))
     {
-      return new CodeAnalysisUtil.MethodSignature(
-        absoluteConvertedTypeSymbol.IsNumeric() 
-          ? absoluteConvertedTypeSymbol
-          : literalAbsoluteType,
-        [absoluteConvertedTypeSymbol]);
+      // Narrow the numeric literal type if the determined type is int but
+      // the converted type is narrower than int, and that the literal can be
+      // implicitly converted to the narrower numeric type
+      var narrowerType = SemanticModel.DetermineNarrowerNumericType(
+        absoluteConvertedTypeSymbol, literalAbsoluteType); 
+        
+      return new CodeAnalysisUtil.MethodSignature(absoluteConvertedTypeSymbol, [narrowerType]);
     }
 
     return null;
@@ -180,29 +180,6 @@ public sealed partial class NumericConstantReplacer(
   protected override string SchemaBaseName()
   {
     return "ReplaceNumericConstant";
-  }
-
-  /*
-   * https://stackoverflow.com/questions/60778208/overload-resolution-with-implicit-conversions
-   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/conversions#102-implicit-conversions
-   * https://github.com/dotnet/roslyn/blob/main/docs/specs/CSharp%206/Better%20Betterness.md
-   * Given types T1 and T2, T1 is wider if no implicit conversion from T1 to T2
-   * exists, and an implicit conversion from T2 to T1 exists.
-   * If an implicit conversion exists from T1 to T2 *and* T2 to T1, we select the
-   * more narrow type as the result.
-   */
-  private ITypeSymbol? DetermineNarrowerType(ITypeSymbol convertedType, ITypeSymbol exprType)
-  {
-    var exprToConverted = 
-      SemanticModel.Compilation.HasImplicitConversion(exprType, convertedType);
-    var convertedToExpr =
-      SemanticModel.Compilation.HasImplicitConversion(convertedType, exprType);
-    
-    // converted type is narrower than expression type
-    if (convertedToExpr) return convertedType;
-    // expression type is narrower than converted type
-    if (exprToConverted) return exprType;
-    return null;
   }
 }
 
