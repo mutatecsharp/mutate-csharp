@@ -216,6 +216,121 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
+  [InlineData("int", "while(true) { return 1; }", true)]
+  [InlineData("int", "return 1;", false)]
+  [InlineData("void", "", false)]
+  [InlineData("async System.Threading.Tasks.Task", "", false)]
+  public void ShouldInsertReturnDefaultStatementForLocalFunctionStatements(
+    string returnType, string construct, bool shouldReplace)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+
+      public class A
+      {
+        public void foo()
+        {
+          bar();
+          
+          {{returnType}} bar()
+          {
+            {{construct}}
+          }
+        }
+      
+        public static void Main() {}
+      }
+      """;
+
+    testOutputHelper.WriteLine(inputUnderMutation);
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <LocalFunctionStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitLocalFunctionStatement(node)
+      );
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+
+    var methodDecl = (LocalFunctionStatementSyntax)mutatedNode;
+    var lastStat = methodDecl.Body.Statements.LastOrDefault();
+    
+    if (shouldReplace)
+    {
+      lastStat.ToFullString()
+        .Contains("default", StringComparison.OrdinalIgnoreCase)
+        .Should().BeTrue();
+    }
+    else
+    {
+      methodDecl.Body.Statements.Where(node =>
+          node.ToFullString()
+            .Contains("default", StringComparison.OrdinalIgnoreCase))
+        .Should().BeEmpty();
+    }
+  }
+  
+  [Theory]
+  [InlineData("string", "while (true) { return string.Empty; }", false)]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", "yield return 1;", false)]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", " while (true) { yield return 1; } ", true)]
+  public void ShouldInsertYieldBreakStatementForLocalFunctionStatements(
+    string returnType, string construct, bool shouldReplace)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void barbar()
+          { 
+            var x = foo();
+          
+            {{returnType}} foo()
+            {
+              {{construct}}
+            }
+          }
+        
+          public static void Main() {}
+        }
+        """;
+
+    testOutputHelper.WriteLine(inputUnderMutation);
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <LocalFunctionStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitLocalFunctionStatement(node)
+      );
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+
+    var methodDecl = (LocalFunctionStatementSyntax)mutatedNode;
+    var lastStat = methodDecl.Body.Statements.LastOrDefault();
+    
+    if (shouldReplace)
+    {
+      lastStat.ToFullString()
+        .Contains("break", StringComparison.OrdinalIgnoreCase)
+        .Should().BeTrue();
+    }
+    else
+    {
+      methodDecl.Body.Statements.Where(node =>
+          node.ToFullString()
+            .Contains("break", StringComparison.OrdinalIgnoreCase))
+        .Should().BeEmpty();
+    }
+  }
+  
+  [Theory]
   [InlineData("() => { foo(); }", false)]
   [InlineData("() => { return 1; }", false)]
   [InlineData("async () => { foo(); }", false)]

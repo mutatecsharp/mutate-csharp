@@ -375,6 +375,34 @@ public sealed partial class MutatorAstRewriter
       SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
   }
   
+  public override SyntaxNode VisitLocalFunctionStatement(
+    LocalFunctionStatementSyntax node)
+  {
+    var nodeWithMutatedChildren = 
+      (LocalFunctionStatementSyntax)base.VisitLocalFunctionStatement(node)!;
+    
+    // Trivial case: method has void/Task return type / empty body
+    // Do not insert return statements at the end of enumerable methods
+    if (node.Body is null || nodeWithMutatedChildren.Body is null || 
+        _semanticModel.GetDeclaredSymbol(node) is not { } methodSymbol ||
+        _semanticModel.IsTypeVoid(methodSymbol.ReturnType))
+    {
+      return nodeWithMutatedChildren;
+    }
+    
+    // Add yield break statement for iterators
+    if (CodeAnalysisUtil.IsIteratorBlock(node.Body))
+    {
+      return nodeWithMutatedChildren.WithBody(
+        SyntaxRewriterUtil.InsertDefaultYieldStatement(nodeWithMutatedChildren
+          .Body));
+    }
+
+    // Add return statement for regular methods
+    return nodeWithMutatedChildren.WithBody(
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
+  }
+  
   public override SyntaxNode VisitPropertyDeclaration(
      PropertyDeclarationSyntax node)
   {
