@@ -11,9 +11,11 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
 
 public sealed partial class PostfixUnaryExprOpReplacer(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  FrozenDictionary<SyntaxKind,
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
   : AbstractUnaryMutationOperator<PostfixUnaryExpressionSyntax>(
-    sutAssembly, semanticModel)
+    sutAssembly, semanticModel, builtInOperatorSignatures)
 {
   protected override bool CanBeApplied(
     PostfixUnaryExpressionSyntax originalNode)

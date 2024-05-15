@@ -17,9 +17,11 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
  */
 public sealed partial class PrefixUnaryExprOpReplacer(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  FrozenDictionary<SyntaxKind,
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
   : AbstractUnaryMutationOperator<PrefixUnaryExpressionSyntax>(
-    sutAssembly, semanticModel)
+    sutAssembly, semanticModel, builtInOperatorSignatures)
 {
   protected override bool CanBeApplied(PrefixUnaryExpressionSyntax originalNode)
   {
@@ -92,28 +94,21 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     {
       if (originalNode.Operand.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
-            originalNode.Operand, returnType.SpecialType))
+            originalNode.Operand, returnAbsoluteType.SpecialType))
       {
-        operandAbsoluteType = returnAbsoluteType;
+        operandType = returnAbsoluteType;
       }
       
+      // Construct method
+      var methodSignature =
+        new CodeAnalysisUtil.MethodSignature(returnType, [operandType]);
+      
       if (SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
-            originalNode.Kind(), returnAbsoluteType.SpecialType,
-            operandAbsoluteType.SpecialType) is { } result)
+            BuiltInOperatorSignatures, originalNode.Kind(), methodSignature) 
+          is { } result)
       {
-        // Reconstruct if nullable
-        return new CodeAnalysisUtil.MethodSignature(
-          returnType.IsTypeSymbolNullable()
-            ? SemanticModel.ConstructNullableValueTypeSymbol(
-              result.returnSymbol)
-            : result.returnSymbol,
-          [
-            operandType.IsTypeSymbolNullable()
-              ? SemanticModel.ConstructNullableValueTypeSymbol(
-                result.operandSymbol)
-              : result.operandSymbol
-          ]
-        ); 
+        return new CodeAnalysisUtil.MethodSignature(result.returnSymbol,
+          [result.operandSymbol]);
       }
       
       return null;

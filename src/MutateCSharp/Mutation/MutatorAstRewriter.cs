@@ -29,6 +29,8 @@ public sealed partial class MutatorAstRewriter
   {
     _semanticModel = semanticModel;
     _schemaRegistry = schemaRegistry;
+    var predefinedUnaryOperatorSignatures =
+      semanticModel.BuildUnaryNumericOperatorMethodSignature();
     var predefinedBinaryOperatorSignatures = 
       semanticModel.BuildBinaryNumericOperatorMethodSignature();
     
@@ -42,9 +44,11 @@ public sealed partial class MutatorAstRewriter
         new NumericConstantReplacer(sutAssembly, semanticModel)
       ],
       [typeof(PrefixUnaryExpressionSyntax)] =
-        [new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel)],
+        [new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel, 
+          predefinedUnaryOperatorSignatures)],
       [typeof(PostfixUnaryExpressionSyntax)] =
-        [new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel)],
+        [new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel, 
+          predefinedUnaryOperatorSignatures)],
       [typeof(BinaryExpressionSyntax)] =
         [new BinExprOpReplacer(sutAssembly, semanticModel, 
           predefinedBinaryOperatorSignatures),

@@ -19,6 +19,11 @@ public sealed partial class NumericConstantReplacer(
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
+  private readonly FrozenDictionary<SyntaxKind,
+      ImmutableArray<CodeAnalysisUtil.MethodSignature>>
+    _predefinedUnaryOperatorSignatures =
+      semanticModel.BuildUnaryNumericOperatorMethodSignature();
+  
   protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
   {
     Log.Debug("Processing numeric constant: {SyntaxNode}", 
@@ -52,20 +57,19 @@ public sealed partial class NumericConstantReplacer(
     {
       var mutantExpressionType =
         SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
-          replacementOp.ExprKind, returnType.SpecialType,
-          operandType.SpecialType);
+          _predefinedUnaryOperatorSignatures,
+          replacementOp.ExprKind, typeSymbols);
       if (!mutantExpressionType.HasValue) return false;
 
-      var (resolvedReturnType, resolvedOperandType) =
-        mutantExpressionType.Value;
+      var resolvedSignature = mutantExpressionType.Value;
     
       // A mutation is only valid if the mutant expression type is assignable to
       // the mutant schema return type, determined by the narrower type between the
       // original expression type and converted expression type.
       return SemanticModel.Compilation.HasImplicitConversion(
-        operandType, resolvedOperandType)
+        operandType, resolvedSignature.operandSymbol)
         && SemanticModel.Compilation.HasImplicitConversion(
-        resolvedReturnType, returnType);
+        resolvedSignature.returnSymbol, returnType);
     }
     
     return true;

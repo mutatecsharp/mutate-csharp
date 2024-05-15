@@ -124,10 +124,10 @@ public static class TestUtil
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
     var predefOperatorSignatures =
-      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+      compilation.model.BuildUnaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
 
@@ -189,10 +189,10 @@ public static class TestUtil
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
     var predefOperatorSignatures =
-      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+      compilation.model.BuildUnaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
     constructUnderTest.Should()
@@ -272,10 +272,10 @@ public static class TestUtil
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
     var predefOperatorSignatures =
-      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+      compilation.model.BuildUnaryNumericOperatorMethodSignature();
     
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
     var constructsUnderTest = inputAst.GetCompilationUnitRoot()
       .DescendantNodes()
       .OfType<TU>().ToArray();

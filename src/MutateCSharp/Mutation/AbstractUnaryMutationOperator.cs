@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -10,13 +11,18 @@ namespace MutateCSharp.Mutation;
 
 public abstract class AbstractUnaryMutationOperator<T>(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  FrozenDictionary<SyntaxKind,
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
   : AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T : ExpressionSyntax // currently support prefix or postfix unary expression
 {
+  protected readonly FrozenDictionary<SyntaxKind,
+      ImmutableArray<CodeAnalysisUtil.MethodSignature>>
+    BuiltInOperatorSignatures = builtInOperatorSignatures;
+    
   public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators();
-
   
   public static ExpressionSyntax? GetOperand(T originalNode)
   {
@@ -31,8 +37,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
   protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-        { } methodSignature)
-      return [];
+        { } methodSignature) return [];
     var operandAbsoluteType =
       methodSignature.OperandTypes[0].GetNullableUnderlyingType();
 
@@ -55,9 +60,8 @@ public abstract class AbstractUnaryMutationOperator<T>(
       validMutants = validMutants
         .Where(replacementOpEntry =>
           CanApplyOperatorForSpecialTypes(
-            methodSignature.ReturnType,
-            methodSignature.OperandTypes[0],
-            replacementOpEntry.Value));
+            replacementOpEntry.Value,
+            methodSignature));
     }
     else
     {
@@ -80,25 +84,21 @@ public abstract class AbstractUnaryMutationOperator<T>(
    * 3) The replacement return type must be assignable to the original return type.
    */
   protected bool CanApplyOperatorForSpecialTypes(
-    ITypeSymbol returnType, ITypeSymbol operandType, CodeAnalysisUtil.Op replacementOp)
+    CodeAnalysisUtil.Op replacementOp,
+    CodeAnalysisUtil.MethodSignature originalSignature)
   {
-    // 1) Obtain underlying types (if nullable)
-    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
-    var operandAbsoluteType = operandType.GetNullableUnderlyingType();
-
     var mutantExpressionType = 
       SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
-        replacementOp.ExprKind, returnAbsoluteType.SpecialType, 
-        operandAbsoluteType.SpecialType);
+        BuiltInOperatorSignatures, replacementOp.ExprKind, originalSignature);
     if (!mutantExpressionType.HasValue) return false;
 
-    var (resolvedReturnType, resolvedOperandType) = mutantExpressionType.Value;
+    var resolvedSignature = mutantExpressionType.Value;
 
     // Check if expression type is assignable to original return type
     return SemanticModel.Compilation.HasImplicitConversion(
-             operandAbsoluteType, resolvedOperandType)
+             originalSignature.OperandTypes[0], resolvedSignature.operandSymbol)
            && SemanticModel.Compilation.HasImplicitConversion(
-             resolvedReturnType, returnAbsoluteType);
+             resolvedSignature.returnSymbol, originalSignature.ReturnType);
   }
 
   /*

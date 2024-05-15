@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -189,8 +188,10 @@ public static partial class CodeAnalysisUtil
         .Select(typeSymbol =>
           new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
 
-      dictionary[operatorKind] = exactMethodSignatures
-        .Concat(liftedMethodSignatures).ToImmutableArray();
+      dictionary[operatorKind] = [
+        ..exactMethodSignatures
+          .Concat(liftedMethodSignatures)
+      ];
     }
 
     // Compound arithmetic
@@ -453,14 +454,11 @@ public static partial class CodeAnalysisUtil
     return dictionary.ToFrozenDictionary();
   }
   
-  private static FrozenDictionary<SyntaxKind,
-      ImmutableArray<(SpecialType returnType,
-        SpecialType operandType)>>
-    BuildUnaryNumericOperatorMethodSignature()
+  public static FrozenDictionary<SyntaxKind,
+      ImmutableArray<MethodSignature>>
+    BuildUnaryNumericOperatorMethodSignature(this SemanticModel model)
   {
-    var dictionary = new Dictionary<SyntaxKind, ImmutableArray<
-      (SpecialType returnType,
-      SpecialType operandType)>>();
+    var dictionary = new Dictionary<SyntaxKind, ImmutableArray<MethodSignature>>();
 
     SpecialType[] smallerThanWordIntegralTypes =
     [
@@ -497,24 +495,69 @@ public static partial class CodeAnalysisUtil
       SpecialType.System_Decimal
     ];
     
-    // Arithmetic
-    dictionary[SyntaxKind.UnaryPlusExpression]
-      = [..arithmeticTypes.Select(type => (type, type))];
-    dictionary[SyntaxKind.UnaryMinusExpression]
-      = [
-        ..new[] { SpecialType.System_Int32, SpecialType.System_Int64 }
-          .Concat(floatingPointTypes)
-          .Select(type => (type, type))
+    // For the unary operators +, ++, -, --, !, and ~, a lifted form of an
+    // operator exists if the operand and result types are both non-nullable
+    // value types. The lifted form is constructed by adding a single ?
+    // modifier to the operand and result types.
+    
+    // Arithmetic (+)
+    var plusTypeSymbols = arithmeticTypes
+      .Select(type => model.Compilation.GetSpecialType(type)).ToArray();
+    
+    // Original form
+    var plusExactTypeSignatures = plusTypeSymbols.Select(typeSymbol =>
+      new MethodSignature(typeSymbol, [typeSymbol]));
+    // Lifted form
+    var plusLiftedMethodSignatures = plusTypeSymbols
+      .Select(model.ConstructNullableValueTypeSymbol)
+      .Select(typeSymbol => new MethodSignature(typeSymbol, [typeSymbol]));
+
+    dictionary[SyntaxKind.UnaryPlusExpression] =
+      [..plusExactTypeSignatures.Concat(plusLiftedMethodSignatures)];
+    
+    // Arithmetic (-)
+    var minusTypeSymbols = 
+      new[] { SpecialType.System_Int32, SpecialType.System_Int64 }
+        .Concat(floatingPointTypes)
+      .Select(type => model.Compilation.GetSpecialType(type)).ToArray();
+    
+    // Original form
+    var minusExactTypeSignatures = minusTypeSymbols.Select(typeSymbol =>
+      new MethodSignature(typeSymbol, [typeSymbol]));
+    // Lifted form
+    var minusLiftedMethodSignatures = minusTypeSymbols
+      .Select(model.ConstructNullableValueTypeSymbol)
+      .Select(typeSymbol => new MethodSignature(typeSymbol, [typeSymbol]));
+    
+    dictionary[SyntaxKind.UnaryMinusExpression] =
+      [..minusExactTypeSignatures.Concat(minusLiftedMethodSignatures)];
+    
+    // Logical (!)
+    var boolType = model.Compilation.GetSpecialType(SpecialType.System_Boolean);
+    var nullableBoolType = model.ConstructNullableValueTypeSymbol(boolType);
+    
+    dictionary[SyntaxKind.LogicalNotExpression]
+      =
+      [
+        new MethodSignature(boolType, [boolType]),
+        new MethodSignature(nullableBoolType, [nullableBoolType])
       ];
     
-    // Logical
-    dictionary[SyntaxKind.LogicalNotExpression]
-      = [(SpecialType.System_Boolean, SpecialType.System_Boolean)];
+    // Bitwise complement (~)
+    var bitwiseTypeSymbols = 
+      integralTypes.Select(type => model.Compilation.GetSpecialType(type)).ToArray();
     
-    // Bitwise complement
-    dictionary[SyntaxKind.BitwiseNotExpression]
-      = [..integralTypes.Select(type => (type, type))]; 
-
+    // Original form
+    var bitwiseExactTypeSignatures = bitwiseTypeSymbols.Select(typeSymbol =>
+      new MethodSignature(typeSymbol, [typeSymbol]));
+    // Lifted form
+    var bitwiseLiftedMethodSignatures = bitwiseTypeSymbols
+      .Select(model.ConstructNullableValueTypeSymbol)
+      .Select(typeSymbol => new MethodSignature(typeSymbol, [typeSymbol]));
+    
+    dictionary[SyntaxKind.BitwiseNotExpression] =
+      [..bitwiseExactTypeSignatures.Concat(bitwiseLiftedMethodSignatures)];
+    
     // Increment/decrement
     foreach (var operatorKind in new[]
              {
@@ -524,9 +567,21 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.PostDecrementExpression
              })
     {
+      var typeSymbols = 
+        smallerThanWordIntegralTypes.Concat(arithmeticTypes)
+          .Select(type => model.Compilation.GetSpecialType(type))
+          .ToList();
+      
+      // Original form
+      var updateExactTypeSignatures = typeSymbols.Select(typeSymbol =>
+        new MethodSignature(typeSymbol, [typeSymbol]));
+      // Lifted form
+      var updateLiftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol => new MethodSignature(typeSymbol, [typeSymbol]));
+      
       dictionary[operatorKind] =
-      [..smallerThanWordIntegralTypes.Concat(arithmeticTypes).
-        Select(type => (type, type))];
+        [..updateExactTypeSignatures.Concat(updateLiftedMethodSignatures)];
     }
 
     return dictionary.ToFrozenDictionary();
@@ -977,7 +1032,11 @@ public static partial class CodeAnalysisUtil
           ImmutableArray<MethodSignature>> builtInOperatorSignatures,
       SyntaxKind operatorKind, MethodSignature currentSignature)
   {
-    var candidates = builtInOperatorSignatures[operatorKind];
+    if (!builtInOperatorSignatures.TryGetValue(operatorKind,
+          out var candidates))
+    {
+      return null;
+    }
 
     foreach (var (ret, operands) in candidates)
     {
@@ -1005,31 +1064,28 @@ public static partial class CodeAnalysisUtil
   
   public static (ITypeSymbol returnSymbol, ITypeSymbol operandSymbol)?
     ResolveOverloadedPredefinedUnaryOperator(this SemanticModel model,
-      SyntaxKind operatorKind, SpecialType returnType, SpecialType operandType)
+      FrozenDictionary<SyntaxKind,
+        ImmutableArray<MethodSignature>> builtInOperatorSignatures,
+      SyntaxKind operatorKind, MethodSignature currentSignature)
   {
-    var candidates =
-      PredefinedUnaryOperatorMethodSignatures[operatorKind];
-      
-    // Get type symbol
-    var operandSymbol = model.Compilation.GetSpecialType(operandType);
-    var retSymbol = model.Compilation.GetSpecialType(returnType);
+    if (!builtInOperatorSignatures.TryGetValue(operatorKind,
+          out var candidates))
+    {
+      return null;
+    }
 
     foreach (var (ret, operand) in candidates)
     {
-      var retCandidateSymbol = model.Compilation.GetSpecialType(ret);
-      var operandCandidateSymbol = model.Compilation.GetSpecialType(operand);
-
       (ITypeSymbol from, ITypeSymbol to)[] checks =
       [
-        (operandSymbol, operandCandidateSymbol),
-        (retCandidateSymbol, retSymbol)
+        (currentSignature.OperandTypes[0], operand[0]),
+        (ret, currentSignature.OperandTypes[0])
       ];
 
       if (checks.All(type =>
             model.Compilation.HasImplicitConversion(type.from, type.to)))
       {
-        return (returnSymbol: retCandidateSymbol,
-          operandSymbol: operandCandidateSymbol);
+        return (returnSymbol: ret, operandSymbol: operand[0]);
       }
     }
 
@@ -1074,9 +1130,4 @@ public static partial class CodeAnalysisUtil
            taskType is not null &&
            typeSymbol.Equals(taskType, SymbolEqualityComparer.Default);
   }
-
-  private static readonly FrozenDictionary<SyntaxKind,
-    ImmutableArray<(SpecialType returnType,
-      SpecialType operandType)>> PredefinedUnaryOperatorMethodSignatures
-    = BuildUnaryNumericOperatorMethodSignature();
 }
