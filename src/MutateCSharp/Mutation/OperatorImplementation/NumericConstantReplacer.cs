@@ -30,7 +30,7 @@ public sealed partial class NumericConstantReplacer(
       originalNode.GetText().ToString());
     
     var type = SemanticModel.ResolveTypeSymbol(originalNode)?.SpecialType;
-    return type.HasValue;
+    return type is not null && originalNode.IsKind(SyntaxKind.NumericLiteralExpression);
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -165,7 +165,9 @@ public sealed partial class NumericConstantReplacer(
     return [result.OperandTypes[0].ToDisplayString()];
   }
 
-  protected override string SchemaReturnTypeDisplay(LiteralExpressionSyntax originalNode,
+  protected override string SchemaReturnTypeDisplay(
+    LiteralExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not

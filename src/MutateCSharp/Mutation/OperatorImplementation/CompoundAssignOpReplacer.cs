@@ -176,6 +176,7 @@ public sealed partial class CompoundAssignOpReplacer(
 
   protected override string SchemaReturnTypeDisplay(
     AssignmentExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not

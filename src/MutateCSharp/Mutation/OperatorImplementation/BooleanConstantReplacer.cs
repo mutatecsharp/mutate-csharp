@@ -61,7 +61,9 @@ public class BooleanConstantReplacer(
     return ["bool"];
   }
 
-  protected override string SchemaReturnTypeDisplay(LiteralExpressionSyntax originalNode,
+  protected override string SchemaReturnTypeDisplay(
+    LiteralExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     return "bool";

@@ -935,8 +935,8 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   [InlineData("await foo(6)", true, "await foo(6)", true)]
   public void ShouldReplaceForAwaitableOperands(
     string leftConstruct,
-    bool leftAwaitable,
-    string rightConstruct, bool rightAwaitable)
+    bool leftShouldBeLambda,
+    string rightConstruct, bool rightShouldBeLambda)
   {
     var inputUnderMutation =
       $$"""
@@ -945,6 +945,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         public class A
         {
           public static async System.Threading.Tasks.Task<bool> foo(int x) => true;
+          public static async System.Threading.Tasks.Task<int> bar(int x) => 5;
           
           public static async System.Threading.Tasks.Task Main()
           {
@@ -961,8 +962,8 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     
     mutationGroup.SchemaReturnType.Should()
       .Be("async System.Threading.Tasks.Task<bool>");
-    mutationGroup.SchemaParameterTypes.Should().Equal(paramType(leftAwaitable),
-      paramType(rightAwaitable));
+    mutationGroup.SchemaParameterTypes.Should().Equal(paramType(leftShouldBeLambda),
+      paramType(rightShouldBeLambda));
 
     var allTemplates = mutationGroup.SchemaMutantExpressions
       .Select(expr => expr.ExpressionTemplate)
@@ -972,8 +973,48 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     {
       testOutputHelper.WriteLine(exprTemplate);
       var awaitOccurence = Regex.Matches(exprTemplate, Regex.Escape("await")).Count;
-      var expectedCount = new[] { leftAwaitable, rightAwaitable }.Count(b => b);
+      var expectedCount = new[] { leftShouldBeLambda, rightShouldBeLambda }.Count(b => b);
       awaitOccurence.Should().Be(expectedCount);
     }
+  }
+  
+  [Theory]
+  [InlineData("await bar(6)", "await bar(42)")]
+  [InlineData("6", "await bar(42)")]
+  [InlineData("await bar(6)",  "42")]
+  public void ShouldNotReplaceOperandsWithAsyncLambdaForNonShortCircuitOperators(
+    string leftConstruct, string rightConstruct)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          // public static async System.Threading.Tasks.Task<bool> foo(int x) => true;
+          public static async System.Threading.Tasks.Task<int> bar(int x) => 5;
+          
+          public static async System.Threading.Tasks.Task Main()
+          {
+            var x = {{leftConstruct}} == {{rightConstruct}};
+          }
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    mutationGroup.SchemaReturnType.Should().Be("bool");
+    mutationGroup.SchemaParameterTypes.Should().Equal("int", "int");
+
+    var allTemplates = mutationGroup.SchemaMutantExpressions
+      .Select(expr => expr.ExpressionTemplate)
+      .Concat([mutationGroup.SchemaOriginalExpression.ExpressionTemplate])
+      .ToList();
+    
+    testOutputHelper.WriteLine(string.Join(",", allTemplates));
+
+    allTemplates.All(template => template.Contains("await")).Should().BeFalse();
   }
 }

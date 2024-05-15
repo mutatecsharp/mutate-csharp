@@ -109,7 +109,9 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     return [$"ref {methodSignature.OperandTypes[0]}"];
   }
 
-  protected override string SchemaReturnTypeDisplay(PostfixUnaryExpressionSyntax originalNode,
+  protected override string SchemaReturnTypeDisplay(
+    PostfixUnaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not

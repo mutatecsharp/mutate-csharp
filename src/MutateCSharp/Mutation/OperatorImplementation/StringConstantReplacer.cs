@@ -60,7 +60,9 @@ public class StringConstantReplacer(
     return ["string"];
   }
 
-  protected override string SchemaReturnTypeDisplay(LiteralExpressionSyntax originalNode,
+  protected override string SchemaReturnTypeDisplay(
+    LiteralExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     return "string";

@@ -55,8 +55,8 @@ public sealed partial class BinExprOpReplacer(
     bool isLeftAwaitable, bool isRightAwaitable)
   {
     var insertInvocation = isDelegate ? "()" : string.Empty;
-    var leftModifier = isLeftAwaitable ? "await " : string.Empty;
-    var rightModifier = isRightAwaitable ? "await " : string.Empty;
+    var leftModifier = isDelegate && isLeftAwaitable ? "await " : string.Empty;
+    var rightModifier = isDelegate && isRightAwaitable ? "await " : string.Empty;
 
     return
       $"{leftModifier}{{0}}{insertInvocation} {SupportedOperators[kind]} {rightModifier}{{1}}{insertInvocation}";
@@ -211,17 +211,7 @@ public sealed partial class BinExprOpReplacer(
 
     var leftTypeDisplay = typeSignature.OperandTypes[0].ToDisplayString();
     var rightTypeDisplay = typeSignature.OperandTypes[1].ToDisplayString();
-
-    // Check for awaitable operands
-    var isLeftOperandAwaitable = originalNode.Left is AwaitExpressionSyntax;
-    var isRightOperandAwaitable = originalNode.Right is AwaitExpressionSyntax;
-
-    // Wrap operand type with Task monad if operand is awaitable
-    if (isLeftOperandAwaitable)
-      leftTypeDisplay = $"System.Threading.Tasks.Task<{leftTypeDisplay}>";
-    if (isRightOperandAwaitable)
-      rightTypeDisplay = $"System.Threading.Tasks.Task<{rightTypeDisplay}>";
-
+    
     // Check for short circuit operators
     var containsShortCircuitOperators =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
@@ -231,6 +221,11 @@ public sealed partial class BinExprOpReplacer(
     // Wrap operand type with Func if short-circuit operators exist in mutation group
     if (containsShortCircuitOperators)
     {
+      // Wrap operand type with Task monad if operand is awaitable
+      if (originalNode.Left is AwaitExpressionSyntax)
+        leftTypeDisplay = $"System.Threading.Tasks.Task<{leftTypeDisplay}>";
+      if (originalNode.Right is AwaitExpressionSyntax)
+        rightTypeDisplay = $"System.Threading.Tasks.Task<{rightTypeDisplay}>";
       leftTypeDisplay = $"System.Func<{leftTypeDisplay}>";
       rightTypeDisplay = $"System.Func<{rightTypeDisplay}>";
     }
@@ -240,18 +235,27 @@ public sealed partial class BinExprOpReplacer(
 
   protected override string SchemaReturnTypeDisplay(
     BinaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
         { } typeSignature) return string.Empty;
 
     var returnTypeDisplay = typeSignature.ReturnType.ToDisplayString();
+    
+    // Check for short circuit operators
+    var containsShortCircuitOperators =
+      CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind())
+      || mutantExpressions.Any(mutant =>
+        CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
 
     // If there exists awaitable expression in either operand,
+    // *and* there exists short circuit operators in the mutation group,
     // the return type should become async Task<bool>
     SyntaxNode[] operands = [originalNode.Left, originalNode.Right];
     // Check for awaitable operands
-    return operands.Any(operand => operand is AwaitExpressionSyntax)
+    return containsShortCircuitOperators && 
+           operands.Any(operand => operand is AwaitExpressionSyntax)
       ? $"async System.Threading.Tasks.Task<{returnTypeDisplay}>"
       : returnTypeDisplay;
   }

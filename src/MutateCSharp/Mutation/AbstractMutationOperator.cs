@@ -40,7 +40,7 @@ public abstract class AbstractMutationOperator<T>(
       string.Join(string.Empty, mutationsWithId.Select(entry => entry.exprIdInMutator));
     
     // Remove all non-alphanumeric characters in schema's base name that contains the return type
-    var returnTypeDisplay = SchemaReturnTypeDisplay(node, requiredReturnType);
+    var returnTypeDisplay = SchemaReturnTypeDisplay(node, mutations, requiredReturnType);
     var schemaName = $"{SchemaBaseName()}Return{returnTypeDisplay}";
     schemaName = string.Concat(schemaName.Where(char.IsLetterOrDigit));
     
@@ -83,6 +83,7 @@ public abstract class AbstractMutationOperator<T>(
     ImmutableArray<ExpressionRecord> mutantExpressions, ITypeSymbol? requiredReturnType);
 
   protected abstract string SchemaReturnTypeDisplay(T originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType);
 
   // The method name used to identify the replacement operation.

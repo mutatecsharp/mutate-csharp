@@ -68,7 +68,7 @@ public sealed partial class MutatorAstRewriter
     var mutationOperator =
       mutationOperators.Where(m => m.CanBeApplied(currentNode)).ToList();
     Trace.Assert(mutationOperator.Count <= 1,
-      "There should be at most one qualifying mutation operator.");
+      $"There should be at most one qualifying mutation operator. Candidates: {string.Join(",", mutationOperator)}");
     return mutationOperator.FirstOrDefault();
   }
 

@@ -139,7 +139,9 @@ public sealed partial class PrefixUnaryExprOpReplacer(
       : [methodSignature.OperandTypes[0].ToDisplayString()];
   }
 
-  protected override string SchemaReturnTypeDisplay(PrefixUnaryExpressionSyntax originalNode,
+  protected override string SchemaReturnTypeDisplay(
+    PrefixUnaryExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
