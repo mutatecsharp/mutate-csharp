@@ -13,12 +13,12 @@ public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
   private static MutationGroup GetMutationGroup(string inputUnderMutation)
     => TestUtil
-      .GetValidMutationGroup<CompoundAssignOpReplacer,
+      .BinaryGetValidMutationGroup<CompoundAssignOpReplacer,
         AssignmentExpressionSyntax>(inputUnderMutation);
   
   private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
   {
-    TestUtil.ShouldNotHaveValidMutationGroup<CompoundAssignOpReplacer, AssignmentExpressionSyntax>(inputUnderMutation);
+    TestUtil.BinaryShouldNotHaveValidMutationGroup<CompoundAssignOpReplacer, AssignmentExpressionSyntax>(inputUnderMutation);
   }
   
   public static IEnumerable<object[]> BooleanMutations =

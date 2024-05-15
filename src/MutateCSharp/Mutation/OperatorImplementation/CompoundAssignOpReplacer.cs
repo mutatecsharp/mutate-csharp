@@ -21,9 +21,12 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
  */
 public sealed partial class CompoundAssignOpReplacer(
   Assembly sutAssembly,
-  SemanticModel semanticModel) :
-  AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly,
-    semanticModel)
+  SemanticModel semanticModel,
+  FrozenDictionary<SyntaxKind,
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
+  :
+    AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly,
+      semanticModel, builtInOperatorSignatures)
 {
   protected override bool CanBeApplied(AssignmentExpressionSyntax originalNode)
   {
@@ -36,17 +39,18 @@ public sealed partial class CompoundAssignOpReplacer(
 
     // Ignore: Cannot obtain type information
     if (nodes.Any(node =>
-          !SyntaxRewriterUtil.IsTypeResolvableLogged(in SemanticModel, in node)))
-    return false;
+          !SyntaxRewriterUtil.IsTypeResolvableLogged(in SemanticModel,
+            in node)))
+      return false;
 
     var types = nodes.Select(node =>
       SemanticModel.ResolveTypeSymbol(node)!.GetNullableUnderlyingType());
-    
+
     // Exclude node from mutation:
     // 1) If type contains generic type parameter;
     // 2) If type is private (and thus inaccessible).
     return types.All(type =>
-      !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type) 
+      !SyntaxRewriterUtil.ContainsGenericTypeParameterLogged(in type)
       && type.GetVisibility() is not CodeAnalysisUtil.SymbolVisibility.Private
     ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
@@ -56,14 +60,9 @@ public sealed partial class CompoundAssignOpReplacer(
     return $"{{0}} {SupportedOperators[kind]} {{1}}";
   }
 
-  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
-    SupportedBinaryOperators()
-  {
-    return SupportedOperators;
-  }
-
   protected override ExpressionRecord OriginalExpression(
-    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _, ITypeSymbol? requiredReturnType)
+    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _,
+    ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
       ExpressionTemplate(originalNode.Kind()));
@@ -71,13 +70,15 @@ public sealed partial class CompoundAssignOpReplacer(
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(AssignmentExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
+    ValidMutantExpressions(AssignmentExpressionSyntax originalNode,
+      ITypeSymbol? requiredReturnType)
   {
     var validMutants = ValidMutants(originalNode, requiredReturnType);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-    return [
+    return
+    [
       ..attachIdToMutants.Select(entry =>
         (entry.id,
           new ExpressionRecord(entry.op, ExpressionTemplate(entry.op))
@@ -104,12 +105,13 @@ public sealed partial class CompoundAssignOpReplacer(
   {
     // It is guaranteed that the updateVariableType is the exact type, as it
     // is a variable and not a literal
-    var updateVariableType = SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
+    var updateVariableType =
+      SemanticModel.ResolveTypeSymbol(originalNode.Left)!;
     var operandType = SemanticModel.ResolveTypeSymbol(originalNode.Right)!;
 
     var varAbsoluteType = updateVariableType.GetNullableUnderlyingType();
     var operandAbsoluteType = operandType.GetNullableUnderlyingType();
-    
+
     // It is guaranteed the left operand is an assignable variable, not a literal
     if (varAbsoluteType.IsNumeric() && operandAbsoluteType.IsNumeric())
     {
@@ -118,28 +120,22 @@ public sealed partial class CompoundAssignOpReplacer(
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
             originalNode.Right, varAbsoluteType.SpecialType))
       {
-        operandAbsoluteType = varAbsoluteType;
+        operandType = varAbsoluteType;
       }
+      
+      // Construct method signature
+      var paramTypes = new CodeAnalysisUtil.MethodSignature(updateVariableType,
+        [updateVariableType, operandType]);
 
       if (SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
-            originalNode.Kind(), varAbsoluteType.SpecialType,
-            varAbsoluteType.SpecialType,
-            operandAbsoluteType.SpecialType) is not { } result)
+            BuiltInOperatorSignatures,
+            originalNode.Kind(), paramTypes) is not { } result)
         return null; // Fail to resolve overloads
-      
-      // Reconstruct nullable value type (if relevant)
-      var retSymbol = updateVariableType.IsTypeSymbolNullable()
-        ? SemanticModel.ConstructNullableValueTypeSymbol(result.returnSymbol)
-        : result.returnSymbol;
 
-      var operandSymbol = operandType.IsTypeSymbolNullable()
-        ? SemanticModel.ConstructNullableValueTypeSymbol(result.rightSymbol)
-        : result.rightSymbol;
-
-      return new CodeAnalysisUtil.MethodSignature(retSymbol,
-        [retSymbol, operandSymbol]);
+      return new CodeAnalysisUtil.MethodSignature(result.returnSymbol,
+        [result.leftSymbol, result.rightSymbol]);
     }
-    
+
     // Check if null keyword exists in binary expression
     // Since null does not have a type in C#, the helper method resolves it to
     // the object type by default. We intercept the resolved type and change it
@@ -151,12 +147,12 @@ public sealed partial class CompoundAssignOpReplacer(
     {
       return null;
     }
-    
+
     // Either left or right operand is reference type; null can be of object type
     // Remove nullable since a reference type T? can be cast to T
     if (!updateVariableType.IsValueType)
       updateVariableType = updateVariableType.GetNullableUnderlyingType();
-      
+
     if (!operandType.IsValueType)
       operandType = operandType.GetNullableUnderlyingType();
 
@@ -165,19 +161,27 @@ public sealed partial class CompoundAssignOpReplacer(
   }
 
   protected override ImmutableArray<string> SchemaParameterTypeDisplays(
-    AssignmentExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> mutantExpressions,
+    AssignmentExpressionSyntax originalNode,
+    ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-        {} typeSymbols) return [];
-    return [$"ref {typeSymbols.ReturnType.ToDisplayString()}", typeSymbols.OperandTypes[1].ToDisplayString()];
+        { } typeSymbols) return [];
+    return
+    [
+      $"ref {typeSymbols.ReturnType.ToDisplayString()}",
+      typeSymbols.OperandTypes[1].ToDisplayString()
+    ];
   }
 
-  protected override string SchemaReturnTypeDisplay(AssignmentExpressionSyntax originalNode,
+  protected override string SchemaReturnTypeDisplay(
+    AssignmentExpressionSyntax originalNode,
     ITypeSymbol? requiredReturnType)
   {
     return NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-      { } typeSymbols ? string.Empty : typeSymbols.ReturnType.ToDisplayString();
+      { } typeSymbols
+      ? string.Empty
+      : typeSymbols.ReturnType.ToDisplayString();
   }
 
   protected override string SchemaBaseName()
@@ -204,17 +208,7 @@ public sealed partial class CompoundAssignOpReplacer
    * sbyte, byte, short, ushort, int has predefined implicit conversions to the
    * int type.
    */
-  private static readonly Func<SpecialType, bool>
-    ExcludeIfRightOperandNotImplicitlyConvertableToInt
-      = specialType =>
-        specialType is not
-          (SpecialType.System_Char or
-          SpecialType.System_SByte or 
-          SpecialType.System_Byte or 
-          SpecialType.System_Int16 or 
-          SpecialType.System_UInt16 or
-          SpecialType.System_Int32);
-  
+
   // Both ExprKind and TokenKind represents the operator and are equivalent
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
@@ -294,6 +288,10 @@ public sealed partial class CompoundAssignOpReplacer
         //     CodeAnalysisUtil.BitwiseShiftTypeSignature)
         // }
       }.ToFrozenDictionary();
+
+
+  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+    SupportedBinaryOperators() => SupportedOperators;
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
     = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys.Order())

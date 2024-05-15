@@ -164,6 +164,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
+  [InlineData("string", "while (true) { return string.Empty; }", false)]
   [InlineData("System.Collections.Generic.IEnumerable<int>", "yield return 1;", false)]
   [InlineData("System.Collections.Generic.IEnumerable<int>", " while (true) { yield return 1; } ", true)]
   public void ShouldInsertYieldBreakStatementForMethodDeclarations(
@@ -326,7 +327,6 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   [InlineData("int","set; get;", false)]
   [InlineData("int","get { return 1; }", false)]
   [InlineData("int","set { Foo = 2; } get { return 1; }", false)]
-  [InlineData("System.Threading.Tasks.Task", "get {}", false)]
   [InlineData("int","get { while (true) { return 1; } }", true)]
   [InlineData("int","get { while (true) { return 1; } } set { Foo = 2; }", true)]
   [InlineData("int","init {} get { while (true) { return 1; } }", true)]
@@ -379,7 +379,9 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
+  [InlineData("string", "get { while (true) { return string.Empty; } }", false)]
   [InlineData("System.Collections.Generic.IEnumerable<int>", "set {} get { yield return 1; }", false)]
+  [InlineData("System.Collections.Generic.IEnumerable<int>", "set {} get { return System.Linq.Enumerable.Range(1, 10); }", false)]
   [InlineData("System.Collections.Generic.IEnumerable<int>", "get { while (true) { yield return 1; } }", true)]
   public void ShouldInsertYieldReturnStatementForPropertyGetAccessors(
     string returnType, string construct, bool shouldReplace)

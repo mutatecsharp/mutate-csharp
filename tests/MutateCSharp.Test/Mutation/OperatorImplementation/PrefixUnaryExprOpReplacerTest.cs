@@ -10,16 +10,16 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
   private static MutationGroup GetMutationGroup(string inputUnderMutation)
     => TestUtil
-      .GetValidMutationGroup<PrefixUnaryExprOpReplacer, PrefixUnaryExpressionSyntax>(
+      .UnaryGetValidMutationGroup<PrefixUnaryExprOpReplacer, PrefixUnaryExpressionSyntax>(
         inputUnderMutation);
 
   private static MutationGroup[] GetAllMutationGroups(string inputUnderMutation)
     => TestUtil
-      .GetAllValidMutationGroups<PrefixUnaryExprOpReplacer,
+      .UnaryGetAllValidMutationGroups<PrefixUnaryExprOpReplacer,
         PrefixUnaryExpressionSyntax>(inputUnderMutation);
   private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
   {
-    TestUtil.ShouldNotHaveValidMutationGroup<PrefixUnaryExprOpReplacer, PrefixUnaryExpressionSyntax>(inputUnderMutation);
+    TestUtil.UnaryShouldNotHaveValidMutationGroup<PrefixUnaryExprOpReplacer, PrefixUnaryExpressionSyntax>(inputUnderMutation);
   }
   
   public static IEnumerable<object[]> BooleanMutations =

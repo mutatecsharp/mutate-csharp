@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -10,10 +11,16 @@ namespace MutateCSharp.Mutation;
 
 public abstract class AbstractBinaryMutationOperator<T>(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  FrozenDictionary<SyntaxKind,
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
   : AbstractMutationOperator<T>(sutAssembly, semanticModel)
   where T : ExpressionSyntax // currently support binary expression and assignment expression
 {
+  protected readonly FrozenDictionary<SyntaxKind,
+      ImmutableArray<CodeAnalysisUtil.MethodSignature>>
+    BuiltInOperatorSignatures = builtInOperatorSignatures;
+  
   protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
 
@@ -47,11 +54,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
       
       validMutants = validMutants
         .Where(replacementOpEntry =>
-          CanApplyOperatorForSpecialTypes(
-            leftAbsoluteType,
-            rightAbsoluteType,
-            methodSignature.ReturnType.GetNullableUnderlyingType(),
-            replacementOpEntry.Value));
+          CanApplyOperatorForSpecialTypes(methodSignature, replacementOpEntry.Value));
     }
     else
     {
@@ -94,21 +97,16 @@ public abstract class AbstractBinaryMutationOperator<T>(
      * 3) The replacement return type must be assignable to the original return type.
  */
   private bool CanApplyOperatorForSpecialTypes(
-    ITypeSymbol leftAbsoluteType,
-    ITypeSymbol rightAbsoluteType,
-    ITypeSymbol returnType,
+    CodeAnalysisUtil.MethodSignature originalSignature,
     CodeAnalysisUtil.Op replacementOp)
   {
-    var returnAbsoluteType = returnType.GetNullableUnderlyingType();
-    
     // Obtain mutant expression return type for the replacement operator
     var mutantExpressionType = 
       SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
-      replacementOp.ExprKind, returnAbsoluteType.SpecialType,
-      leftAbsoluteType.SpecialType, rightAbsoluteType.SpecialType);
+        BuiltInOperatorSignatures, replacementOp.ExprKind, originalSignature);
     if (!mutantExpressionType.HasValue) return false;
 
-    var (resolvedReturnType, resolvedLeftType, resolvedRightType) =
+    var resolvedOperatorSignature =
       mutantExpressionType.Value;
     
     // Check if mutant expression return type has an implicit conversion to the
@@ -116,11 +114,11 @@ public abstract class AbstractBinaryMutationOperator<T>(
     // has an implicit conversion to the corresponding mutant expression operand
     // type
     return SemanticModel.Compilation.HasImplicitConversion(
-             resolvedReturnType, returnType)
+             resolvedOperatorSignature.returnSymbol, originalSignature.ReturnType)
            && SemanticModel.Compilation.HasImplicitConversion(
-             leftAbsoluteType, resolvedLeftType)
+             originalSignature.OperandTypes[0], resolvedOperatorSignature.leftSymbol)
            && SemanticModel.Compilation.HasImplicitConversion(
-             rightAbsoluteType, resolvedRightType);
+             originalSignature.OperandTypes[1], resolvedOperatorSignature.rightSymbol);
   }
 
   /*

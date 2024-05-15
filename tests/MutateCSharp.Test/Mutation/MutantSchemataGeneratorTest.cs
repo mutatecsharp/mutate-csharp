@@ -153,7 +153,7 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
     var schemaRegistry = new FileLevelMutantSchemaRegistry();
     var mutationGroups =
       TestUtil
-        .GetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
+        .BinaryGetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
           inputUnderMutation);
     var firstBaseId =
       schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroups[0]);

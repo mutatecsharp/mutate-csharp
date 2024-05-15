@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reflection;
+using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,9 +12,11 @@ namespace MutateCSharp.Mutation.OperatorImplementation;
 
 public sealed partial class BinExprOpReplacer(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  FrozenDictionary<SyntaxKind,
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
   : AbstractBinaryMutationOperator<BinaryExpressionSyntax>(sutAssembly,
-    semanticModel)
+    semanticModel, builtInOperatorSignatures)
 {
   protected override bool CanBeApplied(BinaryExpressionSyntax originalNode)
   {
@@ -77,9 +80,6 @@ public sealed partial class BinExprOpReplacer(
       ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators,
         isLeftOperandAwaitable, isRightOperandAwaitable));
   }
-
-  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
-    SupportedBinaryOperators() => SupportedOperators;
 
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
@@ -147,45 +147,33 @@ public sealed partial class BinExprOpReplacer(
     {
       if (originalNode.Left.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
-            originalNode.Left, returnType.SpecialType))
+            originalNode.Left, returnAbsoluteType.SpecialType))
       {
-        leftOperandAbsoluteType = returnAbsoluteType;
+        leftOperandType = returnAbsoluteType;
       }
 
       if (originalNode.Right.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
-            originalNode.Right, returnType.SpecialType))
+            originalNode.Right, returnAbsoluteType.SpecialType))
       {
-        rightOperandAbsoluteType = returnAbsoluteType;
+        rightOperandType = returnAbsoluteType;
       }
+      
+      // Construct method signature
+      var paramTypes =
+        new CodeAnalysisUtil.MethodSignature(returnType,
+          [leftOperandType, rightOperandType]);
+      
 
       if (SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
+            BuiltInOperatorSignatures,
             originalNode.Kind(),
-            returnAbsoluteType.SpecialType,
-            leftOperandAbsoluteType.SpecialType,
-            rightOperandAbsoluteType.SpecialType)
-          is { } result)
-      {
-        // Reconstruct the nullable type
-        return new CodeAnalysisUtil.MethodSignature(
-          returnType.IsTypeSymbolNullable()
-            ? SemanticModel.ConstructNullableValueTypeSymbol(
-              result.returnSymbol)
-            : result.returnSymbol,
-          [
-            leftOperandType.IsTypeSymbolNullable()
-              ? SemanticModel.ConstructNullableValueTypeSymbol(
-                result.leftSymbol)
-              : result.leftSymbol,
-            rightOperandType.IsTypeSymbolNullable()
-              ? SemanticModel.ConstructNullableValueTypeSymbol(
-                result.rightSymbol)
-              : result.rightSymbol
-          ]);
-      }
+            paramTypes)
+          is not { } result)
+        return null; // Application of overload resolution failed
 
-      // Application of overload resolution failed
-      return null;
+      return new CodeAnalysisUtil.MethodSignature(result.returnSymbol, 
+        [result.leftSymbol, result.rightSymbol]);
     }
 
     // Check if null keyword exists in binary expression
@@ -445,6 +433,9 @@ public sealed partial class BinExprOpReplacer
             WellKnownMemberNames.GreaterThanOrEqualOperatorName)
         }
       }.ToFrozenDictionary();
+  
+  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+    SupportedBinaryOperators() => SupportedOperators;
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
     = SyntaxKindUniqueIdGenerator.GenerateIds(SupportedOperators.Keys.Order())

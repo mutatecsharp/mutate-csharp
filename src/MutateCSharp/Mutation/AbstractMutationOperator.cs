@@ -39,11 +39,10 @@ public abstract class AbstractMutationOperator<T>(
     var uniqueMutantsId =
       string.Join(string.Empty, mutationsWithId.Select(entry => entry.exprIdInMutator));
     
-    // Replace (?, .) characters in schema's base name that contains the return type
+    // Remove all non-alphanumeric characters in schema's base name that contains the return type
     var returnTypeDisplay = SchemaReturnTypeDisplay(node, requiredReturnType);
-    var schemaName = $"{SchemaBaseName()}Return{returnTypeDisplay}"
-      .Replace(".", string.Empty)
-      .Replace("?", "Nullable");
+    var schemaName = $"{SchemaBaseName()}Return{returnTypeDisplay}";
+    schemaName = string.Concat(schemaName.Where(char.IsLetterOrDigit));
     
     return new MutationGroup
     {

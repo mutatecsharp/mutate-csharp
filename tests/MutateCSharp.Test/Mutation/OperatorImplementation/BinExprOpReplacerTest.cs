@@ -14,18 +14,18 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
   private static MutationGroup GetMutationGroup(string inputUnderMutation)
     => TestUtil
-      .GetValidMutationGroup<BinExprOpReplacer, BinaryExpressionSyntax>(
+      .BinaryGetValidMutationGroup<BinExprOpReplacer, BinaryExpressionSyntax>(
         inputUnderMutation);
   
   private static MutationGroup[] GetAllMutationGroups(string inputUnderMutation)
     => TestUtil
-      .GetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
+      .BinaryGetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
         inputUnderMutation);
 
   private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
   {
     TestUtil
-      .ShouldNotHaveValidMutationGroup<BinExprOpReplacer,
+      .BinaryShouldNotHaveValidMutationGroup<BinExprOpReplacer,
         BinaryExpressionSyntax>(inputUnderMutation);
   }
 

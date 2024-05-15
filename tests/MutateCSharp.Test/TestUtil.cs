@@ -1,12 +1,12 @@
 using System.Reflection;
 using System.Text;
-using Xunit.Sdk;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Util;
 
 namespace MutateCSharp.Test;
 
@@ -16,15 +16,22 @@ public static class TestUtil
     new CSharpCompilationOptions(OutputKind.ConsoleApplication)
       .WithNullableContextOptions(NullableContextOptions.Enable);
   
-  private static readonly PortableExecutableReference MicrosoftCoreLibrary =
-    MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
+  private static readonly string DotnetAssemblyDirectory = 
+      Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+
+  private static readonly MetadataReference[] DotnetAssemblies =
+  [
+    MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+    MetadataReference.CreateFromFile(Path.Combine(DotnetAssemblyDirectory, "System.Linq.dll")),
+    MetadataReference.CreateFromFile(Path.Combine(DotnetAssemblyDirectory, "System.Runtime.dll"))
+  ];
 
   public static CSharpCompilation GetCompilation(SyntaxTree tree)
   {
     return CSharpCompilation.Create(
       assemblyName: Path.GetRandomFileName(),
       syntaxTrees: [tree],
-      references: [MicrosoftCoreLibrary],
+      references: DotnetAssemblies,
       options: TestCompileOptions);
   }
 
@@ -85,7 +92,7 @@ public static class TestUtil
       .Should().BeFalse($"because input should be semantically valid\n{sb}");
   }
 
-  public static void ShouldNotHaveValidMutationGroup<T, TU>(
+  public static void BinaryShouldNotHaveValidMutationGroup<T, TU>(
     string inputUnderMutation)
     where T : IMutationOperator
     where TU : SyntaxNode
@@ -94,6 +101,30 @@ public static class TestUtil
     TestForSyntacticErrors(inputAst);
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T),
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+    var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<TU>().FirstOrDefault();
+
+    var mutationGroup =
+      mutationOperator.CreateMutationGroup(constructUnderTest);
+    mutationGroup.Should().BeNull();
+  }
+  
+  public static void UnaryShouldNotHaveValidMutationGroup<T, TU>(
+    string inputUnderMutation)
+    where T : IMutationOperator
+    where TU : SyntaxNode
+  {
+    var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    TestForSyntacticErrors(inputAst);
+
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
       compilation.sutAssembly, compilation.model)!;
@@ -104,8 +135,51 @@ public static class TestUtil
       mutationOperator.CreateMutationGroup(constructUnderTest);
     mutationGroup.Should().BeNull();
   }
-
+  
+  public static void ShouldNotHaveValidMutationGroup<T, TU>(
+    string inputUnderMutation)
+    where T : IMutationOperator
+    where TU : SyntaxNode
+  {
+    var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    TestForSyntacticErrors(inputAst);
+  
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T),
+      compilation.sutAssembly, compilation.model)!;
+    var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<TU>().FirstOrDefault();
+  
+    var mutationGroup =
+      mutationOperator.CreateMutationGroup(constructUnderTest);
+    mutationGroup.Should().BeNull();
+  }
+  
   public static MutationGroup GetValidMutationGroup<T, TU>(
+    string inputUnderMutation)
+    where T : IMutationOperator
+    where TU : SyntaxNode
+  {
+    var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    TestForSyntacticErrors(inputAst);
+  
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
+  
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T),
+      compilation.sutAssembly, compilation.model)!;
+    var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<TU>().FirstOrDefault();
+    constructUnderTest.Should()
+      .NotBeNull("because at least one construct of specified type exists");
+  
+    var mutationGroup =
+      mutationOperator.CreateMutationGroup(constructUnderTest);
+    mutationGroup.Should().NotBeNull();
+  
+    return mutationGroup!;
+  }
+  
+  public static MutationGroup UnaryGetValidMutationGroup<T, TU>(
     string inputUnderMutation)
     where T : IMutationOperator
     where TU : SyntaxNode
@@ -114,6 +188,8 @@ public static class TestUtil
     TestForSyntacticErrors(inputAst);
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
       compilation.sutAssembly, compilation.model)!;
@@ -129,6 +205,94 @@ public static class TestUtil
     return mutationGroup!;
   }
 
+  public static MutationGroup BinaryGetValidMutationGroup<T, TU>(
+    string inputUnderMutation)
+    where T : IMutationOperator
+    where TU : SyntaxNode
+  {
+    var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    TestForSyntacticErrors(inputAst);
+
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T),
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+    var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<TU>().FirstOrDefault();
+    constructUnderTest.Should()
+      .NotBeNull("because at least one construct of specified type exists");
+
+    var mutationGroup =
+      mutationOperator.CreateMutationGroup(constructUnderTest);
+    mutationGroup.Should().NotBeNull();
+
+    return mutationGroup!;
+  }
+
+  public static MutationGroup[] BinaryGetAllValidMutationGroups<T, TU>(
+    string inputUnderMutation)
+    where T : IMutationOperator
+    where TU : SyntaxNode
+  {
+    var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    TestForSyntacticErrors(inputAst);
+
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+    
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T),
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+    var constructsUnderTest = inputAst.GetCompilationUnitRoot()
+      .DescendantNodes()
+      .OfType<TU>().ToArray();
+    constructsUnderTest.Should()
+      .NotBeEmpty("because at least one construct of specified type exists");
+
+    var mutationGroups = constructsUnderTest
+      .Select(construct => mutationOperator.CreateMutationGroup(construct))
+      .Where(group => group != null)
+      .Select(group => group!)
+      .ToArray();
+    mutationGroups.Should()
+      .NotBeEmpty("because at least one mutation group should exist");
+
+    return mutationGroups;
+  }
+  
+  public static MutationGroup[] UnaryGetAllValidMutationGroups<T, TU>(
+    string inputUnderMutation)
+    where T : IMutationOperator
+    where TU : SyntaxNode
+  {
+    var inputAst = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    TestForSyntacticErrors(inputAst);
+
+    var compilation = GetAstSemanticModelAndAssembly(inputAst);
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+    
+    var mutationOperator = (T)Activator.CreateInstance(typeof(T),
+      compilation.sutAssembly, compilation.model)!;
+    var constructsUnderTest = inputAst.GetCompilationUnitRoot()
+      .DescendantNodes()
+      .OfType<TU>().ToArray();
+    constructsUnderTest.Should()
+      .NotBeEmpty("because at least one construct of specified type exists");
+
+    var mutationGroups = constructsUnderTest
+      .Select(construct => mutationOperator.CreateMutationGroup(construct))
+      .Where(group => group != null)
+      .Select(group => group!)
+      .ToArray();
+    mutationGroups.Should()
+      .NotBeEmpty("because at least one mutation group should exist");
+
+    return mutationGroups;
+  }
+  
   public static MutationGroup[] GetAllValidMutationGroups<T, TU>(
     string inputUnderMutation)
     where T : IMutationOperator
@@ -138,7 +302,9 @@ public static class TestUtil
     TestForSyntacticErrors(inputAst);
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
-
+    var predefOperatorSignatures =
+      compilation.model.BuildBinaryNumericOperatorMethodSignature();
+    
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
       compilation.sutAssembly, compilation.model)!;
     var constructsUnderTest = inputAst.GetCompilationUnitRoot()

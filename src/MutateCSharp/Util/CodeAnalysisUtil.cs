@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -119,16 +120,11 @@ public static partial class CodeAnalysisUtil
     };
   }
 
-  private static FrozenDictionary<SyntaxKind,
-      ImmutableArray<(SpecialType returnType,
-        SpecialType leftOperandType,
-        SpecialType rightOperandType)>>
-    BuildBinaryNumericOperatorMethodSignature()
+  public static FrozenDictionary<SyntaxKind,
+      ImmutableArray<MethodSignature>>
+    BuildBinaryNumericOperatorMethodSignature(this SemanticModel model)
   {
-    var dictionary = new Dictionary<SyntaxKind, ImmutableArray<
-      (SpecialType returnType,
-      SpecialType leftOperandType,
-      SpecialType rightOperandType)>>();
+    var dictionary = new Dictionary<SyntaxKind, ImmutableArray<MethodSignature>>();
 
     SpecialType[] smallerThanWordIntegralTypes =
     [
@@ -174,8 +170,27 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.ModuloExpression
              })
     {
-      dictionary[operatorKind] =
-        [..arithmeticTypes.Select(type => (type, type, type))];
+      var typeSymbols = arithmeticTypes
+        .Select(type => model.Compilation.GetSpecialType(type))
+        .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the binary operators +, -, *, /, %, &, |, ^, <<, and >>,
+      // a lifted form of an operator exists if the operand and result types
+      // are all non-nullable value types. The lifted form is constructed by
+      // adding a single ? modifier to each operand and result type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Compound arithmetic
@@ -188,11 +203,28 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.ModuloAssignmentExpression
              })
     {
-      dictionary[operatorKind] =
-      [
-        ..smallerThanWordIntegralTypes.Concat(arithmeticTypes)
-          .Select(type => (type, type, type))
-      ];
+      var typeSymbols = 
+        smallerThanWordIntegralTypes.Concat(arithmeticTypes)
+        .Select(type => model.Compilation.GetSpecialType(type))
+        .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the binary operators +, -, *, /, %, &, |, ^, <<, and >>,
+      // a lifted form of an operator exists if the operand and result types
+      // are all non-nullable value types. The lifted form is constructed by
+      // adding a single ? modifier to each operand and result type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Relational
@@ -204,11 +236,30 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.LessThanOrEqualExpression
              })
     {
-      dictionary[operatorKind] =
-      [
-        ..arithmeticTypes.Select(type =>
-          (returnType: SpecialType.System_Boolean, type, type))
-      ];
+      var boolTypeSymbol =
+        model.Compilation.GetSpecialType(SpecialType.System_Boolean);
+      
+      var typeSymbols = arithmeticTypes
+        .Select(type => model.Compilation.GetSpecialType(type))
+        .ToList();
+      
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(boolTypeSymbol, [typeSymbol, typeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the relational operators <, >, <=, and >=, a lifted form of an
+      // operator exists if the operand types are both non-nullable value types
+      // and if the result type is bool. The lifted form is constructed by
+      // adding a single ? modifier to each operand type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(boolTypeSymbol, [typeSymbol, typeSymbol]));
+      
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Equality
@@ -218,11 +269,30 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.NotEqualsExpression
              })
     {
-      dictionary[operatorKind] =
-      [
-        ..allSupportedTypes.Select(type =>
-          (returnType: SpecialType.System_Boolean, type, type))
-      ];
+      var boolTypeSymbol =
+        model.Compilation.GetSpecialType(SpecialType.System_Boolean);
+      
+      var typeSymbols = allSupportedTypes
+          .Select(type => model.Compilation.GetSpecialType(type))
+          .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(boolTypeSymbol, [typeSymbol, typeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the equality operators == and !=, a lifted form of an operator
+      // exists if the operand types are both non-nullable value types and if
+      // the result type is bool. The lifted form is constructed by adding a
+      // single ? modifier to each operand type. 
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(boolTypeSymbol, [typeSymbol, typeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Bitwise shift
@@ -234,11 +304,33 @@ public static partial class CodeAnalysisUtil
              })
     {
       // RHS is always int
-      dictionary[operatorKind] =
-      [
-        ..integralTypes.Select(type =>
-          (type, type, rightOperandType: SpecialType.System_Int32))
-      ];
+      var intTypeSymbol =
+        model.Compilation.GetSpecialType(SpecialType.System_Int32);
+      var nullableIntTypeSymbol =
+        model.ConstructNullableValueTypeSymbol(intTypeSymbol);
+      
+      var typeSymbols = 
+        integralTypes
+          .Select(type => model.Compilation.GetSpecialType(type))
+          .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, intTypeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the binary operators +, -, *, /, %, &, |, ^, <<, and >>,
+      // a lifted form of an operator exists if the operand and result types
+      // are all non-nullable value types. The lifted form is constructed by
+      // adding a single ? modifier to each operand and result type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, nullableIntTypeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Compound bitwise shift 
@@ -250,11 +342,33 @@ public static partial class CodeAnalysisUtil
              })
     {
       // RHS is always int
-      dictionary[operatorKind] =
-      [
-        ..smallerThanWordIntegralTypes.Concat(integralTypes).Select(type =>
-          (type, type, rightOperandType: SpecialType.System_Int32))
-      ];
+      var intTypeSymbol =
+        model.Compilation.GetSpecialType(SpecialType.System_Int32);
+      var nullableIntTypeSymbol =
+        model.ConstructNullableValueTypeSymbol(intTypeSymbol);
+      
+      var typeSymbols = 
+        smallerThanWordIntegralTypes.Concat(integralTypes)
+          .Select(type => model.Compilation.GetSpecialType(type))
+          .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, intTypeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the binary operators +, -, *, /, %, &, |, ^, <<, and >>,
+      // a lifted form of an operator exists if the operand and result types
+      // are all non-nullable value types. The lifted form is constructed by
+      // adding a single ? modifier to each operand and result type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, nullableIntTypeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // (Bitwise / Boolean) Logical
@@ -265,11 +379,28 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.ExclusiveOrExpression
              })
     {
-      dictionary[operatorKind] =
-      [
-        ..integralTypes.Concat([SpecialType.System_Boolean])
-          .Select(type => (type, type, type))
-      ];
+      var typeSymbols = 
+        integralTypes.Concat([SpecialType.System_Boolean])
+        .Select(type => model.Compilation.GetSpecialType(type))
+        .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the binary operators +, -, *, /, %, &, |, ^, <<, and >>,
+      // a lifted form of an operator exists if the operand and result types
+      // are all non-nullable value types. The lifted form is constructed by
+      // adding a single ? modifier to each operand and result type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Compound (bitwise / boolean) logical
@@ -280,12 +411,29 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.ExclusiveOrAssignmentExpression
              })
     {
-      dictionary[operatorKind] =
-      [
-        ..smallerThanWordIntegralTypes.Concat(integralTypes)
+      var typeSymbols = 
+        smallerThanWordIntegralTypes.Concat(integralTypes)
           .Concat([SpecialType.System_Boolean])
-          .Select(type => (type, type, type))
-      ];
+          .Select(type => model.Compilation.GetSpecialType(type))
+          .ToList();
+        
+      // Original form
+      var exactMethodSignatures = typeSymbols
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+      
+      // Lifted form (both return / operand types are nullable)
+      // For the binary operators +, -, *, /, %, &, |, ^, <<, and >>,
+      // a lifted form of an operator exists if the operand and result types
+      // are all non-nullable value types. The lifted form is constructed by
+      // adding a single ? modifier to each operand and result type.
+      var liftedMethodSignatures = typeSymbols
+        .Select(model.ConstructNullableValueTypeSymbol)
+        .Select(typeSymbol =>
+          new MethodSignature(typeSymbol, [typeSymbol, typeSymbol]));
+
+      dictionary[operatorKind] = exactMethodSignatures
+        .Concat(liftedMethodSignatures).ToImmutableArray();
     }
 
     // Conditional logical
@@ -295,11 +443,11 @@ public static partial class CodeAnalysisUtil
                SyntaxKind.LogicalOrExpression
              })
     {
+      var boolType =
+        model.Compilation.GetSpecialType(SpecialType.System_Boolean);
+
       dictionary[operatorKind] =
-      [
-        (SpecialType.System_Boolean, SpecialType.System_Boolean,
-          SpecialType.System_Boolean)
-      ];
+        [new MethodSignature(boolType, [boolType, boolType])];
     }
 
     return dictionary.ToFrozenDictionary();
@@ -825,37 +973,28 @@ public static partial class CodeAnalysisUtil
   public static (ITypeSymbol returnSymbol, ITypeSymbol leftSymbol, ITypeSymbol
     rightSymbol)?
     ResolveOverloadedPredefinedBinaryOperator(this SemanticModel model,
-      SyntaxKind operatorKind, SpecialType returnType, SpecialType leftType,
-      SpecialType rightType)
+      FrozenDictionary<SyntaxKind,
+          ImmutableArray<MethodSignature>> builtInOperatorSignatures,
+      SyntaxKind operatorKind, MethodSignature currentSignature)
   {
-    if (returnType is SpecialType.None || leftType is SpecialType.None ||
-        rightType is SpecialType.None) return null;
-    
-    var candidates =
-      PredefinedBinaryOperatorMethodSignatures[operatorKind];
-      
-    // Get type symbol
-    var leftSymbol = model.Compilation.GetSpecialType(leftType);
-    var rightSymbol = model.Compilation.GetSpecialType(rightType);
-    var retSymbol = model.Compilation.GetSpecialType(returnType);
+    var candidates = builtInOperatorSignatures[operatorKind];
 
-    foreach (var (ret, left, right) in candidates)
+    foreach (var (ret, operands) in candidates)
     {
-      var retCandidateSymbol = model.Compilation.GetSpecialType(ret);
-      var leftCandidateSymbol = model.Compilation.GetSpecialType(left);
-      var rightCandidateSymbol = model.Compilation.GetSpecialType(right);
+      var leftCandidateSymbol = operands[0];
+      var rightCandidateSymbol = operands[1];
 
       (ITypeSymbol from, ITypeSymbol to)[] checks =
       [
-        (leftSymbol, leftCandidateSymbol),
-        (rightSymbol, rightCandidateSymbol),
-        (retCandidateSymbol, retSymbol)
+        (currentSignature.OperandTypes[0], leftCandidateSymbol),
+        (currentSignature.OperandTypes[1], rightCandidateSymbol),
+        (ret, currentSignature.ReturnType)
       ];
 
       if (checks.All(type =>
             model.Compilation.HasImplicitConversion(type.from, type.to)))
       {
-        return (returnSymbol: retCandidateSymbol,
+        return (returnSymbol: ret,
           leftSymbol: leftCandidateSymbol, 
           rightSymbol: rightCandidateSymbol);
       }
@@ -910,18 +1049,19 @@ public static partial class CodeAnalysisUtil
       GetSpecialTypeClassification(typeSymbol.SpecialType));
   }
 
-  public static bool IsEnumerable(this SemanticModel model,
-    ITypeSymbol typeSymbol)
+  /* https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/statements#1331-general
+   * A block that contains one or more yield statements (§13.15) is called an iterator block.
+   * Iterator blocks are used to implement function members as iterators (§15.14).
+   * Some additional restrictions apply to iterator blocks:
+     It is a compile-time error for a return statement to appear in an iterator block 
+     (but yield return statements are permitted).
+     It is a compile-time error for an iterator block to contain an unsafe context (§23.2). 
+     An iterator block always defines a safe context, even when its declaration is nested 
+     in an unsafe context.
+   */
+  public static bool IsIteratorBlock(BlockSyntax blockSyntax)
   {
-    SpecialType[] enumerableInterfaces =
-    [
-      SpecialType.System_Collections_Generic_IEnumerable_T,
-      SpecialType.System_Collections_IEnumerable
-    ];
-
-    return enumerableInterfaces.Any(type =>
-      typeSymbol.AllInterfaces.Contains(
-        model.Compilation.GetSpecialType(type)));
+    return blockSyntax.DescendantNodes().OfType<YieldStatementSyntax>().Any();
   }
 
   public static bool IsTypeVoid(this SemanticModel model, ITypeSymbol typeSymbol)
@@ -934,11 +1074,6 @@ public static partial class CodeAnalysisUtil
            taskType is not null &&
            typeSymbol.Equals(taskType, SymbolEqualityComparer.Default);
   }
-  
-  public static readonly
-    FrozenDictionary<SyntaxKind, ImmutableArray<(SpecialType returnType,
-      SpecialType leftOperandType, SpecialType rightOperandType)>>
-    PredefinedBinaryOperatorMethodSignatures = BuildBinaryNumericOperatorMethodSignature();
 
   private static readonly FrozenDictionary<SyntaxKind,
     ImmutableArray<(SpecialType returnType,
