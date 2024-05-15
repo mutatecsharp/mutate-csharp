@@ -210,4 +210,35 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
     left.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword).Should().BeFalse();
     right.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword).Should().BeFalse();
   }
+  
+  [Fact]
+  public void
+    DoNotAddAwaitIfAsyncIsNotAddedToTheLambdaCreatedForShortCircuitOperators()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static async System.Threading.Tasks.Task<int> bar(int x) => 5;
+        public static async System.Threading.Tasks.Task Main()
+        {
+          var x = await bar(5) == await bar(5);
+        }
+      }
+      """;
+    
+    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
+      <BinaryExpressionSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+      );
+    // Should only be the case iff a short circuit operator exists and operands
+    // are await expressions
+    mutatedNode.Should().NotBeOfType<AwaitExpressionSyntax>();
+    mutatedNode.Should().BeOfType<InvocationExpressionSyntax>();
+  }
 }

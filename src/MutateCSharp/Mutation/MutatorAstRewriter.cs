@@ -233,7 +233,8 @@ public sealed partial class MutatorAstRewriter
       rightArgument
     );
 
-    return isLeftOperandAwaitable || isRightOperandAwaitable
+    return containsShortCircuitOperators && 
+           (isLeftOperandAwaitable || isRightOperandAwaitable)
       ? SyntaxFactory.AwaitExpression(returnExpr)
       : returnExpr;
   }
