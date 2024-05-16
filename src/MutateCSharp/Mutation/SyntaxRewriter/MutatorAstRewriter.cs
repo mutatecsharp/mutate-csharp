@@ -371,6 +371,33 @@ public sealed partial class MutatorAstRewriter
 
     return nodeWithMutatedChildren.WithModifiers(modifier);
   }
+  
+  public override SyntaxNode VisitEnumDeclaration(
+    EnumDeclarationSyntax node)
+  {
+    var nodeWithMutatedChildren =
+      (EnumDeclarationSyntax)base.VisitEnumDeclaration(node)!;
+
+    // Modify access declaration
+    // Set minimum accessibility to internal
+    var modifier =
+      SyntaxRewriterUtil.SetMinimumAccessibilityToPublic(node.Modifiers);
+
+    return nodeWithMutatedChildren.WithModifiers(modifier);
+  }
+
+  public override SyntaxNode VisitRecordDeclaration(RecordDeclarationSyntax node)
+  {
+    var nodeWithMutatedChildren =
+      (RecordDeclarationSyntax)base.VisitRecordDeclaration(node)!;
+
+    // Modify access declaration
+    // Set minimum accessibility to internal
+    var modifier =
+      SyntaxRewriterUtil.SetMinimumAccessibilityToPublic(node.Modifiers);
+
+    return nodeWithMutatedChildren.WithModifiers(modifier);
+  }
 }
 
 /*
