@@ -9,6 +9,9 @@ namespace MutateCSharp.Test.Mutation.Visitor;
 
 public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
 {
+  private static FileLevelMutantSchemaRegistry CreateSchemaRegistry()
+    => new FileLevelMutantSchemaRegistry();
+  
   [Theory]
   [InlineData("""
               switch (x)
@@ -43,7 +46,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var node = TestUtil.GetNodeUnderMutationAfterRewrite
       <SwitchSectionSyntax>(
@@ -93,7 +96,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <SwitchSectionSyntax>(
@@ -134,7 +137,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       """;
 
     testOutputHelper.WriteLine(inputUnderMutation);
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <MethodDeclarationSyntax>(
@@ -186,7 +189,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
         """;
 
     testOutputHelper.WriteLine(inputUnderMutation);
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <MethodDeclarationSyntax>(
@@ -244,7 +247,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       """;
 
     testOutputHelper.WriteLine(inputUnderMutation);
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <LocalFunctionStatementSyntax>(
@@ -301,7 +304,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
         """;
 
     testOutputHelper.WriteLine(inputUnderMutation);
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <LocalFunctionStatementSyntax>(
@@ -355,7 +358,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <ParenthesizedLambdaExpressionSyntax>(
@@ -406,7 +409,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <SimpleLambdaExpressionSyntax>(
@@ -465,7 +468,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = (PropertyDeclarationSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
       <PropertyDeclarationSyntax>(
@@ -518,7 +521,7 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var mutatedNode = (PropertyDeclarationSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
       <PropertyDeclarationSyntax>(

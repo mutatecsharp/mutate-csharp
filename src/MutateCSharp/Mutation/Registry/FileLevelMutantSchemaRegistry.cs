@@ -34,7 +34,7 @@ public class FileLevelMutantSchemaRegistry
   {
     _mutantIdGenerator = 1;
     // Every file id is guaranteed to be unique
-    var fileId = Interlocked.Increment(ref _fileIdGenerator); 
+    var fileId = Interlocked.Increment(ref _fileIdGenerator);
     ClassName = $"Schemata{fileId}";
     EnvironmentVariable = $"MUTATE_CSHARP_ACTIVATED_MUTANT{fileId}";
     _mutationGroupsToSuffix = new Dictionary<MutationGroup, SchemaSuffixId>();

@@ -181,4 +181,57 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
       notVoid.Keyword.IsKind(SyntaxKind.VoidKeyword).Should().BeFalse();
     }
   }
+  
+  [Theory]
+  [InlineData("AB")]
+  [InlineData("AB.C")]
+  [InlineData("AB.C.D")]
+  public void GetQualifiedNamespaceShouldSucceedForNamespaceDeclarationSyntax(string namespaceName)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        namespace {{namespaceName}}
+        {
+          class A
+          {
+            public static void Main()
+            {
+            }
+          }
+        }
+        """;
+
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var actualNamespaceName = ast.GetCompilationUnitRoot().GetNamespaceName();
+    testOutputHelper.WriteLine(actualNamespaceName);
+    actualNamespaceName.Should().Be(namespaceName);
+  }
+  
+  [Theory]
+  [InlineData("AB")]
+  [InlineData("AB.C")]
+  [InlineData("AB.C.D")]
+  public void GetQualifiedNamespaceShouldSucceedForFileScopedNamespaceDeclarationSyntax(string namespaceName)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+        
+        namespace {{namespaceName}};
+
+        public class A
+        {
+          public static void Main()
+          {
+          }
+        }
+        """;
+
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var actualNamespaceName = ast.GetCompilationUnitRoot().GetNamespaceName();
+    testOutputHelper.WriteLine(actualNamespaceName);
+    actualNamespaceName.Should().Be(namespaceName);
+  }
 }

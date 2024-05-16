@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.MSBuild;
 using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Util;
 using Serilog;
 
 namespace MutateCSharp.Mutation;

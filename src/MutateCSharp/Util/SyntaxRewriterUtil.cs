@@ -143,4 +143,39 @@ public static class SyntaxRewriterUtil
       or "Result"
     };
   }
+
+  /* Nested namespaces can be declared except in file scoped namespace declarations.
+   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/namespace
+   * File scoped namespaces can't include additional namespace declarations.
+   * You cannot declare a nested namespace or a second file-scoped namespace.
+   */
+  public static string GetNamespaceName(this CompilationUnitSyntax root)
+  {
+    var scopedNamespace = root.DescendantNodes()
+      .OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+    if (scopedNamespace is not null) return scopedNamespace.Name.ToString();
+    var fileScopedNamespace = root.DescendantNodes()
+      .OfType<FileScopedNamespaceDeclarationSyntax>().FirstOrDefault();
+    return fileScopedNamespace?.Name.ToString() ?? string.Empty;
+  }
+
+  public static SyntaxTokenList SetMinimumAccessibilityToPublic(
+    SyntaxTokenList modifiers)
+  {
+    var result = modifiers.Where(modifier =>
+      modifier.Kind() is not (
+        SyntaxKind.PrivateKeyword or
+        SyntaxKind.ProtectedKeyword or
+        SyntaxKind.InternalKeyword or
+        SyntaxKind.FileKeyword)).ToList();
+
+    if (!result.Any(modifier =>
+          modifier.Kind() is SyntaxKind.PublicKeyword))
+    {
+      result = result.Prepend(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+        .ToList();
+    }
+
+    return SyntaxFactory.TokenList(result);
+  }
 }

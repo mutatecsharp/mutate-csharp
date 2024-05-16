@@ -10,10 +10,13 @@ namespace MutateCSharp.Test.Mutation.Visitor;
 
 public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
 {
+  private static FileLevelMutantSchemaRegistry CreateSchemaRegistry()
+    => new FileLevelMutantSchemaRegistry();
+  
   private static IEnumerable<ArgumentSyntax> GetReplacedNodeArguments(
     string inputUnderMutation)
   {
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var node = TestUtil.GetNodeUnderMutationAfterRewrite
       <BinaryExpressionSyntax>(
         inputUnderMutation,
@@ -88,7 +91,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
       }
       """;
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
@@ -143,7 +146,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <BinaryExpressionSyntax>(
         inputUnderMutation,
@@ -190,7 +193,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
     
     testOutputHelper.WriteLine(inputUnderMutation);
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <BinaryExpressionSyntax>(
         inputUnderMutation,
@@ -229,7 +232,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
       }
       """;
     
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <BinaryExpressionSyntax>(
         inputUnderMutation,

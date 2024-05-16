@@ -1,16 +1,17 @@
 using FluentAssertions;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Registry;
-using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.Visitor;
 
 public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
 {
+  private static FileLevelMutantSchemaRegistry CreateSchemaRegistry()
+    => new FileLevelMutantSchemaRegistry();
+  
   [Theory]
   [InlineData("new string[2] { \"abc\", \"def\" };")]
   [InlineData("""
@@ -34,7 +35,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
         }
       }
       """;
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
 
     var node = TestUtil.GetNodeUnderMutationAfterRewrite
       <ArrayCreationExpressionSyntax>(
@@ -94,8 +95,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       """;
     
     testOutputHelper.WriteLine(inputUnderMutation);
-    
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var schemaRegistry = CreateSchemaRegistry();
     
     var varDeclSyntax = (VariableDeclaratorSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
       <VariableDeclaratorSyntax>(
@@ -147,8 +148,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       """;
     
     testOutputHelper.WriteLine(inputUnderMutation);
-    
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var schemaRegistry = CreateSchemaRegistry();
     
     var mutatedBinaryNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <BinaryExpressionSyntax>(
@@ -209,7 +210,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       }
       """;
 
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     
     var mutatedReturnStatementNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <ReturnStatementSyntax>(
@@ -245,8 +246,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
         }
       }
       """;
-    
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var schemaRegistry = CreateSchemaRegistry();
     
     var mutatedNode = TestUtil.GetNodeUnderMutationAfterRewrite
       <LiteralExpressionSyntax>(
@@ -303,8 +304,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       """;
     
     testOutputHelper.WriteLine(inputUnderMutation);
-    
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var schemaRegistry = CreateSchemaRegistry();
     
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);

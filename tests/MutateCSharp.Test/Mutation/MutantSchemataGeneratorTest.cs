@@ -5,12 +5,16 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.OperatorImplementation;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation;
 
 public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
 {
+  private static FileLevelMutantSchemaRegistry CreateSchemaRegistry()
+    => new ();
+  
   private const string ExampleProgram = 
       """
         using System;
@@ -77,7 +81,7 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
   [Fact]
   public void DifferentFilesShouldHaveDifferentMutantSchemataClassAndEnvVar()
   {
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var group =
       TestUtil
         .GetValidMutationGroup<BooleanConstantReplacer,
@@ -87,7 +91,7 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
     var className = ExtractMutantSchemataClassName(syntax.SyntaxTree);
     var envVar = ExtractMutantSchemataEnvVarName(syntax.SyntaxTree);
     
-    var anotherSchemaRegistry = new FileLevelMutantSchemaRegistry();
+    var anotherSchemaRegistry = CreateSchemaRegistry();
     var anotherGroup =
       TestUtil
         .GetValidMutationGroup<BooleanConstantReplacer,
@@ -104,7 +108,7 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
   [Fact]
   public void MutantSchemataClassNameAndMutationRegistryClassNameShouldMatch()
   {
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var group =
       TestUtil
         .GetValidMutationGroup<BooleanConstantReplacer,
@@ -119,7 +123,7 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
   [Fact]
   public void MutantSchemataEnvVarAndMutationRegistryEnvVarShouldMatch()
   {
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+    var schemaRegistry = CreateSchemaRegistry();
     var group =
       TestUtil
         .GetValidMutationGroup<BooleanConstantReplacer,
@@ -149,8 +153,8 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
         }
       }
       """;
-    
-    var schemaRegistry = new FileLevelMutantSchemaRegistry();
+
+    var schemaRegistry = CreateSchemaRegistry();
     var mutationGroups =
       TestUtil
         .BinaryGetAllValidMutationGroups<BinExprOpReplacer, BinaryExpressionSyntax>(
