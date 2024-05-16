@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SyntaxRewriter;
 using MutateCSharp.Util;
 
 namespace MutateCSharp.Test;

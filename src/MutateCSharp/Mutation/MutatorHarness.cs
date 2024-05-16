@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.MSBuild;
 using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
-using MutateCSharp.Util;
+using MutateCSharp.Mutation.SyntaxRewriter;
 using Serilog;
 
 namespace MutateCSharp.Mutation;
@@ -121,14 +121,19 @@ public static class MutatorHarness
       document.FilePath);
     var root = tree.GetCompilationUnitRoot();
     var mutantSchemaRegistry = new FileLevelMutantSchemaRegistry();
+    var accessRewriter = new AccessModifierRewriter();
 
     var semanticModel = await semanticModelTask;
-    if (semanticModel is null) return (document, null);
+    if (semanticModel is null)
+    {
+      // 0: Modify the accessibility of declaration syntaxes
+      return (document.WithSyntaxRoot(accessRewriter.Visit(root)), null);
+    }
 
     // 1: Modify the body of the source file
-    var astVisitor =
+    var mutationRewriter =
       new MutatorAstRewriter(sutAssembly, semanticModel, mutantSchemaRegistry);
-    var mutatedAstRoot = (CompilationUnitSyntax)astVisitor.Visit(root);
+    var mutatedAstRoot = (CompilationUnitSyntax)mutationRewriter.Visit(root);
 
     // 2: Generate mutant schemata for the source file under mutation
     var schemata =
@@ -137,7 +142,7 @@ public static class MutatorHarness
     {
       Log.Information(
         "There is nothing to mutate in this source file. Proceeding...");
-      return (document, null);
+      return (document.WithSyntaxRoot(accessRewriter.Visit(root)), null);
     }
 
     // 3: Inject mutant schemata to mutated source code

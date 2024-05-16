@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
@@ -9,7 +8,7 @@ using MutateCSharp.Mutation.OperatorImplementation;
 using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 
-namespace MutateCSharp.Mutation;
+namespace MutateCSharp.Mutation.SyntaxRewriter;
 
 /*
  * Discover target nodes that are eligible to undergo mutation, and apply mutation.

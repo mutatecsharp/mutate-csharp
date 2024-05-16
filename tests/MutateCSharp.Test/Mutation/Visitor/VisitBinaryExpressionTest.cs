@@ -2,8 +2,8 @@ using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SyntaxRewriter;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.Visitor;

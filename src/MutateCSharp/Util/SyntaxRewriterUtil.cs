@@ -172,7 +172,8 @@ public static class SyntaxRewriterUtil
     if (!result.Any(modifier =>
           modifier.Kind() is SyntaxKind.PublicKeyword))
     {
-      result = result.Prepend(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+      result = result.Prepend(SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+          .WithTrailingTrivia(SyntaxFactory.Space))
         .ToList();
     }
 
