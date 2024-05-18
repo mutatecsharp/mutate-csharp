@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -894,98 +895,8 @@ public static partial class CodeAnalysisUtil
            unaryExpr.Operand.IsKind(SyntaxKind.NumericLiteralExpression);
   } 
   
-  public static SpecialType DetermineNumericLiteralType(
-    LiteralExpressionSyntax literalExpression)
-  {
-    if (!literalExpression.IsKind(SyntaxKind.NumericLiteralExpression))
-      return SpecialType.None;
-
-    // Get the literal token
-    var literalToken = literalExpression.Token;
-    var literalValue = literalToken.ValueText;
-
-    // Get the literal suffix (if any)
-    // Determine the type of the literal based on its suffix
-    var literalSuffix = literalToken.Text[literalValue.Length..];
-
-    // If the literal has no suffix, its type is the first of the following
-    // types in which its value can be represented: int, uint, long, ulong.
-    if (string.IsNullOrEmpty(literalSuffix))
-    {
-      return literalValue switch
-      {
-        _ when int.TryParse(literalValue, out _) => SpecialType.System_Int32,
-        _ when uint.TryParse(literalValue, out _) => SpecialType.System_UInt32,
-        _ when long.TryParse(literalValue, out _) => SpecialType.System_Int64,
-        _ when ulong.TryParse(literalValue, out _) => SpecialType.System_UInt64,
-        _ => SpecialType.None
-      };
-    }
-
-    // If the literal is suffixed by L or l, its type is the first of the
-    // following types in which its value can be represented: long, ulong.
-    if (literalSuffix.Equals("l", StringComparison.OrdinalIgnoreCase))
-    {
-      return literalValue switch
-      {
-        _ when long.TryParse(literalValue, out _) => SpecialType.System_Int64,
-        _ when ulong.TryParse(literalValue, out _) => SpecialType.System_UInt64,
-        _ => SpecialType.None
-      };
-    }
-
-    // If the literal is suffixed by U or u, its type is the first of the
-    // following types in which its value can be represented: uint, ulong.
-    if (literalSuffix.Equals("u", StringComparison.OrdinalIgnoreCase))
-    {
-      return literalValue switch
-      {
-        _ when uint.TryParse(literalValue, out _) => SpecialType.System_UInt32,
-        _ when ulong.TryParse(literalValue, out _) => SpecialType.System_UInt64,
-        _ => SpecialType.None
-      };
-    }
-
-    // If the literal is suffixed by UL, Ul, uL, ul, LU, Lu, lU, or lu,
-    // its type is ulong.
-    if (literalSuffix.Equals("ul", StringComparison.OrdinalIgnoreCase) ||
-        literalSuffix.Equals("lu", StringComparison.OrdinalIgnoreCase))
-    {
-      return ulong.TryParse(literalValue, out _)
-        ? SpecialType.System_UInt64
-        : SpecialType.None;
-    }
-    
-    // If the literal is suffixed by F or f, its type is float.
-    if (literalSuffix.Equals("f", StringComparison.OrdinalIgnoreCase))
-    {
-      return float.TryParse(literalValue, out _)
-        ? SpecialType.System_Single
-        : SpecialType.None;
-    }
-
-    // If the literal is suffixed by D or d, its type is double.
-    if (literalSuffix.Equals("d", StringComparison.OrdinalIgnoreCase))
-    {
-      return double.TryParse(literalValue, out _)
-        ? SpecialType.System_Double
-        : SpecialType.None;
-    }
-
-    // If the literal is suffixed by M or m, its type is decimal.
-    if (literalSuffix.Equals("m", StringComparison.OrdinalIgnoreCase))
-    {
-      return decimal.TryParse(literalValue, out _)
-        ? SpecialType.System_Decimal
-        : SpecialType.None;
-    }
-
-    // Unsupported or invalid literal suffix
-    return SpecialType.None;
-  }
-
   /*
-   * Handles positive and negative literals.
+   * Handles positive and negative decimal, hexadecimal, and binary literals.
    */
   public static bool CanImplicitlyConvertNumericLiteral(this SemanticModel model,
     ExpressionSyntax node, SpecialType destinationType)
@@ -1029,21 +940,59 @@ public static partial class CodeAnalysisUtil
     }
 
     // Get the literal value as a string
-    var literalValue = node.ToString();
+    var literalValueDisplay = node.ToString().Replace("_", string.Empty);
+
+    var isNegative = literalValueDisplay.StartsWith("-");
+    if (isNegative)
+    {
+      literalValueDisplay = literalValueDisplay[1..];
+    }
+    
+    var numberStyle = literalValueDisplay switch
+    {
+      _ when literalValueDisplay.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+        => NumberStyles.HexNumber,
+      _ when literalValueDisplay.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+        => NumberStyles.BinaryNumber,
+      _ => NumberStyles.Number
+    };
+
+    if (literalValueDisplay.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
+        literalValueDisplay.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+    {
+      literalValueDisplay = literalValueDisplay[2..];
+    }
+
+    if (!int.TryParse(literalValueDisplay,
+          numberStyle, CultureInfo.InvariantCulture, out var literalValue))
+    {
+      return false;
+    }
+    
+    // Set the value negative if applicable
+    if (isNegative)
+    {
+      literalValue = -literalValue;
+    }
 
     // If the determined type of an integer literal is int and the value
     // represented by the literal is within the range of the destination type,
     // the value can be implicitly converted to sbyte, byte, short, ushort,
-    // uint, ulong, nint or nuint:
+    // uint, ulong, nint or nuint.
+    // We evaluate the number and check its range accounting for the negative
+    // sign.
     return destinationType switch
     {
-      SpecialType.System_SByte => sbyte.TryParse(literalValue, out _),
-      SpecialType.System_Byte => byte.TryParse(literalValue, out _),
-      SpecialType.System_Int16 => short.TryParse(literalValue, out _),
-      SpecialType.System_UInt16 => ushort.TryParse(literalValue, out _),
-      SpecialType.System_UInt32 => uint.TryParse(literalValue, out _),
-      SpecialType.System_UInt64 => ulong.TryParse(literalValue, out _),
-      _ => false
+      SpecialType.System_SByte => 
+        literalValue is >= sbyte.MinValue and <= sbyte.MaxValue,
+      SpecialType.System_Byte => 
+        literalValue is >= byte.MinValue and <= byte.MaxValue,
+      SpecialType.System_Int16 => 
+        literalValue is >= short.MinValue and <= short.MaxValue,
+      SpecialType.System_UInt16 => 
+        literalValue is >= ushort.MinValue and <= ushort.MaxValue,
+      SpecialType.System_UInt32 => literalValue >= 0,
+      SpecialType.System_UInt64 => literalValue >= 0
     };
   }
 

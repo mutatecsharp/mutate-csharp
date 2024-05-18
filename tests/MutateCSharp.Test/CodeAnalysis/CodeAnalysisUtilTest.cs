@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -247,8 +248,6 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
     string value, string expectedDefinedType, string expectedConvertedType,
     string expectedLiteralDefinedType, string expectedLiteralConvertedType)
   {
-    var x = -1L;
-    
     var inputUnderMutation =
       $$"""
         using System;
@@ -388,6 +387,39 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
     var literal = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<LiteralExpressionSyntax>().First();
     comp.model.CanImplicitlyConvertNumericLiteral(literal, type).Should()
+      .BeTrue();
+  }
+
+  [Theory]
+  [InlineData("0xFF")]
+  [InlineData("0b1010")]
+  [InlineData("0123")]
+  [InlineData("0xFF_A")]
+  [InlineData("1_000")]
+  [InlineData("0b1010_1100")]
+  public void CanImplicitlyConvertVariousFormattedNumericLiteral(string value)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        class A
+        {
+          public static void Main()
+          {
+            var x = {{value}};
+          }
+        }
+        """;
+    
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var comp = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var literal = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<LiteralExpressionSyntax>().First();
+    
+    testOutputHelper.WriteLine(literal.ToString());
+    
+    comp.model.CanImplicitlyConvertNumericLiteral(literal, SpecialType.System_Int16).Should()
       .BeTrue();
   }
 }

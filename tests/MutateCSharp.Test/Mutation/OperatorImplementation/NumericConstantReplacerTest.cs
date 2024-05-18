@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -27,6 +28,12 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     => TestUtil
       .GetAllValidMutationGroups<NumericConstantReplacer,
         LiteralExpressionSyntax>(inputUnderMutation);
+
+  private static MutationGroup[] GetAllNegativeLiteralMutationGroups(
+    string inputUnderMutation)
+    => TestUtil
+      .GetAllValidMutationGroups<NumericConstantReplacer,
+        PrefixUnaryExpressionSyntax>(inputUnderMutation); 
 
   private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
     => TestUtil
@@ -391,6 +398,7 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   public void ShouldAlwaysAssignNumericLiteralANumericType()
   {
     // Example encountered in the wild.
+    // string.Format takes in object types.
     var inputUnderMutation =
       """
       using System;
@@ -411,5 +419,75 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     
     mutationGroups[0].SchemaReturnType.Should().Be("int");
     mutationGroups[0].SchemaParameterTypes.Should().Equal("int");
+  }
+  
+  [Theory]
+  [InlineData("0xFF")]
+  [InlineData("0b1010")]
+  [InlineData("0123")]
+  [InlineData("0xFF_AA")]
+  [InlineData("1_000")]
+  [InlineData("0b1010_1100")]
+  public void CanImplicitlyConvertVariousFormattedNumericLiteral(string value)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        class A
+        {
+          public static void Main()
+          {
+            ulong x = {{value}};
+          }
+        }
+        """;
+    
+    var mutationGroup = GetValidMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo(["ulong"]);
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo("ulong");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo("{0}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo(["0", "{0} - 1", "{0} + 1"]);
+  }
+  
+  [Theory]
+  [InlineData("-0xF")]
+  [InlineData("-0b1010")]
+  [InlineData("-0123")]
+  [InlineData("-0x0_A")]
+  [InlineData("-1_00")]
+  [InlineData("-0b1010_1")]
+  public void CanImplicitlyConvertVariousFormattedNegativeNumericLiteral(string value)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        class A
+        {
+          public static void Main()
+          {
+            short x = {{value}};
+            sbyte y = {{value}};
+          }
+        }
+        """;
+    
+    var mutationGroup = GetAllNegativeLiteralMutationGroups(inputUnderMutation);
+    mutationGroup[0].SchemaParameterTypes.Should().BeEquivalentTo(["short"]);
+    mutationGroup[0].SchemaReturnType.Should().BeEquivalentTo("short");
+    mutationGroup[0].SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo("{0}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup[0]).Should()
+      .BeEquivalentTo(["0", "{0} - 1", "{0} + 1"]);
+    
+    mutationGroup[1].SchemaParameterTypes.Should().BeEquivalentTo(["sbyte"]);
+    mutationGroup[1].SchemaReturnType.Should().BeEquivalentTo("sbyte");
+    mutationGroup[1].SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo("{0}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup[1]).Should()
+      .BeEquivalentTo(["0", "{0} - 1", "{0} + 1"]);
   }
 }
