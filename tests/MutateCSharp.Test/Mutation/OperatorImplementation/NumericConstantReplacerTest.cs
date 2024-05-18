@@ -1,7 +1,10 @@
 using FluentAssertions;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
-using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Mutation.Mutator;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.OperatorImplementation;
@@ -12,6 +15,12 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     => TestUtil
       .GetValidMutationGroup<NumericConstantReplacer, LiteralExpressionSyntax>(
         inputUnderMutation);
+
+  private static MutationGroup GetNegativeLiteralValidMutationGroup(
+    string inputUnderMutation)
+    => TestUtil
+      .GetValidMutationGroup<NumericConstantReplacer,
+        PrefixUnaryExpressionSyntax>(inputUnderMutation);
 
   private static MutationGroup[] GetAllValidMutationGroups(
     string inputUnderMutation)
@@ -79,6 +88,8 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   // We omit ushort types, as C# does not support initialisation
   // of literals of these types.
   [Theory]
+  [InlineData("byte", "byte x = 12;")]
+  [InlineData("short", "short x = 12;")]
   [InlineData("uint", "uint x = 42u;")]
   [InlineData("uint", "UInt32 x = 42u;")]
   [InlineData("ulong", "ulong x = 42ul;")]
@@ -146,17 +157,8 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
   }
   
   [Theory]
-  // C# treats the negative expr and the const expr in -(constants) as two entities
-  // in this case, the constant is treated as an unsigned int because the absolute
-  // value of int.MinValue is outside the int range
-  // This applies similarly to long
-  // [InlineData("int", int.MinValue)] 
-  // [InlineData("long", long.MinValue)]
-  [InlineData("float", float.MinValue)]
   [InlineData("float", float.MaxValue)]
-  [InlineData("double", double.MinValue)]
   [InlineData("double", double.MaxValue)]
-  // [InlineData("decimal", decimal.MinValue)]
   // [InlineData("decimal", decimal.MaxValue)]
     public void ShouldReplaceForFloatingPointAtBoundaries(
     string numericType, dynamic value)
@@ -177,6 +179,85 @@ public class NumericConstantReplacerTest(ITestOutputHelper testOutputHelper)
     testOutputHelper.WriteLine(inputUnderMutation);
 
     var mutationGroup = GetValidMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo("{0}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo(["0", "-{0}", "{0} - 1", "{0} + 1"]);
+  }
+  
+  [Theory]
+  // C# treats the negative expr and the const expr in -(constants) as two entities
+  // in this case, the constant is treated as an unsigned int because the absolute
+  // value of int.MinValue is outside the int range
+  // This applies similarly to long -> ulong
+  [InlineData("int", "-0")]
+  [InlineData("int", "-1")]
+  [InlineData("int", "-2147483648")]  
+  [InlineData("long", "-1L")]
+  [InlineData("long", "-2147483649")]
+  [InlineData("long", "-9223372036854775808")]
+  [InlineData("float", "-1.1f")]
+  [InlineData("float", "-3.40282347E+38f")]
+  [InlineData("double", "-1.1")]
+  [InlineData("double", "-1.1d")]
+  [InlineData("double", "-1.7976931348623157E+308")]
+  [InlineData("double", "-1.7976931348623157E+308d")]
+  [InlineData("decimal", "-1.1m")]
+  public void ShouldReplaceForNegativeConstants(
+    string numericType, string value)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            {{numericType}} x = {{value}};
+          }
+        }
+        """;
+
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroup = GetNegativeLiteralValidMutationGroup(inputUnderMutation);
+    mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
+    mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
+      .BeEquivalentTo("{0}");
+    TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
+      .BeEquivalentTo(["0", "-{0}", "{0} - 1", "{0} + 1"]);
+  }
+  
+  [Theory]
+  // C# treats the negative expr and the const expr in -(constants) as two entities
+  // in this case, the constant is treated as an unsigned int because the absolute
+  // value of int.MinValue is outside the int range
+  // This applies similarly to long -> ulong
+  [InlineData("int", "-2147483648")]
+  [InlineData("long", "-2147483649")]
+  public void ShouldReplaceForNegativeConstantsForInferredType(
+    string numericType, string value)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public class A
+        {
+          public static void Main()
+          {
+            var x = {{value}};
+          }
+        }
+        """;
+
+    testOutputHelper.WriteLine(inputUnderMutation);
+
+    var mutationGroup = GetNegativeLiteralValidMutationGroup(inputUnderMutation);
     mutationGroup.SchemaParameterTypes.Should().BeEquivalentTo([numericType]);
     mutationGroup.SchemaReturnType.Should().BeEquivalentTo(numericType);
     mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()

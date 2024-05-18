@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Mutation.Mutator;
 using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 using Xunit.Abstractions;

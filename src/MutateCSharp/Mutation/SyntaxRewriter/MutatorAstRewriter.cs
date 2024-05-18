@@ -1,10 +1,11 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Mutation.Mutator;
 using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 
@@ -19,9 +20,12 @@ public sealed partial class MutatorAstRewriter
   private readonly SemanticModel _semanticModel;
   private readonly FileLevelMutantSchemaRegistry _schemaRegistry;
 
-  private readonly FrozenDictionary<Type, IMutationOperator[]>
-    _mutationOperators;
-  
+  private readonly FrozenDictionary<Type, IMutationOperator>
+    _mutators;
+
+  private readonly FrozenDictionary<Type, ImmutableArray<Type>>
+    _mutatorGroups;
+
   public MutatorAstRewriter(Assembly sutAssembly,
     SemanticModel semanticModel,
     FileLevelMutantSchemaRegistry schemaRegistry)
@@ -30,45 +34,89 @@ public sealed partial class MutatorAstRewriter
     _schemaRegistry = schemaRegistry;
     var predefinedUnaryOperatorSignatures =
       semanticModel.BuildUnaryNumericOperatorMethodSignature();
-    var predefinedBinaryOperatorSignatures = 
+    var predefinedBinaryOperatorSignatures =
       semanticModel.BuildBinaryNumericOperatorMethodSignature();
-    
-    _mutationOperators =
-      new Dictionary<Type, IMutationOperator[]>
+
+    _mutators = new Dictionary<Type, IMutationOperator>
     {
-      [typeof(LiteralExpressionSyntax)] =
-      [
-        new BooleanConstantReplacer(sutAssembly, semanticModel),
-        new StringConstantReplacer(sutAssembly, semanticModel),
+      {
+        typeof(BooleanConstantReplacer),
+        new BooleanConstantReplacer(sutAssembly, semanticModel)
+      },
+      {
+        typeof(StringConstantReplacer),
+        new StringConstantReplacer(sutAssembly, semanticModel)
+      },
+      {
+        typeof(NumericConstantReplacer),
         new NumericConstantReplacer(sutAssembly, semanticModel)
-      ],
-      [typeof(PrefixUnaryExpressionSyntax)] =
-        [new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel, 
-          predefinedUnaryOperatorSignatures)],
-      [typeof(PostfixUnaryExpressionSyntax)] =
-        [new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel, 
-          predefinedUnaryOperatorSignatures)],
-      [typeof(BinaryExpressionSyntax)] =
-        [new BinExprOpReplacer(sutAssembly, semanticModel, 
-          predefinedBinaryOperatorSignatures),
+      },
+      {
+        typeof(PrefixUnaryExprOpReplacer),
+        new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel,
+          predefinedUnaryOperatorSignatures)
+      },
+      {
+        typeof(PostfixUnaryExprOpReplacer),
+        new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel,
+          predefinedUnaryOperatorSignatures)
+      },
+      {
+        typeof(BinExprOpReplacer),
+        new BinExprOpReplacer(sutAssembly, semanticModel,
+          predefinedBinaryOperatorSignatures)
+      },
+      {
+        typeof(CompoundAssignOpReplacer),
         new CompoundAssignOpReplacer(sutAssembly, semanticModel,
-          predefinedBinaryOperatorSignatures)]
+          predefinedBinaryOperatorSignatures)
+      }
+    }.ToFrozenDictionary();
+
+    _mutatorGroups = new Dictionary<Type, ImmutableArray<Type>>
+    {
+      {
+        typeof(LiteralExpressionSyntax),
+        [
+          typeof(BooleanConstantReplacer),
+          typeof(StringConstantReplacer),
+          typeof(NumericConstantReplacer)
+        ]
+      },
+      {
+        typeof(PrefixUnaryExpressionSyntax),
+        [typeof(PrefixUnaryExprOpReplacer)]
+      },
+      {
+        typeof(PostfixUnaryExpressionSyntax),
+        [typeof(PostfixUnaryExprOpReplacer)]
+      },
+      {
+        typeof(BinaryExpressionSyntax),
+        [typeof(BinExprOpReplacer), typeof(CompoundAssignOpReplacer)]
+      }
     }.ToFrozenDictionary();
   }
-  
+
   // There should be at most one mutation operator that can be applied to the
   // current node, since each mutation operator apply to a disjoint set of nodes
-  private IMutationOperator? LocateMutationOperator(SyntaxNode currentNode)
+  private IMutationOperator? LocateMutator(SyntaxNode currentNode)
   {
+    // Infer mutator's type
     var baseType = currentNode.GetType();
-    if (!_mutationOperators.TryGetValue(baseType, out var mutationOperators))
+
+    // Locate mutator based on type
+    if (!_mutatorGroups.TryGetValue(baseType, out var mutatorCandidates))
       return null;
 
-    var mutationOperator =
-      mutationOperators.Where(m => m.CanBeApplied(currentNode)).ToList();
-    Trace.Assert(mutationOperator.Count <= 1,
-      $"There should be at most one qualifying mutation operator. Candidates: {string.Join(",", mutationOperator)}");
-    return mutationOperator.FirstOrDefault();
+    var mutator =
+      mutatorCandidates
+        .Where(mutatorType => _mutators[mutatorType].CanBeApplied(currentNode))
+        .Select(mutatorType => _mutators[mutatorType])
+        .ToList();
+    Trace.Assert(mutator.Count <= 1,
+      $"There should be at most one qualifying mutation operator. Candidates: {string.Join(",", mutator)}");
+    return mutator.FirstOrDefault();
   }
 
   // A file cannot contain both file scoped namespace declaration and
@@ -89,11 +137,13 @@ public sealed partial class MutatorAstRewriter
       .WithTrailingTrivia(nodeWithMutatedChildren.GetTrailingTrivia());
   }
 
-  public ExpressionSyntax VisitLiteralExpressionWithRequiredReturnType(LiteralExpressionSyntax node,
+  public ExpressionSyntax VisitLiteralExpressionWithRequiredReturnType(
+    LiteralExpressionSyntax node,
     ITypeSymbol? requiredReturnType = default)
   {
     // 1: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, requiredReturnType);
+    var mutationGroup = LocateMutator(node)
+      ?.CreateMutationGroup(node, requiredReturnType);
     if (mutationGroup is null) return node;
 
     // 2: Get assignment of mutant IDs for the mutation group
@@ -112,7 +162,8 @@ public sealed partial class MutatorAstRewriter
       node);
   }
 
-  public override ExpressionSyntax VisitLiteralExpression(LiteralExpressionSyntax node)
+  public override ExpressionSyntax VisitLiteralExpression(
+    LiteralExpressionSyntax node)
   {
     return VisitLiteralExpressionWithRequiredReturnType(node, null);
   }
@@ -135,33 +186,35 @@ public sealed partial class MutatorAstRewriter
     // if (foo(a is string s))
     // (...do something with s) // compile error: Local variable "s" might not be initialized before accessing
     // if (ContainsDeclarationPatternSyntax(node)) return node;
-    
+
     // 1: Mutate children nodes if its descendant does not contain declaration pattern syntax
     var leftContainsDeclarationSyntax =
       node.Left.ContainsDeclarationPatternSyntax();
     var rightContainsDeclarationSyntax =
       node.Right.ContainsDeclarationPatternSyntax();
-    
+
     // 2: Do not mutate current node if any descendants of current node contain
     // declaration pattern syntax
     if (leftContainsDeclarationSyntax || rightContainsDeclarationSyntax)
       return node
-        .WithLeft(leftContainsDeclarationSyntax ? 
-          node.Left : (ExpressionSyntax)Visit(node.Left))
-        .WithRight(rightContainsDeclarationSyntax ?
-          node.Right : (ExpressionSyntax)Visit(node.Right));
+        .WithLeft(leftContainsDeclarationSyntax
+          ? node.Left
+          : (ExpressionSyntax)Visit(node.Left))
+        .WithRight(rightContainsDeclarationSyntax
+          ? node.Right
+          : (ExpressionSyntax)Visit(node.Right));
 
     // 3: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, null);
+    var mutationGroup = LocateMutator(node)?.CreateMutationGroup(node, null);
     if (mutationGroup is null)
       return node
         .WithLeft((ExpressionSyntax)Visit(node.Left))
         .WithRight((ExpressionSyntax)Visit(node.Right));
-    
+
     // 4: Handle the special case where syntax node is compound
     // assignment expression and RHS is numeric literal
     BinaryExpressionSyntax? nodeWithMutatedChildren;
-    
+
     if (CompoundAssignOpReplacer.SupportedOperators.ContainsKey(node.Kind())
         && node.Right.IsKind(SyntaxKind.NumericLiteralExpression))
     {
@@ -192,7 +245,7 @@ public sealed partial class MutatorAstRewriter
       CodeAnalysisUtil.ShortCircuitOperators.Contains(node.Kind())
       || mutationGroup.SchemaMutantExpressions.Any(mutant =>
         CodeAnalysisUtil.ShortCircuitOperators.Contains(mutant.Operation));
-    
+
     // Handle awaitable operand expressions
     var isLeftOperandAwaitable = node.Left is AwaitExpressionSyntax;
     var isRightOperandAwaitable = node.Right is AwaitExpressionSyntax;
@@ -209,8 +262,8 @@ public sealed partial class MutatorAstRewriter
         leftLambdaArgument = leftLambdaArgument.WithAsyncKeyword(
           SyntaxFactory.Token(SyntaxKind.AsyncKeyword));
       }
-        
-      
+
+
       var rightLambdaArgument =
         SyntaxFactory.ParenthesizedLambdaExpression(rightArgument);
       if (isRightOperandAwaitable)
@@ -232,7 +285,7 @@ public sealed partial class MutatorAstRewriter
       rightArgument
     );
 
-    return containsShortCircuitOperators && 
+    return containsShortCircuitOperators &&
            (isLeftOperandAwaitable || isRightOperandAwaitable)
       ? SyntaxFactory.AwaitExpression(returnExpr)
       : returnExpr;
@@ -245,13 +298,37 @@ public sealed partial class MutatorAstRewriter
     // Reason: The variable scope will be limited to the mutant schemata
     // and is inaccessible to the current scope
     if (node.Operand.ContainsDeclarationPatternSyntax()) return node;
+    
+    /* https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#6453-integer-literals
+    * To permit the smallest possible int and long values to be written as
+    * integer literals, the following two rules exist:
+    *
+      - When an Integer_Literal representing the value 2147483648 (2³¹) and no
+      Integer_Type_Suffix appears as the token immediately following a unary
+      minus operator token (§12.9.3), the result (of both tokens) is a constant
+      of type int with the value −2147483648 (−2³¹). In all other situations,
+      such an Integer_Literal is of type uint.
+      - When an Integer_Literal representing the value 9223372036854775808
+      (2⁶³) and no Integer_Type_Suffix or the Integer_Type_Suffix L or l appears
+      as the token immediately following a unary minus operator token (§12.9.3),
+      the result (of both tokens) is a constant of type long with the value
+      −9223372036854775808 (−2⁶³). In all other situations, such an Integer_Literal
+      is of type ulong.
+
+      We identify such cases and treat them as a single entity.
+    */
 
     // 1: Mutate child expression node
-    var nodeWithMutatedChildren =
-      (PrefixUnaryExpressionSyntax)base.VisitPrefixUnaryExpression(node)!;
+    // Exception: do not visit child node if node is negative numeric literal
+    var nodeWithMutatedChildren = !node.IsNegativeLiteral()
+      ? (PrefixUnaryExpressionSyntax)base.VisitPrefixUnaryExpression(node)!
+      : node;
 
     // 2: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, null);
+    var mutator = node.IsNegativeLiteral()
+      ? _mutators[typeof(NumericConstantReplacer)] : LocateMutator(node);
+
+    var mutationGroup = mutator?.CreateMutationGroup(node, null);
     if (mutationGroup is null) return nodeWithMutatedChildren;
 
     // 3: Get assignment of mutant IDs for the mutation group
@@ -263,7 +340,11 @@ public sealed partial class MutatorAstRewriter
 
     // 4: Add ref keyword to parameter if updatable
     var firstParam = mutationGroup.SchemaParameterTypes[0];
-    var operand = SyntaxFactory.Argument(nodeWithMutatedChildren.Operand);
+    
+    // 5: Set operand as argument
+    // Exception: set original node as argument if node is negative numeric literal
+    var operand = SyntaxFactory.Argument(
+      !node.IsNegativeLiteral() ? nodeWithMutatedChildren.Operand: node);
     if (firstParam.StartsWith("ref"))
       operand =
         operand.WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword));
@@ -291,7 +372,7 @@ public sealed partial class MutatorAstRewriter
       (PostfixUnaryExpressionSyntax)base.VisitPostfixUnaryExpression(node)!;
 
     // 2: Apply mutation operator to obtain possible mutations
-    var mutationGroup = LocateMutationOperator(node)?.CreateMutationGroup(node, null);
+    var mutationGroup = LocateMutator(node)?.CreateMutationGroup(node, null);
     if (mutationGroup is null) return nodeWithMutatedChildren;
 
     // 3: Get assignment of mutant IDs for the mutation group
@@ -333,7 +414,7 @@ public sealed partial class MutatorAstRewriter
   {
     var nodeWithMutatedChildren =
       (ClassDeclarationSyntax)base.VisitClassDeclaration(node)!;
-      
+
     // Modify access declaration
     // Set minimum accessibility to public
     var modifier =
@@ -342,11 +423,12 @@ public sealed partial class MutatorAstRewriter
     return nodeWithMutatedChildren.WithModifiers(modifier);
   }
 
-  public override SyntaxNode VisitStructDeclaration(StructDeclarationSyntax node)
+  public override SyntaxNode VisitStructDeclaration(
+    StructDeclarationSyntax node)
   {
     var nodeWithMutatedChildren =
       (StructDeclarationSyntax)base.VisitStructDeclaration(node)!;
-    
+
     // Modify access declaration
     // Set minimum accessibility to public
     var modifier =
@@ -359,11 +441,12 @@ public sealed partial class MutatorAstRewriter
    * Interfaces declared directly within a namespace can be public or internal
    * and, just like classes and structs, interfaces default to internal access.
    */
-  public override SyntaxNode VisitInterfaceDeclaration(InterfaceDeclarationSyntax node)
+  public override SyntaxNode VisitInterfaceDeclaration(
+    InterfaceDeclarationSyntax node)
   {
     var nodeWithMutatedChildren =
       (InterfaceDeclarationSyntax)base.VisitInterfaceDeclaration(node)!;
-    
+
     // Modify access declaration
     // Set minimum accessibility to internal
     var modifier =
@@ -371,7 +454,7 @@ public sealed partial class MutatorAstRewriter
 
     return nodeWithMutatedChildren.WithModifiers(modifier);
   }
-  
+
   public override SyntaxNode VisitEnumDeclaration(
     EnumDeclarationSyntax node)
   {
@@ -386,7 +469,8 @@ public sealed partial class MutatorAstRewriter
     return nodeWithMutatedChildren.WithModifiers(modifier);
   }
 
-  public override SyntaxNode VisitRecordDeclaration(RecordDeclarationSyntax node)
+  public override SyntaxNode VisitRecordDeclaration(
+    RecordDeclarationSyntax node)
   {
     var nodeWithMutatedChildren =
       (RecordDeclarationSyntax)base.VisitRecordDeclaration(node)!;
@@ -432,17 +516,18 @@ public sealed partial class MutatorAstRewriter
   public override SyntaxNode VisitMethodDeclaration(
     MethodDeclarationSyntax node)
   {
-    var nodeWithMutatedChildren = (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;
-    
+    var nodeWithMutatedChildren =
+      (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;
+
     // Trivial case: method has void/Task return type / empty body
     // Do not insert return statements at the end of enumerable methods
-    if (node.Body is null || nodeWithMutatedChildren.Body is null || 
+    if (node.Body is null || nodeWithMutatedChildren.Body is null ||
         _semanticModel.GetDeclaredSymbol(node) is not { } methodSymbol ||
         _semanticModel.IsTypeVoid(methodSymbol.ReturnType))
     {
       return nodeWithMutatedChildren;
     }
-    
+
     // Add yield break statement for iterators
     if (CodeAnalysisUtil.IsIteratorBlock(node.Body))
     {
@@ -453,24 +538,25 @@ public sealed partial class MutatorAstRewriter
 
     // Add return statement for regular methods
     return nodeWithMutatedChildren.WithBody(
-      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren
+        .Body));
   }
-  
+
   public override SyntaxNode VisitLocalFunctionStatement(
     LocalFunctionStatementSyntax node)
   {
-    var nodeWithMutatedChildren = 
+    var nodeWithMutatedChildren =
       (LocalFunctionStatementSyntax)base.VisitLocalFunctionStatement(node)!;
-    
+
     // Trivial case: method has void/Task return type / empty body
     // Do not insert return statements at the end of enumerable methods
-    if (node.Body is null || nodeWithMutatedChildren.Body is null || 
+    if (node.Body is null || nodeWithMutatedChildren.Body is null ||
         _semanticModel.GetDeclaredSymbol(node) is not { } methodSymbol ||
         _semanticModel.IsTypeVoid(methodSymbol.ReturnType))
     {
       return nodeWithMutatedChildren;
     }
-    
+
     // Add yield break statement for iterators
     if (CodeAnalysisUtil.IsIteratorBlock(node.Body))
     {
@@ -481,15 +567,17 @@ public sealed partial class MutatorAstRewriter
 
     // Add return statement for regular methods
     return nodeWithMutatedChildren.WithBody(
-      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Body));
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren
+        .Body));
   }
-  
+
   public override SyntaxNode VisitPropertyDeclaration(
-     PropertyDeclarationSyntax node)
+    PropertyDeclarationSyntax node)
   {
-    var nodeWithMutatedChildren = (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node)!;
-    if (nodeWithMutatedChildren.AccessorList is null || 
-        _semanticModel.GetDeclaredSymbol(node) is not {} propertySymbol ||
+    var nodeWithMutatedChildren =
+      (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node)!;
+    if (nodeWithMutatedChildren.AccessorList is null ||
+        _semanticModel.GetDeclaredSymbol(node) is not { } propertySymbol ||
         _semanticModel.IsTypeVoid(propertySymbol.Type))
       return nodeWithMutatedChildren;
 
@@ -498,7 +586,8 @@ public sealed partial class MutatorAstRewriter
     foreach (var accessor in nodeWithMutatedChildren.AccessorList.Accessors)
     {
       // Getters must have a non-void return type
-      if (!accessor.IsKind(SyntaxKind.GetAccessorDeclaration) || accessor.Body is null)
+      if (!accessor.IsKind(SyntaxKind.GetAccessorDeclaration) ||
+          accessor.Body is null)
       {
         modifiedAccessorList.Add(accessor);
         continue;
@@ -520,7 +609,7 @@ public sealed partial class MutatorAstRewriter
         modifiedAccessorList.Add(modifiedAccessor);
       }
     }
-    
+
     // Add return statement
     return nodeWithMutatedChildren.WithAccessorList(
       SyntaxFactory.AccessorList(
@@ -530,33 +619,40 @@ public sealed partial class MutatorAstRewriter
   public override SyntaxNode VisitParenthesizedLambdaExpression(
     ParenthesizedLambdaExpressionSyntax node)
   {
-    var nodeWithMutatedChildren = (ParenthesizedLambdaExpressionSyntax)base.VisitParenthesizedLambdaExpression(node)!;
-    
+    var nodeWithMutatedChildren =
+      (ParenthesizedLambdaExpressionSyntax)base
+        .VisitParenthesizedLambdaExpression(node)!;
+
     // Trivial case: method has void return type / empty body
     if (nodeWithMutatedChildren.Block is null ||
-      _semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol ||
-       _semanticModel.IsTypeVoid(methodSymbol.ReturnType))
+        _semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol
+          methodSymbol ||
+        _semanticModel.IsTypeVoid(methodSymbol.ReturnType))
       return nodeWithMutatedChildren;
-    
+
     // Add return statement
     return nodeWithMutatedChildren.WithBody(
-      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Block));
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren
+        .Block));
   }
-  
+
   public override SyntaxNode VisitSimpleLambdaExpression(
     SimpleLambdaExpressionSyntax node)
   {
-    var nodeWithMutatedChildren = (SimpleLambdaExpressionSyntax)base.VisitSimpleLambdaExpression(node)!;
-    
+    var nodeWithMutatedChildren =
+      (SimpleLambdaExpressionSyntax)base.VisitSimpleLambdaExpression(node)!;
+
     // Trivial case: method has void return type / empty body
     if (nodeWithMutatedChildren.Block is null ||
-        _semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol methodSymbol ||
+        _semanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol
+          methodSymbol ||
         _semanticModel.IsTypeVoid(methodSymbol.ReturnType))
       return nodeWithMutatedChildren;
-    
+
     // Add return statement
     return nodeWithMutatedChildren.WithBody(
-      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren.Block));
+      SyntaxRewriterUtil.InsertDefaultReturnStatement(nodeWithMutatedChildren
+        .Block));
   }
 }
 
@@ -597,15 +693,18 @@ public sealed partial class MutatorAstRewriter
    * https://learn.microsoft.com/en-us/dotnet/framework/debug-trace-profile/code-contracts
    * "Code contracts provide a way to specify preconditions, postconditions,
    * and object invariants in .NET Framework code."
-   * 
+   *
    * We avoid modifying the preconditions, postconditions, and object invariants
    * for Code Contracts as these are used by the static checker to verify the
    * predicates at compile time, and would cause the code to fail compiling if
    * modified.
    */
-  public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
+  public override SyntaxNode VisitInvocationExpression(
+    InvocationExpressionSyntax node)
   {
-    return node.InvokesCodeContractMethods() ? node : base.VisitInvocationExpression(node)!;
+    return node.InvokesCodeContractMethods()
+      ? node
+      : base.VisitInvocationExpression(node)!;
   }
 
   public override SyntaxNode VisitEnumMemberDeclaration(

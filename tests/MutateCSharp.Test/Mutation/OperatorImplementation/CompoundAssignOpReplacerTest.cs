@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
-using MutateCSharp.Mutation.OperatorImplementation;
+using MutateCSharp.Mutation.Mutator;
 using MutateCSharp.Util;
 using Xunit.Abstractions;
 

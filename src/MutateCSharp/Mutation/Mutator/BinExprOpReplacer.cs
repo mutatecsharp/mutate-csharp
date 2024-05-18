@@ -1,14 +1,13 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reflection;
-using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
 using Serilog;
 
-namespace MutateCSharp.Mutation.OperatorImplementation;
+namespace MutateCSharp.Mutation.Mutator;
 
 public sealed partial class BinExprOpReplacer(
   Assembly sutAssembly,

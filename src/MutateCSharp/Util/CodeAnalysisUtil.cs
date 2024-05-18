@@ -886,6 +886,13 @@ public static partial class CodeAnalysisUtil
 
     return visibility;
   }
+
+  public static bool IsNegativeLiteral(this ExpressionSyntax node)
+  {
+    return node is PrefixUnaryExpressionSyntax unaryExpr &&
+           unaryExpr.IsKind(SyntaxKind.UnaryMinusExpression) &&
+           unaryExpr.Operand.IsKind(SyntaxKind.NumericLiteralExpression);
+  } 
   
   public static SpecialType DetermineNumericLiteralType(
     LiteralExpressionSyntax literalExpression)
@@ -977,15 +984,29 @@ public static partial class CodeAnalysisUtil
     return SpecialType.None;
   }
 
+  /*
+   * Handles positive and negative literals.
+   */
   public static bool CanImplicitlyConvertNumericLiteral(this SemanticModel model,
-    SyntaxNode node, SpecialType destinationType)
+    ExpressionSyntax node, SpecialType destinationType)
   {
-    if (!node.IsKind(SyntaxKind.NumericLiteralExpression) 
-        || destinationType is SpecialType.None) return false;
+    if (destinationType is SpecialType.None) return false;
     
     // Determine the type of the numeric literal based on its suffix
-    var literalExpression = (LiteralExpressionSyntax)node;
-    var literalType = DetermineNumericLiteralType(literalExpression);
+    var literalExpression = node switch
+    {
+      LiteralExpressionSyntax lit when 
+        lit.IsKind(SyntaxKind.NumericLiteralExpression) => lit,
+      PrefixUnaryExpressionSyntax
+          { Operand: LiteralExpressionSyntax absoluteLit } unaryExpr when
+        unaryExpr.IsNegativeLiteral() => absoluteLit,
+      _ => null
+    };
+    if (literalExpression is null) return false;
+    
+    // Get the determined type of the node instead of literal, as node could be
+    // a prefix unary followed by literal as operand (signifying negative constant)
+    var literalType = model.ResolveTypeSymbol(node)!.SpecialType;
     if (literalType is SpecialType.None) return false;
     
     var literalTypeSymbol = model.Compilation.GetSpecialType(literalType);
@@ -993,7 +1014,8 @@ public static partial class CodeAnalysisUtil
     
     // Only a numeric literal with determined type int can be narrowed implicitly
     // based on its value
-    if (destinationType is not 
+    if (literalType is not SpecialType.System_Int32 ||
+        destinationType is not 
         (SpecialType.System_SByte or
         SpecialType.System_Byte or
         SpecialType.System_Int16 or
@@ -1007,7 +1029,7 @@ public static partial class CodeAnalysisUtil
     }
 
     // Get the literal value as a string
-    var literalValue = literalExpression.Token.ValueText;
+    var literalValue = node.ToString();
 
     // If the determined type of an integer literal is int and the value
     // represented by the literal is within the range of the destination type,

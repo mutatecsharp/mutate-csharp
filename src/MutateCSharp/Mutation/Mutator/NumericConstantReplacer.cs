@@ -7,16 +7,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
 using Serilog;
 
-namespace MutateCSharp.Mutation.OperatorImplementation;
+namespace MutateCSharp.Mutation.Mutator;
 
 /*
  * The replacer takes in the original type of the literal and returns the
  * converted type that matches the assigned return type of the variable.
+ * As a numeric literal is polymorphic in form we would have to loosen
+ * the type checks from LiteralExpressionSyntax to ExpressionSyntax.
  */
 public sealed partial class NumericConstantReplacer(
   Assembly sutAssembly,
   SemanticModel semanticModel)
-  : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
+  : AbstractMutationOperator<ExpressionSyntax>(sutAssembly,
     semanticModel)
 {
   private readonly FrozenDictionary<SyntaxKind,
@@ -24,17 +26,20 @@ public sealed partial class NumericConstantReplacer(
     _predefinedUnaryOperatorSignatures =
       semanticModel.BuildUnaryNumericOperatorMethodSignature();
   
-  protected override bool CanBeApplied(LiteralExpressionSyntax originalNode)
+  protected override bool CanBeApplied(ExpressionSyntax originalNode)
   {
     Log.Debug("Processing numeric constant: {SyntaxNode}", 
       originalNode.GetText().ToString());
     
     var type = SemanticModel.ResolveTypeSymbol(originalNode)?.SpecialType;
-    return type is not null && originalNode.IsKind(SyntaxKind.NumericLiteralExpression);
+    var isPositiveLiteral =
+      originalNode.IsKind(SyntaxKind.NumericLiteralExpression);
+
+    return type is not null && (isPositiveLiteral || originalNode.IsNegativeLiteral());
   }
 
   protected override ExpressionRecord OriginalExpression(
-    LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _, ITypeSymbol? requiredReturnType)
+    ExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _, ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(), "{0}");
   }
@@ -76,7 +81,7 @@ public sealed partial class NumericConstantReplacer(
   
   protected override
     ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
-    ValidMutantExpressions(LiteralExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
+    ValidMutantExpressions(ExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
   {
     var typeSymbols = NonMutatedTypeSymbols(originalNode, requiredReturnType);
     if (typeSymbols is null) return [];
@@ -105,9 +110,12 @@ public sealed partial class NumericConstantReplacer(
    * uint, ulong, nint or nuint.
    */
   protected override CodeAnalysisUtil.MethodSignature? NonMutatedTypeSymbols(
-    LiteralExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
+    ExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
   {
+    // Positive literal possible determined type: int, uint, long, ulong
+    // Negative literal possible determined type: int, long
     var literalAbsoluteType = semanticModel.ResolveTypeSymbol(originalNode)!;
+    
     // Determine if there is an implicit conversion from the literal to the
     // required type; otherwise do not convert
     if (requiredReturnType is not null)
@@ -140,12 +148,12 @@ public sealed partial class NumericConstantReplacer(
     var absoluteConvertedTypeSymbol =
       convertedTypeSymbol.GetNullableUnderlyingType();
     
+    // Narrow the numeric literal type if the determined type is int but
+    // the converted type is narrower than int, and that the literal can be
+    // implicitly converted to the narrower numeric type
     if (SemanticModel.CanImplicitlyConvertNumericLiteral(
           originalNode, absoluteConvertedTypeSymbol.SpecialType))
     {
-      // Narrow the numeric literal type if the determined type is int but
-      // the converted type is narrower than int, and that the literal can be
-      // implicitly converted to the narrower numeric type
       var narrowerType = SemanticModel.DetermineNarrowerNumericType(
         absoluteConvertedTypeSymbol, literalAbsoluteType); 
         
@@ -155,7 +163,7 @@ public sealed partial class NumericConstantReplacer(
     return null;
   }
 
-  protected override ImmutableArray<string> SchemaParameterTypeDisplays(LiteralExpressionSyntax originalNode,
+  protected override ImmutableArray<string> SchemaParameterTypeDisplays(ExpressionSyntax originalNode,
     ImmutableArray<ExpressionRecord> mutantExpressions, ITypeSymbol? requiredReturnType)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
@@ -166,7 +174,7 @@ public sealed partial class NumericConstantReplacer(
   }
 
   protected override string SchemaReturnTypeDisplay(
-    LiteralExpressionSyntax originalNode,
+    ExpressionSyntax originalNode,
     ImmutableArray<ExpressionRecord> mutantExpressions,
     ITypeSymbol? requiredReturnType)
   {

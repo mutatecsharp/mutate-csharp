@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
 using Serilog;
 
-namespace MutateCSharp.Mutation.OperatorImplementation;
+namespace MutateCSharp.Mutation.Mutator;
 
 public class BooleanConstantReplacer(
   Assembly sutAssembly,

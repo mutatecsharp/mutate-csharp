@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Util;
 using Serilog;
 
-namespace MutateCSharp.Mutation.OperatorImplementation;
+namespace MutateCSharp.Mutation.Mutator;
 
 /*
  * Note: we handle updatable parameters differently from non-updatable parameters.
