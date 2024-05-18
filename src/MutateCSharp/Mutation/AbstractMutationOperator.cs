@@ -31,25 +31,22 @@ public abstract class AbstractMutationOperator<T>(
     var typeSymbols = NonMutatedTypeSymbols(node, requiredReturnType);
     if (typeSymbols is null) return null;
 
-    var mutationsWithId = ValidMutantExpressions(node, requiredReturnType);
+    // Guaranteed to be sorted by sorting.
+    var mutationsWithId = ValidMutantExpressions(node, requiredReturnType).Sort();
     if (mutationsWithId.Length == 0) return null;
 
     var mutations =
       mutationsWithId.Select(entry => entry.expr).ToImmutableArray();
-    var uniqueMutantsId =
-      string.Join(string.Empty, mutationsWithId.Select(entry => entry.exprIdInMutator));
     
     // Remove all non-alphanumeric characters in schema's base name that contains the return type
-    var returnTypeDisplay = SchemaReturnTypeDisplay(node, mutations, requiredReturnType);
-    var schemaName = $"{SchemaBaseName()}Return{returnTypeDisplay}";
-    schemaName = string.Concat(schemaName.Where(char.IsLetterOrDigit));
+    var schemaName = string.Concat(SchemaBaseName().Where(char.IsLetterOrDigit));
     
     return new MutationGroup
     {
-      SchemaName = $"{schemaName}{uniqueMutantsId}",
+      SchemaName = schemaName,
       SchemaParameterTypes = SchemaParameterTypeDisplays(node, mutations, requiredReturnType),
       ParameterTypeSymbols = typeSymbols.OperandTypes,
-      SchemaReturnType = returnTypeDisplay,
+      SchemaReturnType = SchemaReturnTypeDisplay(node, mutations, requiredReturnType),
       ReturnTypeSymbol = typeSymbols.ReturnType,
       SchemaOriginalExpression = OriginalExpression(node, mutations, requiredReturnType),
       SchemaMutantExpressions = mutations,

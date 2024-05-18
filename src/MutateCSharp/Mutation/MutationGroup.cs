@@ -14,20 +14,35 @@ public class MutationGroup
   // For schema generation use (compilation type symbols)
   public required ITypeSymbol ReturnTypeSymbol { get; init; }
   
-  public required ImmutableArray<ITypeSymbol>
-    ParameterTypeSymbols { get; init; }
+  public required ImmutableArray<ITypeSymbol> ParameterTypeSymbols { get; init; }
   
   public required string SchemaName { get; init; }
 
   // For internal use (registry)
   public required Location OriginalLocation { get; init; }
 
-  // Compute hash code that takes into consideration the schema method name
-  // and the (order-aware) schema parameter types
+  // Compute hash code that takes into consideration the schema method name,
+  // return type and parameter types
   public override int GetHashCode()
   {
-    return SchemaParameterTypes.Aggregate(
-      SchemaName.GetHashCode(), HashCode.Combine);
+    var hashCode = new HashCode();
+    
+    hashCode.Add(SchemaName);
+    hashCode.Add(SchemaReturnType);
+
+    foreach (var parameterDisplay in SchemaParameterTypes)
+    {
+      hashCode.Add(parameterDisplay);
+    }
+    
+    hashCode.Add(SchemaOriginalExpression.ExpressionTemplate);
+
+    foreach (var mutantExpression in SchemaMutantExpressions)
+    {
+      hashCode.Add(mutantExpression.ExpressionTemplate);
+    }
+
+    return hashCode.ToHashCode();
   }
 
   public override bool Equals(object? other)
@@ -37,8 +52,16 @@ public class MutationGroup
         GetType() != other.GetType())
       return false;
     var otherGroup = (other as MutationGroup)!;
-    return SchemaName.Equals(otherGroup.SchemaName)
-           && SchemaParameterTypes.SequenceEqual(
-             otherGroup.SchemaParameterTypes);
+
+    var mutantExpr = SchemaMutantExpressions.Select(mutant => mutant.ExpressionTemplate);
+    var otherMutantExpr =
+      otherGroup.SchemaMutantExpressions.Select(mutant => mutant.ExpressionTemplate);
+
+    return SchemaName.Equals(otherGroup.SchemaName) &&
+          SchemaReturnType.Equals(otherGroup.SchemaReturnType) &&
+          SchemaParameterTypes.SequenceEqual(otherGroup.SchemaParameterTypes) &&
+          SchemaOriginalExpression.ExpressionTemplate.Equals(
+            otherGroup.SchemaOriginalExpression.ExpressionTemplate) &&
+           mutantExpr.SequenceEqual(otherMutantExpr);
   }
 }
