@@ -10,13 +10,16 @@ namespace MutateCSharp.Mutation.Mutator;
 
 public class BooleanConstantReplacer(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel,
+  bool optimise)
   : AbstractMutationOperator<LiteralExpressionSyntax>(sutAssembly,
     semanticModel)
 {
-  private static readonly ImmutableArray<(int id, ExpressionRecord expr)>
+  private static readonly ImmutableArray<ExpressionRecord>
     MutantExpressions =
-      [(1, new ExpressionRecord(SyntaxKind.LogicalNotExpression, "!{0}"))];
+      [new ExpressionRecord(SyntaxKind.LogicalNotExpression, 
+        CodeAnalysisUtil.OperandKind.None,
+        "!{0}")];
 
   private readonly ITypeSymbol _booleanTypeSymbol =
     semanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
@@ -36,11 +39,11 @@ public class BooleanConstantReplacer(
     LiteralExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _,
     ITypeSymbol? requiredReturnType)
   {
-    return new ExpressionRecord(originalNode.Kind(), "{0}");
+    return new ExpressionRecord(originalNode.Kind(), CodeAnalysisUtil.OperandKind.None,  "{0}");
   }
 
   protected override
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(LiteralExpressionSyntax _,
       ITypeSymbol? requiredReturnType)
   {

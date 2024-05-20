@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.CodeAnalysis.CSharp;
 using MutateCSharp.Mutation;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation;
@@ -21,10 +22,10 @@ public class EqualityHashCodeTests
       SchemaReturnType = "int?",
       SchemaParameterTypes = ["int?", "int?"],
       SchemaOriginalExpression = 
-        new ExpressionRecord(SyntaxKind.SubtractExpression, "{0} - {1}"),
+        new ExpressionRecord(SyntaxKind.SubtractExpression, CodeAnalysisUtil.OperandKind.None, "{0} - {1}"),
       SchemaMutantExpressions = 
         [
-          new ExpressionRecord(SyntaxKind.AddExpression, "{0} + {1}")
+          new ExpressionRecord(SyntaxKind.AddExpression, CodeAnalysisUtil.OperandKind.None, "{0} + {1}")
         ],
       ReturnTypeSymbol = default,
       ParameterTypeSymbols = default,

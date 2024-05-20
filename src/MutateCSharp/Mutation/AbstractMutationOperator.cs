@@ -30,13 +30,9 @@ public abstract class AbstractMutationOperator<T>(
     var node = (T)originalNode!;
     var typeSymbols = NonMutatedTypeSymbols(node, requiredReturnType);
     if (typeSymbols is null) return null;
-
-    // Guaranteed to be sorted by sorting.
-    var mutationsWithId = ValidMutantExpressions(node, requiredReturnType).Sort();
-    if (mutationsWithId.Length == 0) return null;
-
-    var mutations =
-      mutationsWithId.Select(entry => entry.expr).ToImmutableArray();
+    
+    var sortedMutations = ValidMutantExpressions(node, requiredReturnType);
+    if (sortedMutations.Length == 0) return null;
     
     // Remove all non-alphanumeric characters in schema's base name that contains the return type
     var schemaName = string.Concat(SchemaBaseName().Where(char.IsLetterOrDigit));
@@ -44,12 +40,12 @@ public abstract class AbstractMutationOperator<T>(
     return new MutationGroup
     {
       SchemaName = schemaName,
-      SchemaParameterTypes = SchemaParameterTypeDisplays(node, mutations, requiredReturnType),
+      SchemaParameterTypes = SchemaParameterTypeDisplays(node, sortedMutations, requiredReturnType),
       ParameterTypeSymbols = typeSymbols.OperandTypes,
-      SchemaReturnType = SchemaReturnTypeDisplay(node, mutations, requiredReturnType),
+      SchemaReturnType = SchemaReturnTypeDisplay(node, sortedMutations, requiredReturnType),
       ReturnTypeSymbol = typeSymbols.ReturnType,
-      SchemaOriginalExpression = OriginalExpression(node, mutations, requiredReturnType),
-      SchemaMutantExpressions = mutations,
+      SchemaOriginalExpression = OriginalExpression(node, sortedMutations, requiredReturnType),
+      SchemaMutantExpressions = sortedMutations,
       OriginalLocation = node.GetLocation()
     };
   }
@@ -64,7 +60,7 @@ public abstract class AbstractMutationOperator<T>(
   // Each valid candidate is statically assigned an ID that is unique within
   // the context of the mutation operator class.
   protected abstract
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(T originalNode, ITypeSymbol? requiredReturnType);
   
   /*

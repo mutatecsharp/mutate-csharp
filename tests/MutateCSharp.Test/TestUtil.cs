@@ -95,7 +95,7 @@ public static class TestUtil
   }
 
   public static void BinaryShouldNotHaveValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -107,7 +107,7 @@ public static class TestUtil
       compilation.model.BuildBinaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures, optimise)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
 
@@ -117,7 +117,7 @@ public static class TestUtil
   }
   
   public static void UnaryShouldNotHaveValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -129,7 +129,7 @@ public static class TestUtil
       compilation.model.BuildUnaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures, optimise)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
 
@@ -139,7 +139,7 @@ public static class TestUtil
   }
   
   public static void ShouldNotHaveValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -148,7 +148,7 @@ public static class TestUtil
   
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model)!;
+      compilation.sutAssembly, compilation.model, optimise)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
   
@@ -158,7 +158,7 @@ public static class TestUtil
   }
   
   public static MutationGroup GetValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -168,7 +168,7 @@ public static class TestUtil
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
   
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model)!;
+      compilation.sutAssembly, compilation.model, optimise)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
     constructUnderTest.Should()
@@ -182,7 +182,7 @@ public static class TestUtil
   }
   
   public static MutationGroup UnaryGetValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -194,7 +194,7 @@ public static class TestUtil
       compilation.model.BuildUnaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures, optimise)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
     constructUnderTest.Should()
@@ -208,7 +208,7 @@ public static class TestUtil
   }
 
   public static MutationGroup BinaryGetValidMutationGroup<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -220,7 +220,7 @@ public static class TestUtil
       compilation.model.BuildBinaryNumericOperatorMethodSignature();
 
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures, optimise)!;
     var constructUnderTest = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<TU>().FirstOrDefault();
     constructUnderTest.Should()
@@ -234,7 +234,7 @@ public static class TestUtil
   }
 
   public static MutationGroup[] BinaryGetAllValidMutationGroups<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -246,7 +246,7 @@ public static class TestUtil
       compilation.model.BuildBinaryNumericOperatorMethodSignature();
     
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures, optimise)!;
     var constructsUnderTest = inputAst.GetCompilationUnitRoot()
       .DescendantNodes()
       .OfType<TU>().ToArray();
@@ -265,7 +265,7 @@ public static class TestUtil
   }
   
   public static MutationGroup[] UnaryGetAllValidMutationGroups<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -277,7 +277,7 @@ public static class TestUtil
       compilation.model.BuildUnaryNumericOperatorMethodSignature();
     
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model, predefOperatorSignatures)!;
+      compilation.sutAssembly, compilation.model, predefOperatorSignatures, optimise)!;
     var constructsUnderTest = inputAst.GetCompilationUnitRoot()
       .DescendantNodes()
       .OfType<TU>().ToArray();
@@ -296,7 +296,7 @@ public static class TestUtil
   }
   
   public static MutationGroup[] GetAllValidMutationGroups<T, TU>(
-    string inputUnderMutation)
+    string inputUnderMutation, bool optimise = false)
     where T : IMutationOperator
     where TU : SyntaxNode
   {
@@ -304,11 +304,9 @@ public static class TestUtil
     TestForSyntacticErrors(inputAst);
 
     var compilation = GetAstSemanticModelAndAssembly(inputAst);
-    var predefOperatorSignatures =
-      compilation.model.BuildBinaryNumericOperatorMethodSignature();
     
     var mutationOperator = (T)Activator.CreateInstance(typeof(T),
-      compilation.sutAssembly, compilation.model)!;
+      compilation.sutAssembly, compilation.model, optimise)!;
     var constructsUnderTest = inputAst.GetCompilationUnitRoot()
       .DescendantNodes()
       .OfType<TU>().ToArray();
@@ -329,13 +327,14 @@ public static class TestUtil
   public static SyntaxNode GetNodeUnderMutationAfterRewrite<T>(
     string inputUnderMutation,
     FileLevelMutantSchemaRegistry schemaRegistry,
-    Func<MutatorAstRewriter, T, SyntaxNode> visitSyntaxUnderTest)
+    Func<MutatorAstRewriter, T, SyntaxNode> visitSyntaxUnderTest,
+    bool optimise = false)
     where T : SyntaxNode
   {
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
-      compilation.sutAssembly, compilation.model, schemaRegistry);
+      compilation.sutAssembly, compilation.model, schemaRegistry, optimise);
     var construct = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<T>().First();
     return visitSyntaxUnderTest(rewriter, construct);

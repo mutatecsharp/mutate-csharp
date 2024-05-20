@@ -16,7 +16,10 @@ namespace MutateCSharp.Mutation;
 public static class MutatorHarness
 {
   public static async Task<(Solution, IDictionary<Project, ProjectLevelMutationRegistry>)> 
-    MutateSolution(MSBuildWorkspace workspace, Solution solution, ImmutableArray<string> pathsToIgnore)
+    MutateSolution(MSBuildWorkspace workspace, 
+      Solution solution, 
+      ImmutableArray<string> pathsToIgnore,
+      bool optimise)
   {
     Log.Information("Mutating solution {Solution}.",
       Path.GetFileName(solution.FilePath));
@@ -28,7 +31,7 @@ public static class MutatorHarness
     {
       var project = mutatedSolution.GetProject(projectId)!;
       var (mutatedProject, projectRegistry) = 
-        await MutateProject(workspace, project, pathsToIgnore).ConfigureAwait(false);
+        await MutateProject(workspace, project, pathsToIgnore, optimise).ConfigureAwait(false);
       mutatedSolution = mutatedProject.Solution;
 
       if (projectRegistry is not null)
@@ -39,7 +42,10 @@ public static class MutatorHarness
   }
 
   public static async Task<(Project, ProjectLevelMutationRegistry?)>
-    MutateProject(Workspace workspace, Project project, ImmutableArray<string> pathsToIgnore,
+    MutateProject(Workspace workspace, 
+      Project project, 
+      ImmutableArray<string> pathsToIgnore,
+      bool optimise,
       Document? specifiedDocument = default)
   {
     Log.Information("Mutating project {Project}.", project.Name);
@@ -95,7 +101,7 @@ public static class MutatorHarness
       var document = mutatedProject.GetDocument(documentId)!;
       
       var (mutatedDocument, fileSchemaRegistry) = 
-        await MutateDocument(workspace, sutAssembly, document).ConfigureAwait(false);
+        await MutateDocument(workspace, sutAssembly, document, optimise).ConfigureAwait(false);
       
       // Record mutations in registry
       var relativePath = Path.GetRelativePath(
@@ -111,7 +117,10 @@ public static class MutatorHarness
   }
 
   private static async Task<(Document, FileLevelMutantSchemaRegistry?)> 
-    MutateDocument(Workspace workspace, Assembly sutAssembly, Document document)
+    MutateDocument(Workspace workspace, 
+      Assembly sutAssembly, 
+      Document document, 
+      bool optimise)
   {
     var semanticModelTask = document.GetValidatedSemanticModel().ConfigureAwait(false);
     var tree = await document.GetValidatedSyntaxTree().ConfigureAwait(false);
@@ -132,7 +141,7 @@ public static class MutatorHarness
 
     // 1: Modify the body of the source file
     var mutationRewriter =
-      new MutatorAstRewriter(sutAssembly, semanticModel, mutantSchemaRegistry);
+      new MutatorAstRewriter(sutAssembly, semanticModel, mutantSchemaRegistry, optimise);
     var mutatedAstRoot = (CompilationUnitSyntax)mutationRewriter.Visit(root);
 
     // 2: Generate mutant schemata for the source file under mutation

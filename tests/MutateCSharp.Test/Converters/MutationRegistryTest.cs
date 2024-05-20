@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Converters;
@@ -24,6 +25,7 @@ public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
           OriginalOperation = SyntaxKind.BitwiseAndExpression,
           OriginalExpressionTemplate = "{0} & {1}",
           MutantOperation = SyntaxKind.BitwiseOrExpression,
+          MutantOperandKind = CodeAnalysisUtil.OperandKind.LeftOperand,
           MutantExpressionTemplate = "{0} | {1}",
           SourceSpan = new TextSpan(42, 2),
           LineSpan = new FileLinePositionSpan(string.Empty,
@@ -35,6 +37,7 @@ public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
           OriginalOperation = SyntaxKind.BitwiseOrExpression,
           OriginalExpressionTemplate = "{0} | {1}",
           MutantOperation = SyntaxKind.BitwiseAndExpression,
+          MutantOperandKind = CodeAnalysisUtil.OperandKind.RightOperand,
           MutantExpressionTemplate = "{0} & {1}",
           SourceSpan = new TextSpan(42, 2),
           LineSpan = new FileLinePositionSpan(string.Empty,

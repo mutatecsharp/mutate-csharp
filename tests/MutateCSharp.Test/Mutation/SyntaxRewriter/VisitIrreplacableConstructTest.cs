@@ -310,7 +310,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
-      compilation.sutAssembly, compilation.model, schemaRegistry);
+      compilation.sutAssembly, compilation.model, schemaRegistry, optimise: false);
     var binExprs = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<BinaryExpressionSyntax>();
 

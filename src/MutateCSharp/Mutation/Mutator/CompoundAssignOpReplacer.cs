@@ -23,7 +23,8 @@ public sealed partial class CompoundAssignOpReplacer(
   Assembly sutAssembly,
   SemanticModel semanticModel,
   FrozenDictionary<SyntaxKind,
-    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures,
+  bool optimise)
   :
     AbstractBinaryMutationOperator<AssignmentExpressionSyntax>(sutAssembly,
       semanticModel, builtInOperatorSignatures)
@@ -67,25 +68,26 @@ public sealed partial class CompoundAssignOpReplacer(
     ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
+      CodeAnalysisUtil.OperandKind.None,
       ExpressionTemplate(originalNode.Kind()));
   }
 
   protected override
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(AssignmentExpressionSyntax originalNode,
       ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode, requiredReturnType);
+    var validMutants = ValidMutants(originalNode, requiredReturnType, optimise);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
     return
     [
       ..attachIdToMutants.Select(entry =>
-        (entry.id,
-          new ExpressionRecord(entry.op, ExpressionTemplate(entry.op))
+          new ExpressionRecord(entry.op, 
+            CodeAnalysisUtil.OperandKind.None, 
+            ExpressionTemplate(entry.op))
         )
-      )
     ];
   }
 

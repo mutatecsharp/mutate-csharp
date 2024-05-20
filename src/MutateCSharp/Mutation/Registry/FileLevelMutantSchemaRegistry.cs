@@ -78,6 +78,7 @@ public class FileLevelMutantSchemaRegistry
           OriginalOperation = group.SchemaOriginalExpression.Operation,
           OriginalExpressionTemplate = group.SchemaOriginalExpression.ExpressionTemplate,
           MutantOperation = group.SchemaMutantExpressions[i].Operation,
+          MutantOperandKind = group.SchemaMutantExpressions[i].Operand,
           MutantExpressionTemplate = group.SchemaMutantExpressions[i].ExpressionTemplate,
           SourceSpan = group.OriginalLocation.SourceSpan,
           LineSpan = group.OriginalLocation.GetLineSpan()

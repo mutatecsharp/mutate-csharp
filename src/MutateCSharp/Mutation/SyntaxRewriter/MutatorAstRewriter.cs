@@ -28,7 +28,8 @@ public sealed partial class MutatorAstRewriter
 
   public MutatorAstRewriter(Assembly sutAssembly,
     SemanticModel semanticModel,
-    FileLevelMutantSchemaRegistry schemaRegistry)
+    FileLevelMutantSchemaRegistry schemaRegistry,
+    bool optimise)
   {
     _semanticModel = semanticModel;
     _schemaRegistry = schemaRegistry;
@@ -41,35 +42,35 @@ public sealed partial class MutatorAstRewriter
     {
       {
         typeof(BooleanConstantReplacer),
-        new BooleanConstantReplacer(sutAssembly, semanticModel)
+        new BooleanConstantReplacer(sutAssembly, semanticModel, optimise)
       },
       {
         typeof(StringConstantReplacer),
-        new StringConstantReplacer(sutAssembly, semanticModel)
+        new StringConstantReplacer(sutAssembly, semanticModel, optimise)
       },
       {
         typeof(NumericConstantReplacer),
-        new NumericConstantReplacer(sutAssembly, semanticModel)
+        new NumericConstantReplacer(sutAssembly, semanticModel, optimise)
       },
       {
         typeof(PrefixUnaryExprOpReplacer),
         new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel,
-          predefinedUnaryOperatorSignatures)
+          predefinedUnaryOperatorSignatures, optimise)
       },
       {
         typeof(PostfixUnaryExprOpReplacer),
         new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel,
-          predefinedUnaryOperatorSignatures)
+          predefinedUnaryOperatorSignatures, optimise)
       },
       {
         typeof(BinExprOpReplacer),
         new BinExprOpReplacer(sutAssembly, semanticModel,
-          predefinedBinaryOperatorSignatures)
+          predefinedBinaryOperatorSignatures, optimise)
       },
       {
         typeof(CompoundAssignOpReplacer),
         new CompoundAssignOpReplacer(sutAssembly, semanticModel,
-          predefinedBinaryOperatorSignatures)
+          predefinedBinaryOperatorSignatures, optimise)
       }
     }.ToFrozenDictionary();
 

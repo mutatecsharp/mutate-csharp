@@ -13,7 +13,8 @@ public sealed partial class BinExprOpReplacer(
   Assembly sutAssembly,
   SemanticModel semanticModel,
   FrozenDictionary<SyntaxKind,
-    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures,
+  bool optimise)
   : AbstractBinaryMutationOperator<BinaryExpressionSyntax>(sutAssembly,
     semanticModel, builtInOperatorSignatures)
 {
@@ -50,17 +51,29 @@ public sealed partial class BinExprOpReplacer(
     ) && SupportedOperators.ContainsKey(originalNode.Kind());
   }
 
-  private static string ExpressionTemplate(SyntaxKind kind, bool isDelegate,
+  private static string LeftExpressionTemplate(bool isDelegate,
+    bool isAwaitable)
+  {
+    var insertInvocation = isDelegate ? "()" : string.Empty;
+    var leftModifier = isDelegate && isAwaitable ? "await " : string.Empty;
+    return $"{leftModifier}{{0}}{insertInvocation}";
+  }
+  
+  private static string RightExpressionTemplate(bool isDelegate,
+    bool isAwaitable)
+  {
+    var insertInvocation = isDelegate ? "()" : string.Empty;
+    var leftModifier = isDelegate && isAwaitable ? "await " : string.Empty;
+    return $"{leftModifier}{{1}}{insertInvocation}";
+  }
+
+  private static string ExpressionTemplate(SyntaxKind op, bool isDelegate,
     bool isLeftAwaitable, bool isRightAwaitable)
   {
-    if (kind.IsSyntaxKindLiteral()) return SupportedOperators[kind].ToString();
-    
-    var insertInvocation = isDelegate ? "()" : string.Empty;
-    var leftModifier = isDelegate && isLeftAwaitable ? "await " : string.Empty;
-    var rightModifier = isDelegate && isRightAwaitable ? "await " : string.Empty;
-
-    return
-      $"{leftModifier}{{0}}{insertInvocation} {SupportedOperators[kind]} {rightModifier}{{1}}{insertInvocation}";
+    if (op.IsSyntaxKindLiteral()) return SupportedOperators[op].ToString();
+    var leftTemplate = LeftExpressionTemplate(isDelegate, isLeftAwaitable);
+    var rightTemplate = RightExpressionTemplate(isDelegate, isRightAwaitable);
+    return $"{leftTemplate} {SupportedOperators[op]} {rightTemplate}";
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -78,16 +91,17 @@ public sealed partial class BinExprOpReplacer(
     var isRightOperandAwaitable = originalNode.Right is AwaitExpressionSyntax;
 
     return new ExpressionRecord(originalNode.Kind(),
+      CodeAnalysisUtil.OperandKind.None,
       ExpressionTemplate(originalNode.Kind(), containsShortCircuitOperators,
         isLeftOperandAwaitable, isRightOperandAwaitable));
   }
 
   protected override
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(BinaryExpressionSyntax originalNode,
       ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode, requiredReturnType).ToArray();
+    var validMutants = ValidMutants(originalNode, requiredReturnType, optimise).ToArray();
 
     var containsShortCircuitOperators =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) ||
@@ -101,15 +115,13 @@ public sealed partial class BinExprOpReplacer(
     var isLeftOperandAwaitable = originalNode.Left is AwaitExpressionSyntax;
     var isRightOperandAwaitable = originalNode.Right is AwaitExpressionSyntax;
 
-    return
-    [
-      ..attachIdToMutants.Select(entry =>
-        (entry.id, new ExpressionRecord(entry.op,
-          ExpressionTemplate(entry.op, containsShortCircuitOperators,
-            isLeftOperandAwaitable, isRightOperandAwaitable))
-        )
-      )
-    ];
+    var sortedMutants = attachIdToMutants.Select(entry =>
+      new ExpressionRecord(entry.op,
+        CodeAnalysisUtil.OperandKind.None,
+        ExpressionTemplate(entry.op, containsShortCircuitOperators,
+          isLeftOperandAwaitable, isRightOperandAwaitable))).ToList();
+
+    return [..sortedMutants];
   }
 
   // C# allows short-circuit evaluation for boolean && and || operators.
@@ -287,27 +299,6 @@ public sealed partial class BinExprOpReplacer(
  */
 public sealed partial class BinExprOpReplacer
 {
-  /*
-   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/bitwise-and-shift-operators#shift-count-of-the-shift-operators
-   * For the built-in shift operators <<, >>, and >>>, the type of the
-   * right-hand operand must be int or a type that has a predefined implicit \
-   * numeric conversion to int.
-   *
-   * https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/bitwise-and-shift-operators#shift-count-of-the-shift-operators
-   * sbyte, byte, short, ushort, int has predefined implicit conversions to the
-   * int type.
-   */
-  private static readonly Func<SpecialType, bool>
-    ExcludeIfRightOperandNotImplicitlyConvertableToInt
-      = specialType =>
-        specialType is not
-          (SpecialType.System_Char or
-          SpecialType.System_SByte or
-          SpecialType.System_Byte or
-          SpecialType.System_Int16 or
-          SpecialType.System_UInt16 or
-          SpecialType.System_Int32);
-
   // Both ExprKind and TokenKind represents the operator and are equivalent
   // ExprKind is used for Roslyn's Syntax API to determine the node expression kind
   // TokenKind is used by the lexer and to retrieve the string representation
@@ -449,7 +440,7 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.FalseLiteralExpression,
             SyntaxKind.FalseKeyword,
             WellKnownMemberNames.FalseOperatorName)
-        }
+        },
       }.ToFrozenDictionary();
   
   protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>

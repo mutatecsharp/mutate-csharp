@@ -33,9 +33,9 @@ public class MutatorIntegrationTest(ITestOutputHelper testOutputHelper)
 
     var binExprReplacer =
       new BinExprOpReplacer(compilation.sutAssembly, compilation.model, 
-        compilation.model.BuildBinaryNumericOperatorMethodSignature());
+        compilation.model.BuildBinaryNumericOperatorMethodSignature(), optimise: false);
     var numericLitReplacer =
-      new NumericConstantReplacer(compilation.sutAssembly, compilation.model);
+      new NumericConstantReplacer(compilation.sutAssembly, compilation.model, optimise: false);
     
     var binExpr = inputAst.GetCompilationUnitRoot().DescendantNodes()
       .OfType<BinaryExpressionSyntax>().First();

@@ -27,6 +27,14 @@ public static partial class CodeAnalysisUtil
     All = Integral | FloatingPoint | Boolean | Character | String
   }
 
+  public enum OperandKind
+  {
+    None = 0,
+    UnaryOperand = 1,
+    LeftOperand = 2,
+    RightOperand = 3
+  }
+
   public record MethodSignature(
     ITypeSymbol ReturnType,
     ImmutableArray<ITypeSymbol> OperandTypes);

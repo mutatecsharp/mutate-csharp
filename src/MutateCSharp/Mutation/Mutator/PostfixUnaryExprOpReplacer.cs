@@ -13,7 +13,8 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   Assembly sutAssembly,
   SemanticModel semanticModel,
   FrozenDictionary<SyntaxKind,
-    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures,
+  bool optimise)
   : AbstractUnaryMutationOperator<PostfixUnaryExpressionSyntax>(
     sutAssembly, semanticModel, builtInOperatorSignatures)
 {
@@ -53,6 +54,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
+      CodeAnalysisUtil.OperandKind.None,
       ExpressionTemplate(originalNode.Kind()));
   }
 
@@ -63,7 +65,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
   }
 
   protected override
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(PostfixUnaryExpressionSyntax originalNode, 
       ITypeSymbol? requiredReturnType)
   {
@@ -71,13 +73,11 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-    return [
-      ..attachIdToMutants.Select(entry =>
-        (entry.Item1,
-          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
-        )
-      )
-    ];
+    var sortedMutants = attachIdToMutants.Select(entry =>
+      new ExpressionRecord(entry.op, CodeAnalysisUtil.OperandKind.None, ExpressionTemplate(entry.Item2))
+    ).ToList();
+
+    return [..sortedMutants];
   }
 
   protected override CodeAnalysisUtil.MethodSignature

@@ -19,7 +19,8 @@ public sealed partial class PrefixUnaryExprOpReplacer(
   Assembly sutAssembly,
   SemanticModel semanticModel,
   FrozenDictionary<SyntaxKind,
-    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures)
+    ImmutableArray<CodeAnalysisUtil.MethodSignature>> builtInOperatorSignatures,
+  bool optimise)
   : AbstractUnaryMutationOperator<PrefixUnaryExpressionSyntax>(
     sutAssembly, semanticModel, builtInOperatorSignatures)
 {
@@ -60,11 +61,11 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     ITypeSymbol? requiredReturnType)
   {
     return new ExpressionRecord(originalNode.Kind(),
+      CodeAnalysisUtil.OperandKind.None,
       ExpressionTemplate(originalNode.Kind()));
   }
 
-  protected override
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+  protected override ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(PrefixUnaryExpressionSyntax originalNode, 
       ITypeSymbol? requiredReturnType)
   {
@@ -72,13 +73,11 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
-    return [
-      ..attachIdToMutants.Select(entry =>
-        (entry.Item1,
-          new ExpressionRecord(entry.Item2, ExpressionTemplate(entry.Item2))
-        )
-      )
-    ];
+    var sortedMutants = attachIdToMutants.Select(entry =>
+        new ExpressionRecord(entry.op, CodeAnalysisUtil.OperandKind.None, ExpressionTemplate(entry.op))
+    ).ToList();
+
+    return [..sortedMutants];
   }
   
   // check for required return type and operator for type compatability

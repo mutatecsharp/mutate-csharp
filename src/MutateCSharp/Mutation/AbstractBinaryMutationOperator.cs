@@ -24,7 +24,76 @@ public abstract class AbstractBinaryMutationOperator<T>(
   protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
 
-  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType)
+  private bool IsReplacementNotRedundant(
+    SyntaxKind originalOpKind,
+    SyntaxKind replacementOpKind,
+    ITypeSymbol returnType)
+  {
+    var boolType =
+      SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+    
+    return originalOpKind switch
+    {
+      // > => { false, >=, != }
+      SyntaxKind.GreaterThanExpression => replacementOpKind is
+        SyntaxKind.FalseLiteralExpression
+        or SyntaxKind.GreaterThanOrEqualExpression
+        or SyntaxKind.NotEqualsExpression,
+      // < => { false, <=, != }
+      SyntaxKind.LessThanExpression => replacementOpKind is
+        SyntaxKind.FalseLiteralExpression
+        or SyntaxKind.LessThanOrEqualExpression
+        or SyntaxKind.NotEqualsExpression,
+      // == => { false, <=, >= }
+      SyntaxKind.EqualsExpression => replacementOpKind is
+        SyntaxKind.FalseLiteralExpression
+        or SyntaxKind.LessThanOrEqualExpression
+        or SyntaxKind.GreaterThanOrEqualExpression,
+      // >= => { true, >, == }
+      SyntaxKind.GreaterThanOrEqualExpression => replacementOpKind is
+        SyntaxKind.TrueLiteralExpression
+        or SyntaxKind.GreaterThanExpression
+        or SyntaxKind.EqualsExpression,
+      // <= => { true, <, == }
+      SyntaxKind.LessThanOrEqualExpression => replacementOpKind is
+        SyntaxKind.TrueLiteralExpression
+        or SyntaxKind.LessThanExpression
+        or SyntaxKind.EqualsExpression,
+      // != => { true, <, > }
+      SyntaxKind.NotEqualsExpression => replacementOpKind is
+        SyntaxKind.TrueLiteralExpression
+        or SyntaxKind.LessThanExpression
+        or SyntaxKind.GreaterThanExpression,
+      // && => { false, left operand, right operand, == }
+      // Operands are handled separately
+      SyntaxKind.LogicalAndExpression => replacementOpKind is
+        SyntaxKind.FalseLiteralExpression
+        or SyntaxKind.EqualsExpression,
+      // Logical & => { false, left operand, right operand, == }
+      // Operands are handled separately
+      SyntaxKind.BitwiseAndExpression 
+        when SemanticModel.Compilation.HasImplicitConversion(boolType, returnType) 
+        => replacementOpKind is
+        SyntaxKind.FalseLiteralExpression
+        or SyntaxKind.EqualsExpression,
+      // || => { true, left operand, right operand, != }
+      // Operands are handled separately
+      SyntaxKind.LogicalOrExpression => replacementOpKind is
+        SyntaxKind.TrueLiteralExpression
+        or SyntaxKind.NotEqualsExpression,
+      // Logical | => { true, left operand, right operand, != }
+      // Operands are handled separately
+      SyntaxKind.BitwiseOrExpression
+        when SemanticModel.Compilation.HasImplicitConversion(boolType, returnType) 
+        => replacementOpKind is
+          SyntaxKind.TrueLiteralExpression
+          or SyntaxKind.NotEqualsExpression,
+      // Default: treat as not redundant
+      _ => true
+    };
+  }
+
+  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType, bool optimise)
   {
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
         { } methodSignature) return [];
@@ -38,6 +107,13 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var validMutants = SupportedBinaryOperators()
       .Where(replacementOpEntry =>
         originalNode.Kind() != replacementOpEntry.Key);
+
+    // Remove redundant mutants
+    if (optimise)
+    {
+      validMutants = validMutants.Where(replacementOpEntry =>
+        IsReplacementNotRedundant(originalNode.Kind(), replacementOpEntry.Key, methodSignature.ReturnType));
+    }
     
     // Simple types: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/types#835-simple-types
     // Case 1: Simple types (value types) and string type (reference type)

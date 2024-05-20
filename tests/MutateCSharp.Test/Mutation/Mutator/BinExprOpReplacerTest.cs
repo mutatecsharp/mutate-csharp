@@ -629,7 +629,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       var mutationGroup = GetMutationGroup(inputUnderMutation);
       mutationGroup.SchemaReturnType.Should().Be("int?");
       mutationGroup.SchemaParameterTypes.Should()
-        .Equal(leftType, rightType);
+        .Equal("int?", "int?");
       mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should()
         .Be($"{{0}} {originalOperator} {{1}}");
       var mutantExpressionsTemplate =
@@ -976,6 +976,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     foreach (var exprTemplate in allTemplates)
     {
       testOutputHelper.WriteLine(exprTemplate);
+      if (exprTemplate is "true" or "false") continue;
       var awaitOccurence = Regex.Matches(exprTemplate, Regex.Escape("await")).Count;
       var expectedCount = new[] { leftShouldBeLambda, rightShouldBeLambda }.Count(b => b);
       awaitOccurence.Should().Be(expectedCount);

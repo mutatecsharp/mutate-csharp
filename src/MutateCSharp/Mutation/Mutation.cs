@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
+using MutateCSharp.Util;
 using MutateCSharp.Util.Converters;
 
 namespace MutateCSharp.Mutation;
@@ -23,6 +24,9 @@ public record Mutation
   
   [JsonInclude]
   public required SyntaxKind MutantOperation { get; init; }
+  
+  [JsonInclude]
+  public required CodeAnalysisUtil.OperandKind MutantOperandKind { get; init; }
   
   [JsonInclude]
   public required string MutantExpressionTemplate { get; init; }

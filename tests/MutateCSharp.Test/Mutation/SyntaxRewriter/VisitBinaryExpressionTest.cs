@@ -95,7 +95,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
-      compilation.sutAssembly, compilation.model, schemaRegistry);
+      compilation.sutAssembly, compilation.model, schemaRegistry, optimise: false);
     var binExpr = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<BinaryExpressionSyntax>().First();
 

@@ -17,7 +17,8 @@ namespace MutateCSharp.Mutation.Mutator;
  */
 public sealed partial class NumericConstantReplacer(
   Assembly sutAssembly,
-  SemanticModel semanticModel)
+  SemanticModel semanticModel, 
+  bool optimise)
   : AbstractMutationOperator<ExpressionSyntax>(sutAssembly,
     semanticModel)
 {
@@ -41,16 +42,19 @@ public sealed partial class NumericConstantReplacer(
   protected override ExpressionRecord OriginalExpression(
     ExpressionSyntax originalNode, ImmutableArray<ExpressionRecord> _, ITypeSymbol? requiredReturnType)
   {
-    return new ExpressionRecord(originalNode.Kind(), "{0}");
+    return new ExpressionRecord(originalNode.Kind(), CodeAnalysisUtil.OperandKind.None, "{0}");
   }
   
   private bool ReplacementOperatorIsValid(
+    ExpressionSyntax originalNode,
     CodeAnalysisUtil.MethodSignature typeSymbols,
     CodeAnalysisUtil.Op replacementOp)
   {
     if (replacementOp.ExprKind is SyntaxKind.NumericLiteralExpression)
     {
-      return true;
+      return !optimise ||
+             int.TryParse(originalNode.ToString(), out var value) &&
+             value != 0;
     }
 
     var returnType = typeSymbols.ReturnType;
@@ -59,6 +63,9 @@ public sealed partial class NumericConstantReplacer(
     if (PrefixUnaryExprOpReplacer.SupportedOperators.ContainsKey(replacementOp
           .ExprKind))
     {
+      if (optimise && int.TryParse(originalNode.ToString(), out var value) && value == 0) 
+        return false;
+      
       var mutantExpressionType =
         SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
           _predefinedUnaryOperatorSignatures,
@@ -80,14 +87,14 @@ public sealed partial class NumericConstantReplacer(
   }
   
   protected override
-    ImmutableArray<(int exprIdInMutator, ExpressionRecord expr)>
+    ImmutableArray<ExpressionRecord>
     ValidMutantExpressions(ExpressionSyntax originalNode, ITypeSymbol? requiredReturnType)
   {
     var typeSymbols = NonMutatedTypeSymbols(originalNode, requiredReturnType);
     if (typeSymbols is null) return [];
     var validMutants = SupportedOperators.Values
       .Where(replacement => 
-        ReplacementOperatorIsValid(typeSymbols, replacement.Op))
+        ReplacementOperatorIsValid(originalNode, typeSymbols, replacement.Op))
       .Select(replacement => replacement.Op.ExprKind);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
@@ -96,7 +103,9 @@ public sealed partial class NumericConstantReplacer(
     return
     [
       ..attachIdToMutants.Select(entry =>
-        (entry.id, new ExpressionRecord(entry.op, SupportedOperators[entry.op].Template))
+        new ExpressionRecord(entry.op,
+          CodeAnalysisUtil.OperandKind.None, 
+          SupportedOperators[entry.op].Template)
       )
     ];
   }

@@ -20,6 +20,8 @@ internal static class MutateHandler
     workspace.SkipUnrecognizedProjects = true;
     var pathsToIgnore =
       options.AbsoluteSourceFilePathsToIgnore.ToImmutableArray();
+    
+    Log.Information($"Omitting equivalent/redundant mutants: {options.Optimise}");
 
     foreach (var ignorePath in pathsToIgnore)
     {
@@ -32,21 +34,21 @@ internal static class MutateHandler
         Path.GetDirectoryName(options.AbsoluteSourceFilePath)!, 
         options.Backup);
       await ProcessSourceFile(workspace, options.AbsoluteProjectPath, 
-        options.AbsoluteSourceFilePath, pathsToIgnore);
+        options.AbsoluteSourceFilePath, pathsToIgnore, options.Optimise);
     }
     else if (options.AbsoluteProjectPath.Length > 0)
     {
       using var backup = DirectoryBackup.BackupDirectoryIfNecessary(
         Path.GetDirectoryName(options.AbsoluteProjectPath)!, 
         options.Backup);
-      await ProcessProject(workspace, options.AbsoluteProjectPath, pathsToIgnore);
+      await ProcessProject(workspace, options.AbsoluteProjectPath, pathsToIgnore, options.Optimise);
     }
     else if (options.AbsoluteSolutionPath.Length > 0)
     {
       using var backup = DirectoryBackup.BackupDirectoryIfNecessary(
         Path.GetDirectoryName(options.AbsoluteSolutionPath)!, 
         options.Backup);
-      await ProcessSolution(workspace, options.AbsoluteSolutionPath, pathsToIgnore);
+      await ProcessSolution(workspace, options.AbsoluteSolutionPath, pathsToIgnore, options.Optimise);
     }
     else
       Log.Error("No project or solution specified.");
@@ -63,13 +65,16 @@ internal static class MutateHandler
   }
 
   private static async Task ProcessSolution(
-    MSBuildWorkspace workspace, string absolutePath, ImmutableArray<string> pathsToIgnore)
+    MSBuildWorkspace workspace, 
+    string absolutePath, 
+    ImmutableArray<string> pathsToIgnore, 
+    bool optimise)
   {
     var solution = await workspace.OpenSolutionAsync(absolutePath);
     
     // 1: Generate mutant schema and acquire mutation registry
     var (mutatedSolution, projectRegistries) =
-      await MutatorHarness.MutateSolution(workspace, solution, pathsToIgnore);
+      await MutatorHarness.MutateSolution(workspace, solution, pathsToIgnore, optimise);
     
     // 2: Persist mutated solution under test
     var mutateResult = workspace.TryApplyChanges(mutatedSolution);
@@ -90,13 +95,14 @@ internal static class MutateHandler
   private static async Task ProcessProject(
     MSBuildWorkspace workspace, 
     string absolutePath, 
-    ImmutableArray<string> pathsToIgnore)
+    ImmutableArray<string> pathsToIgnore,
+    bool optimise)
   {
     var project = await workspace.OpenProjectAsync(absolutePath);
     
     // 1: Generate mutant schema and acquire mutation registry
     var (mutatedProject, projectRegistry) =
-      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore);
+      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, optimise);
     
     // 2: Persist mutated project under test
     var mutateResult = workspace.TryApplyChanges(mutatedProject.Solution);
@@ -117,7 +123,8 @@ internal static class MutateHandler
     MSBuildWorkspace workspace, 
     string projectAbsolutePath, 
     string sourceFileAbsolutePath, 
-    ImmutableArray<string> pathsToIgnore)
+    ImmutableArray<string> pathsToIgnore,
+    bool optimise)
   {
     var project = await workspace.OpenProjectAsync(projectAbsolutePath);
     var document = project.Documents.FirstOrDefault(doc =>
@@ -125,7 +132,7 @@ internal static class MutateHandler
     
     // 1: Generate mutant schema and acquire mutation registry
     var (mutatedProject, projectRegistry) =
-      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, document);
+      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, optimise, document);
     
     // 2: Persist mutated project under test
     var mutateResult = workspace.TryApplyChanges(mutatedProject.Solution);

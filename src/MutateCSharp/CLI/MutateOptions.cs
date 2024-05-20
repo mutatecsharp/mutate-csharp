@@ -44,6 +44,11 @@ internal sealed class MutateOptions
     HelpText =
       "Restore files to original state after applying mutation testing.")]
   public bool Backup { get; init; }
+  
+  [Option("omit-redundant", 
+    Default = false, 
+    HelpText = "Do not generate equivalent or redundant mutants.")]
+  public bool Optimise { get; init; }
 
   [Option("ignore-files",
     HelpText = "Path(s) to C# source files to ignore (.cs).")]
