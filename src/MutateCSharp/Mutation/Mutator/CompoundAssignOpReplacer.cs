@@ -57,7 +57,9 @@ public sealed partial class CompoundAssignOpReplacer(
 
   private static string ExpressionTemplate(SyntaxKind kind)
   {
-    return $"{{0}} {SupportedOperators[kind]} {{1}}";
+    return kind.IsSyntaxKindLiteral() 
+      ? SupportedOperators[kind].ToString() 
+      : $"{{0}} {SupportedOperators[kind]} {{1}}";
   }
 
   protected override ExpressionRecord OriginalExpression(

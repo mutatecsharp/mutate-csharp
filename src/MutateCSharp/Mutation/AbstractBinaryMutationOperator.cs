@@ -100,6 +100,12 @@ public abstract class AbstractBinaryMutationOperator<T>(
     CodeAnalysisUtil.MethodSignature originalSignature,
     CodeAnalysisUtil.Op replacementOp)
   {
+    // Special case for true/false literals
+    if (replacementOp.ExprKind.IsSyntaxKindLiteral())
+    {
+      return CanReplaceWithLiteral(originalSignature.ReturnType, replacementOp);
+    }
+    
     // Obtain mutant expression return type for the replacement operator
     var mutantExpressionType = 
       SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
@@ -169,6 +175,12 @@ public abstract class AbstractBinaryMutationOperator<T>(
     ITypeSymbol returnType, ITypeSymbol leftType, ITypeSymbol rightType,
     CodeAnalysisUtil.Op replacementOp)
   {
+    // 0) Special case for true/false literals
+    if (replacementOp.ExprKind.IsSyntaxKindLiteral())
+    {
+      return CanReplaceWithLiteral(returnType, replacementOp);
+    }
+    
     // 1) Get the types of variables involved in the original binary operator
     // Note that while reference parameter types are guaranteed to be non-nullable,
     // any of these operators could be overloaded to accept primitive-typed
@@ -177,7 +189,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var rightAbsoluteType = rightType.GetNullableUnderlyingType();
 
     // 2) Check if user-defined operator exists
-    if (HasUnambiguousUserDefinedOperator(replacementOp, 
+    if (HasUnambiguousUserDefinedBinaryOperator(replacementOp, 
           leftAbsoluteType, rightAbsoluteType, returnType))
     {
       return true;
@@ -193,11 +205,35 @@ public abstract class AbstractBinaryMutationOperator<T>(
 
     return false;
   }
+  
+  /*
+   * Handle literal as replacement. The only condition that should hold is that
+   * the literal type should be assignable to the return type of the original
+   * expression.
+   */
+  private bool CanReplaceWithLiteral(ITypeSymbol returnType,
+    CodeAnalysisUtil.Op replacementLiteral)
+  {
+    if (replacementLiteral.ExprKind is 
+        SyntaxKind.TrueLiteralExpression or
+        SyntaxKind.FalseLiteralExpression)
+    {
+      var replacementType =
+        SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+      return SemanticModel.Compilation.HasImplicitConversion(replacementType,
+        returnType);
+    }
+
+    // Other literal types currently not supported
+    return false;
+  }
 
   /*
-   * Equality operator is baked into the C# programming language and is defined
-   * for all types regardless of whether is overloaded. We handle this case
-   * specially.
+   * Equality operator is baked into the C# programming language. All built-in
+   * value types have equality operators predefined, and reference types that
+   * do not overload equality operators will use the base object class's equality
+   * operator.
+   * We handle this case specially.
    *
    * A binary (in)equality expression should have either left operand or
    * right operand implicitly convertable to the other.
@@ -227,7 +263,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
            SemanticModel.Compilation.HasImplicitConversion(boolType, returnType);
   }
 
-  private bool HasUnambiguousUserDefinedOperator(CodeAnalysisUtil.Op replacementOp,
+  private bool HasUnambiguousUserDefinedBinaryOperator(CodeAnalysisUtil.Op replacementOp,
     ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnType)
   {
     var returnAbsoluteType = returnType.GetNullableUnderlyingType();

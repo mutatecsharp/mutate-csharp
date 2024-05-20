@@ -17,10 +17,6 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     => TestUtil
       .UnaryGetAllValidMutationGroups<PrefixUnaryExprOpReplacer,
         PrefixUnaryExpressionSyntax>(inputUnderMutation);
-  private static void ShouldNotHaveValidMutationGroup(string inputUnderMutation)
-  {
-    TestUtil.UnaryShouldNotHaveValidMutationGroup<PrefixUnaryExprOpReplacer, PrefixUnaryExpressionSyntax>(inputUnderMutation);
-  }
   
   public static IEnumerable<object[]> BooleanMutations =
     TestUtil.GenerateMutationTestCases(["!"]);
@@ -30,7 +26,7 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   // No other unary operators can serve as replacement for boolean variables that
   // are already wrapped in unary operator; the assumption that a unary operator
   // must be replaced with another one will be alleviated later
-  public void ShouldNotReplaceBooleanExpressions(string originalOperator, string[] expectedReplacementOperators)
+  public void ShouldReplaceBooleanExpressions(string originalOperator, string[] expectedReplacementOperators)
   {
     var inputUnderMutation = 
       $$"""
@@ -45,8 +41,15 @@ public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
          }
        }
        """;
-    
-    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+
+    mutationGroup.SchemaParameterTypes.Should().Equal("bool");
+    mutationGroup.SchemaReturnType.Should().Be("bool");
+    mutationGroup.SchemaOriginalExpression.ExpressionTemplate.Should().Be($"{originalOperator}{{0}}");
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate).Should()
+      .Equal("true", "false");
   }
   
   private static IDictionary<string, string> IntegralTypes =

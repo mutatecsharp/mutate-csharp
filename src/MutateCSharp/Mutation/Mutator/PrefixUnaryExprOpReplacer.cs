@@ -49,7 +49,9 @@ public sealed partial class PrefixUnaryExprOpReplacer(
 
   private static string ExpressionTemplate(SyntaxKind kind)
   {
-    return $"{SupportedOperators[kind]}{{0}}";
+    return kind.IsSyntaxKindLiteral() 
+      ? SupportedOperators[kind].ToString() 
+      : $"{SupportedOperators[kind]}{{0}}";
   }
 
   protected override ExpressionRecord OriginalExpression(
@@ -201,6 +203,19 @@ public sealed partial class PrefixUnaryExprOpReplacer
           new(SyntaxKind.PreDecrementExpression,
             SyntaxKind.MinusMinusToken,
             WellKnownMemberNames.DecrementOperatorName)
+        },
+        // Boolean literals (true, false)
+        {
+          SyntaxKind.TrueLiteralExpression,
+          new(SyntaxKind.TrueLiteralExpression,
+            SyntaxKind.TrueKeyword,
+            WellKnownMemberNames.TrueOperatorName)
+        },
+        {
+          SyntaxKind.FalseLiteralExpression,
+          new(SyntaxKind.FalseLiteralExpression,
+            SyntaxKind.FalseKeyword,
+            WellKnownMemberNames.FalseOperatorName)
         }
       }.ToFrozenDictionary();
 

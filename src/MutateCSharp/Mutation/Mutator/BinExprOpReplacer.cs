@@ -53,6 +53,8 @@ public sealed partial class BinExprOpReplacer(
   private static string ExpressionTemplate(SyntaxKind kind, bool isDelegate,
     bool isLeftAwaitable, bool isRightAwaitable)
   {
+    if (kind.IsSyntaxKindLiteral()) return SupportedOperators[kind].ToString();
+    
     var insertInvocation = isDelegate ? "()" : string.Empty;
     var leftModifier = isDelegate && isLeftAwaitable ? "await " : string.Empty;
     var rightModifier = isDelegate && isRightAwaitable ? "await " : string.Empty;
@@ -434,6 +436,19 @@ public sealed partial class BinExprOpReplacer
           new(SyntaxKind.GreaterThanOrEqualExpression,
             SyntaxKind.GreaterThanEqualsToken,
             WellKnownMemberNames.GreaterThanOrEqualOperatorName)
+        },
+        // Boolean literals (true, false)
+        {
+          SyntaxKind.TrueLiteralExpression,
+          new(SyntaxKind.TrueLiteralExpression,
+            SyntaxKind.TrueKeyword,
+            WellKnownMemberNames.TrueOperatorName)
+        },
+        {
+          SyntaxKind.FalseLiteralExpression,
+          new(SyntaxKind.FalseLiteralExpression,
+            SyntaxKind.FalseKeyword,
+            WellKnownMemberNames.FalseOperatorName)
         }
       }.ToFrozenDictionary();
   

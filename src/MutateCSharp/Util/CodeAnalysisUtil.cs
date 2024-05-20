@@ -1098,6 +1098,42 @@ public static partial class CodeAnalysisUtil
       GetSpecialTypeClassification(typeSymbol.SpecialType));
   }
 
+  /*
+   * https://learn.microsoft.com/en-us/dotnet/api/microsoft.codeanalysis.csharp.syntax.literalexpressionsyntax
+   * The following syntax kinds are literal:
+     ArgListExpression
+     NumericLiteralExpression
+     StringLiteralExpression
+     Utf8StringLiteralExpression
+     CharacterLiteralExpression
+     TrueLiteralExpression
+     FalseLiteralExpression
+     NullLiteralExpression
+     DefaultLiteralExpression 
+   */
+  public static bool IsSyntaxKindLiteral(this SyntaxKind kind)
+  {
+    return kind is SyntaxKind.ArgListExpression or
+      SyntaxKind.NumericLiteralExpression or
+      SyntaxKind.StringLiteralExpression or
+      SyntaxKind.Utf8StringLiteralExpression or
+      SyntaxKind.CharacterLiteralExpression or
+      SyntaxKind.TrueLiteralExpression or
+      SyntaxKind.FalseLiteralExpression or
+      SyntaxKind.NullLiteralExpression or
+      SyntaxKind.DefaultLiteralExpression;
+  }
+
+  public static bool IsSyntaxKindPrefixOperator(this SyntaxKind kind)
+  {
+    return kind is SyntaxKind.UnaryPlusExpression or
+      SyntaxKind.UnaryMinusExpression or
+      SyntaxKind.BitwiseNotExpression or
+      SyntaxKind.LogicalNotExpression or
+      SyntaxKind.PreIncrementExpression or
+      SyntaxKind.PreDecrementExpression;
+  }
+
   /* https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/statements#1331-general
    * A block that contains one or more yield statements (§13.15) is called an iterator block.
    * Iterator blocks are used to implement function members as iterators (§15.14).

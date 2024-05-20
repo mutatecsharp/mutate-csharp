@@ -30,7 +30,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
   }
 
   private static readonly string[] BooleanOperators =
-    ["&", "&&", "|", "||", "^", "==", "!="];
+    ["&", "&&", "|", "||", "^", "==", "!="]; // also true and false
 
   public static IEnumerable<object[]> BooleanMutations =
     TestUtil.GenerateMutationTestCases(BooleanOperators);
@@ -66,13 +66,18 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       .BeEquivalentTo($"{{0}}() {originalOperator} {{1}}()");
     // The mutation operator should not be able to mutate the compound assignment
     // operator to itself
-    mutationGroup.SchemaMutantExpressions.Length.Should()
-      .Be(expectedReplacementOperators.Length);
-
+    testOutputHelper.WriteLine(string.Join(",", mutationGroup.SchemaMutantExpressions));
+    
     // The expressions should match (regardless of order)
     var validMutantExpressionsTemplate
       = expectedReplacementOperators.Select(op => $"{{0}}() {op} {{1}}()")
         .ToHashSet();
+
+    validMutantExpressionsTemplate.Add("true");
+    validMutantExpressionsTemplate.Add("false");
+    
+    mutationGroup.SchemaMutantExpressions.Length.Should()
+      .Be(validMutantExpressionsTemplate.Count);
 
     TestUtil.GetMutantExpressionTemplates(mutationGroup)
       .Should().BeEquivalentTo(validMutantExpressionsTemplate);
@@ -592,7 +597,7 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
     mutationGroup.SchemaParameterTypes.Should()
       .Equal("System.Collections.Generic.Dictionary<int, int>", "object");
     TestUtil.GetMutantExpressionTemplates(mutationGroup).Should()
-      .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}"]);
+      .BeEquivalentTo([$"{{0}} {replacementOperator} {{1}}", "true", "false"]);
   }
 
   public static IEnumerable<object[]> IntegralMutations =

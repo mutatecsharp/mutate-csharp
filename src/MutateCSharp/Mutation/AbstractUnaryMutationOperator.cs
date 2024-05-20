@@ -87,6 +87,12 @@ public abstract class AbstractUnaryMutationOperator<T>(
     CodeAnalysisUtil.Op replacementOp,
     CodeAnalysisUtil.MethodSignature originalSignature)
   {
+    // Special case for true/false literals
+    if (replacementOp.ExprKind.IsSyntaxKindLiteral())
+    {
+      return CanReplaceWithLiteral(originalSignature.ReturnType, replacementOp);
+    }
+    
     var mutantExpressionType = 
       SemanticModel.ResolveOverloadedPredefinedUnaryOperator(
         BuiltInOperatorSignatures, replacementOp.ExprKind, originalSignature);
@@ -140,6 +146,12 @@ public abstract class AbstractUnaryMutationOperator<T>(
   protected bool CanApplyOperatorForUserDefinedTypes(ITypeSymbol returnType,
     ITypeSymbol operandType, CodeAnalysisUtil.Op replacementOp)
   {
+    // 0) Special case for true/false literals
+    if (replacementOp.ExprKind.IsSyntaxKindLiteral())
+    {
+      return CanReplaceWithLiteral(returnType, replacementOp);
+    }
+    
     // 1) Get nullable underlying type
     var operandAbsoluteType = operandType.GetNullableUnderlyingType();
     var returnAbsoluteType = returnType.GetNullableUnderlyingType();
@@ -188,7 +200,23 @@ public abstract class AbstractUnaryMutationOperator<T>(
       return false;
     }
   }
-  
+
+  private bool CanReplaceWithLiteral(ITypeSymbol returnType, CodeAnalysisUtil.Op replacementLiteral)
+  {
+    if (replacementLiteral.ExprKind is 
+        SyntaxKind.TrueLiteralExpression or
+        SyntaxKind.FalseLiteralExpression)
+    {
+      var replacementType =
+        SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+      return SemanticModel.Compilation.HasImplicitConversion(replacementType,
+        returnType);
+    }
+
+    // Other literal types currently not supported
+    return false;
+  }
+
   private bool IsOperandAssignable(T originalNode)
   {
     var operand = GetOperand(originalNode)!;

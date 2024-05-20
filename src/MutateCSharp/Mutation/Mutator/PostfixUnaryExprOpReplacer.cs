@@ -42,6 +42,8 @@ public sealed partial class PostfixUnaryExprOpReplacer(
 
   public static string ExpressionTemplate(SyntaxKind kind)
   {
+    if (kind.IsSyntaxKindLiteral()) return SupportedOperators[kind].ToString();
+    if (kind.IsSyntaxKindPrefixOperator()) return $"{SupportedOperators[kind]}{{0}}";
     return $"{{0}}{SupportedOperators[kind]}";
   }
 
@@ -78,7 +80,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     ];
   }
 
-  protected override CodeAnalysisUtil.MethodSignature?
+  protected override CodeAnalysisUtil.MethodSignature
     NonMutatedTypeSymbols(PostfixUnaryExpressionSyntax originalNode,
       ITypeSymbol? requiredReturnType)
   {
@@ -141,7 +143,37 @@ public sealed partial class PostfixUnaryExprOpReplacer
           new(SyntaxKind.PostDecrementExpression,
             SyntaxKind.MinusMinusToken,
             WellKnownMemberNames.DecrementOperatorName)
+        },
+        // Prefix unary operators
+        {
+          SyntaxKind.UnaryPlusExpression, // +x
+          new(SyntaxKind.UnaryPlusExpression,
+            SyntaxKind.PlusToken,
+            WellKnownMemberNames.UnaryPlusOperatorName)
+        },
+        {
+          SyntaxKind.UnaryMinusExpression, // -x
+          new(SyntaxKind.UnaryMinusExpression,
+            SyntaxKind.MinusToken,
+            WellKnownMemberNames.UnaryNegationOperatorName)
+        },
+        {
+          SyntaxKind.BitwiseNotExpression, // ~x
+          new(SyntaxKind.BitwiseNotExpression,
+            SyntaxKind.TildeToken,
+            WellKnownMemberNames.OnesComplementOperatorName)
         }
+        // Note: this will never materialise because boolean variables cannot
+        // be updated, so it is omitted
+        // {
+        //   SyntaxKind.LogicalNotExpression, // !x
+        //   new(SyntaxKind.LogicalNotExpression,
+        //     SyntaxKind.ExclamationToken,
+        //     WellKnownMemberNames.LogicalNotOperatorName)
+        // },
+        // Note: this will never materialise because boolean variables cannot
+        // be updated, so it is omitted
+        // Boolean literals (true, false)
       }.ToFrozenDictionary();
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds
