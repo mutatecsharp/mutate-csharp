@@ -6,7 +6,7 @@ using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Mutation.SyntaxRewriter;
 using Xunit.Abstractions;
 
-namespace MutateCSharp.Test.Mutation.Visitor;
+namespace MutateCSharp.Test.Mutation.SyntaxRewriter;
 
 public class RewriteAccessibilityTest
 {

@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Registry;
 
-namespace MutateCSharp.Test.Mutation.Visitor;
+namespace MutateCSharp.Test.Mutation.SyntaxRewriter;
 
 public class VisitNumericLiteralTest
 {

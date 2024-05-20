@@ -4,10 +4,9 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Mutator;
-using MutateCSharp.Util;
 using Xunit.Abstractions;
 
-namespace MutateCSharp.Test.Mutation.OperatorImplementation;
+namespace MutateCSharp.Test.Mutation.Mutator;
 
 public class CompoundAssignOpReplacerTest(ITestOutputHelper testOutputHelper)
 {

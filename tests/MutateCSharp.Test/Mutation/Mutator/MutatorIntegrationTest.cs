@@ -2,11 +2,10 @@ using FluentAssertions;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Mutator;
-using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 using Xunit.Abstractions;
 
-namespace MutateCSharp.Test.Mutation.OperatorImplementation;
+namespace MutateCSharp.Test.Mutation.Mutator;
 
 public class MutatorIntegrationTest(ITestOutputHelper testOutputHelper)
 {

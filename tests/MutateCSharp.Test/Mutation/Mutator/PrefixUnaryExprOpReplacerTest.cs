@@ -4,7 +4,7 @@ using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Mutator;
 using Xunit.Abstractions;
 
-namespace MutateCSharp.Test.Mutation.OperatorImplementation;
+namespace MutateCSharp.Test.Mutation.Mutator;
 
 public class PrefixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
