@@ -1,9 +1,11 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MutateCSharp.Mutation.Mutator;
 using MutateCSharp.Util;
 using Serilog;
 
@@ -23,6 +25,26 @@ public abstract class AbstractBinaryMutationOperator<T>(
   
   protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
+  
+  public static ExpressionSyntax? GetLeftOperand(T originalNode)
+  {
+    return originalNode switch
+    {
+      BinaryExpressionSyntax expr => expr.Left,
+      AssignmentExpressionSyntax expr => expr.Left,
+      _ => null
+    };
+  }
+
+  public static ExpressionSyntax? GetRightOperand(T originalNode)
+  {
+    return originalNode switch
+    {
+      BinaryExpressionSyntax expr => expr.Right,
+      AssignmentExpressionSyntax expr => expr.Right,
+      _ => null
+    };
+  }
 
   private bool IsReplacementNotRedundant(
     SyntaxKind originalOpKind,
@@ -93,11 +115,105 @@ public abstract class AbstractBinaryMutationOperator<T>(
     };
   }
 
-  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType, bool optimise)
+  protected ISet<CodeAnalysisUtil.OperandKind> ValidOperandReplacements(
+    T originalNode,
+    CodeAnalysisUtil.MethodSignature methodSignature, 
+    bool optimise)
   {
-    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-        { } methodSignature) return [];
+    if (!optimise)
+    {
+      return
+        new HashSet<CodeAnalysisUtil.OperandKind>
+        {
+          CodeAnalysisUtil.OperandKind.LeftOperand,
+          CodeAnalysisUtil.OperandKind.RightOperand
+        };
+    }
 
+    if (CompoundAssignOpReplacer.SupportedOperators.ContainsKey(
+          originalNode.Kind()) ||
+        originalNode.Kind() is SyntaxKind.LessThanExpression
+          or SyntaxKind.LessThanOrEqualExpression
+          or SyntaxKind.GreaterThanExpression
+          or SyntaxKind.GreaterThanOrEqualExpression)
+      return FrozenSet<CodeAnalysisUtil.OperandKind>.Empty;
+
+    var results = new HashSet<CodeAnalysisUtil.OperandKind>();
+
+    // Omit generating equivalent mutants if left/right operand is one of (0, 1, -1)
+    var leftOperand = GetLeftOperand(originalNode)!;
+    var rightOperand = GetRightOperand(originalNode)!;
+
+    var leftAssignable =
+      SemanticModel.Compilation.HasImplicitConversion(
+        methodSignature.OperandTypes[0], methodSignature.ReturnType);
+    var rightAssignable =
+      SemanticModel.Compilation.HasImplicitConversion(
+        methodSignature.OperandTypes[1], methodSignature.ReturnType);
+    
+    var shouldAddLeft = leftAssignable;
+    var shouldAddRight = rightAssignable;
+
+    var isLeftLiteral =
+      leftOperand.IsKind(SyntaxKind.NumericLiteralExpression) ||
+      leftOperand.IsNegativeLiteral();
+    var isRightLiteral =
+      rightOperand.IsKind(SyntaxKind.NumericLiteralExpression) ||
+      rightOperand.IsNegativeLiteral();
+
+    if (shouldAddLeft && isLeftLiteral)
+    {
+      var integral = 
+        CodeAnalysisUtil.ParseNumericIntValue(leftOperand);
+      if (integral is 0 or 1 or -1)
+      {
+        shouldAddLeft = false;
+      }
+      else
+      {
+        var floating =
+          CodeAnalysisUtil.ParseNumericDoubleValue(leftOperand);
+        if (floating is 0.0 or 1.0 or -1.0)
+        {
+          shouldAddLeft = false;
+        }
+      }
+    }
+
+    if (shouldAddRight && isRightLiteral)
+    {
+      var integral = 
+        CodeAnalysisUtil.ParseNumericIntValue(rightOperand);
+      if (integral is 0 or 1 or -1)
+      {
+        shouldAddRight = false;
+      }
+      else
+      {
+        var floating =
+          CodeAnalysisUtil.ParseNumericDoubleValue(rightOperand);
+        if (floating is 0.0 or 1.0 or -1.0)
+        {
+          shouldAddRight = false;
+        }
+      }
+    }
+
+    if (shouldAddLeft) results.Add(CodeAnalysisUtil.OperandKind.LeftOperand);
+    if (shouldAddRight) results.Add(CodeAnalysisUtil.OperandKind.RightOperand);
+    
+    // Avoid generating redundant mutants if left operand is equivalent to right operand
+    if (results.Count == 2 && leftOperand.ToString().Equals(rightOperand.ToString()))
+    {
+      results.Remove(CodeAnalysisUtil.OperandKind.RightOperand);
+    }
+
+    return results;
+  }
+  
+  protected IEnumerable<SyntaxKind> ValidOperatorReplacements(
+    T originalNode, CodeAnalysisUtil.MethodSignature methodSignature, bool optimise)
+  {
     var leftType = methodSignature.OperandTypes[0];
     var rightType = methodSignature.OperandTypes[1];
     

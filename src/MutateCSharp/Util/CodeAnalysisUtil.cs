@@ -904,6 +904,76 @@ public static partial class CodeAnalysisUtil
   } 
   
   /*
+   * Handles positive and negative decimal, hexadecimal, binary 
+   * constants.
+   */
+  public static int? ParseNumericIntValue(ExpressionSyntax node)
+  {
+    var literalExpression = node switch
+    {
+      LiteralExpressionSyntax lit when 
+        lit.IsKind(SyntaxKind.NumericLiteralExpression) => lit,
+      PrefixUnaryExpressionSyntax
+          { Operand: LiteralExpressionSyntax absoluteLit } unaryExpr when
+        unaryExpr.IsNegativeLiteral() => absoluteLit,
+      _ => null
+    };
+    if (literalExpression is null) return null;
+
+    var literalValueDisplay = literalExpression.Token.ValueText;
+    
+    var numberStyle = literalValueDisplay switch
+    {
+      _ when literalValueDisplay.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+        => NumberStyles.HexNumber,
+      _ when literalValueDisplay.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+        => NumberStyles.BinaryNumber,
+      _ => NumberStyles.Number
+    };
+
+    if (literalValueDisplay.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
+        literalValueDisplay.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+    {
+      literalValueDisplay = literalValueDisplay[2..];
+    }
+
+    if (int.TryParse(literalValueDisplay,
+          numberStyle, CultureInfo.InvariantCulture, out var integralValue))
+    {
+      return node is PrefixUnaryExpressionSyntax ? -integralValue : integralValue;
+    }
+
+    return null;
+  }
+  
+  /*
+   * Handles positive and negative floating-point constants.
+   */
+  public static double? ParseNumericDoubleValue(ExpressionSyntax node)
+  {
+    var literalExpression = node switch
+    {
+      LiteralExpressionSyntax lit when 
+        lit.IsKind(SyntaxKind.NumericLiteralExpression) => lit,
+      PrefixUnaryExpressionSyntax
+          { Operand: LiteralExpressionSyntax absoluteLit } unaryExpr when
+        unaryExpr.IsNegativeLiteral() => absoluteLit,
+      _ => null
+    };
+    if (literalExpression is null) return null;
+
+    var literalValueDisplay = literalExpression.Token.ValueText;
+
+    if (double.TryParse(literalValueDisplay,
+          NumberStyles.Float, CultureInfo.InvariantCulture, out var floatValue))
+    {
+      return node is PrefixUnaryExpressionSyntax ? -floatValue : floatValue;
+    }
+
+    return null;
+  }
+  
+  /*
    * Handles positive and negative decimal, hexadecimal, and binary literals.
    */
   public static bool CanImplicitlyConvertNumericLiteral(this SemanticModel model,
@@ -950,7 +1020,7 @@ public static partial class CodeAnalysisUtil
     // Get the literal value as a string
     var literalValueDisplay = node.ToString().Replace("_", string.Empty);
 
-    var isNegative = literalValueDisplay.StartsWith("-");
+    var isNegative = literalValueDisplay.StartsWith('-');
     if (isNegative)
     {
       literalValueDisplay = literalValueDisplay[1..];

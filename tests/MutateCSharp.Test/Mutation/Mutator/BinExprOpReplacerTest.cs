@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Mutator;
+using MutateCSharp.Util;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.Mutator;
@@ -423,8 +424,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
           }
         }
         """;
-
-    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    
+    var group = GetMutationGroup(inputUnderMutation);
+    group.SchemaMutantExpressions
+      .All(mutant => mutant.Operand is not CodeAnalysisUtil.OperandKind.None)
+      .Should().BeTrue();
   }
 
   [Theory]
@@ -474,7 +478,10 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     // No mutation groups should be generated since return type of
     // replacement operator is not assignable to original return type
-    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    var group = GetMutationGroup(inputUnderMutation);
+    group.SchemaMutantExpressions
+      .All(mutant => mutant.Operand is not CodeAnalysisUtil.OperandKind.None)
+      .Should().BeTrue();
   }
 
   [Fact]
@@ -508,7 +515,11 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       }
       """;
 
-    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    var group = GetMutationGroup(inputUnderMutation);
+    var mutantOp = group.SchemaMutantExpressions.Select(mutant => mutant.Operation).ToHashSet();
+
+    mutantOp.Should().NotContain(SyntaxKind.AddExpression);
+    mutantOp.Should().NotContain(SyntaxKind.SubtractExpression);
   }
 
   [Fact]
@@ -567,7 +578,10 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
         }
         """;
 
-    ShouldNotHaveValidMutationGroup(inputUnderMutation);
+    var group = GetMutationGroup(inputUnderMutation);
+    group.SchemaMutantExpressions
+      .All(mutant => mutant.Operand is not CodeAnalysisUtil.OperandKind.None)
+      .Should().BeTrue();
   }
 
   [Theory]
@@ -971,11 +985,12 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     var allTemplates = mutationGroup.SchemaMutantExpressions
       .Select(expr => expr.ExpressionTemplate)
-      .Concat([mutationGroup.SchemaOriginalExpression.ExpressionTemplate]);
+      .Concat([mutationGroup.SchemaOriginalExpression.ExpressionTemplate]).ToList();
+    
+    testOutputHelper.WriteLine(string.Join(",", allTemplates));
 
     foreach (var exprTemplate in allTemplates)
     {
-      testOutputHelper.WriteLine(exprTemplate);
       if (exprTemplate is "true" or "false") continue;
       var awaitOccurence = Regex.Matches(exprTemplate, Regex.Escape("await")).Count;
       var expectedCount = new[] { leftShouldBeLambda, rightShouldBeLambda }.Count(b => b);

@@ -422,4 +422,35 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
     comp.model.CanImplicitlyConvertNumericLiteral(literal, SpecialType.System_Int16).Should()
       .BeTrue();
   }
+
+  [Theory]
+  [InlineData("0")]
+  [InlineData("-1")]
+  [InlineData("0.0")]
+  [InlineData("0.0f")]
+  [InlineData("0.0d")]
+  [InlineData("0.0m")] 
+  [InlineData("1.0")]
+  [InlineData("1.0d")]
+  [InlineData("1.0f")]
+  [InlineData("1.0m")]
+  [InlineData("-1.0")]
+  [InlineData("-1.0d")]
+  [InlineData("-1.0f")]
+  [InlineData("-1.0m")]
+  public void CheckParseValueWorks(string numericValue)
+  {
+    var ast = CSharpSyntaxTree.ParseText(numericValue);
+    var node = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<LiteralExpressionSyntax>().First();
+    
+    var isOneOf = false;
+    var integral = CodeAnalysisUtil.ParseNumericIntValue(node);
+    isOneOf |= integral is 0 or 1 or -1;
+    
+    var floating = CodeAnalysisUtil.ParseNumericDoubleValue(node);
+    isOneOf |= floating is 0.0 or 1.0 or -1.0;
+
+    isOneOf.Should().BeTrue();
+  }
 }

@@ -77,10 +77,16 @@ public sealed partial class CompoundAssignOpReplacer(
     ValidMutantExpressions(AssignmentExpressionSyntax originalNode,
       ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode, requiredReturnType, optimise);
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature) return [];
+    
+    var validMutants = 
+      ValidOperatorReplacements(originalNode, methodSignature, optimise);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);
+    
+    // Don't add operands as mutants
     return
     [
       ..attachIdToMutants.Select(entry =>

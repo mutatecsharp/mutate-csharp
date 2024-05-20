@@ -101,7 +101,12 @@ public sealed partial class BinExprOpReplacer(
     ValidMutantExpressions(BinaryExpressionSyntax originalNode,
       ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode, requiredReturnType, optimise).ToArray();
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature) return [];
+
+    var validMutants =
+      ValidOperatorReplacements(originalNode, methodSignature, optimise)
+        .ToList();
 
     var containsShortCircuitOperators =
       CodeAnalysisUtil.ShortCircuitOperators.Contains(originalNode.Kind()) ||
@@ -120,6 +125,30 @@ public sealed partial class BinExprOpReplacer(
         CodeAnalysisUtil.OperandKind.None,
         ExpressionTemplate(entry.op, containsShortCircuitOperators,
           isLeftOperandAwaitable, isRightOperandAwaitable))).ToList();
+    
+    // Append (left/right) operand as mutants
+    var validOperands =
+      ValidOperandReplacements(originalNode, methodSignature, optimise);
+    
+    if (validOperands.Contains(CodeAnalysisUtil.OperandKind.LeftOperand))
+    {
+      var leftOperand = new ExpressionRecord(SyntaxKind.Argument,
+        CodeAnalysisUtil.OperandKind.LeftOperand,
+        LeftExpressionTemplate(containsShortCircuitOperators,
+          isLeftOperandAwaitable));
+      
+      sortedMutants.Add(leftOperand);
+    }
+
+    if (validOperands.Contains(CodeAnalysisUtil.OperandKind.RightOperand))
+    {
+      var rightOperand = new ExpressionRecord(SyntaxKind.Argument,
+        CodeAnalysisUtil.OperandKind.RightOperand,
+        RightExpressionTemplate(containsShortCircuitOperators,
+          isLeftOperandAwaitable));
+      
+      sortedMutants.Add(rightOperand);
+    }
 
     return [..sortedMutants];
   }
