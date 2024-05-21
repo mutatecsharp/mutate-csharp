@@ -69,7 +69,10 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     ValidMutantExpressions(PrefixUnaryExpressionSyntax originalNode, 
       ITypeSymbol? requiredReturnType)
   {
-    var validMutants = ValidMutants(originalNode, requiredReturnType);
+    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
+        { } methodSignature) return [];
+    
+    var validMutants = ValidOperatorReplacements(originalNode, methodSignature, optimise);
     var attachIdToMutants =
       SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
         validMutants);

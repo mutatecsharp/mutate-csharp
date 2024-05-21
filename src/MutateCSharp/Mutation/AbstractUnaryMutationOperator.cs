@@ -33,11 +33,45 @@ public abstract class AbstractUnaryMutationOperator<T>(
       _ => null
     };
   }
-
-  protected IEnumerable<SyntaxKind> ValidMutants(T originalNode, ITypeSymbol? requiredReturnType)
+  
+  /*
+   * Perform local value analysis on the operand if it is of literal type.
+   * This works on all compile-time constants as long as it is stored in const variable.
+   */
+  private bool IsNonRedundantArithmeticReplacement(T originalNode,
+    SyntaxKind replacementOpKind)
   {
-    if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
-        { } methodSignature) return [];
+    var operandConstant =
+      SemanticModel.GetConstantValue(GetOperand(originalNode)!);
+    if (!operandConstant.HasValue) return true;
+
+    
+    if (operandConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m)
+    {
+      // expression is of type (op) 0
+      return replacementOpKind is not SyntaxKind.UnaryPlusExpression && 
+             replacementOpKind is not SyntaxKind.UnaryMinusExpression;
+    }
+
+    if (operandConstant.Value is 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m)
+    {
+      // expression is of type (op) 1
+      return replacementOpKind is not SyntaxKind.UnaryMinusExpression;
+    }
+
+    if (operandConstant.Value is -1 or -1L or -1.0f or -1.0 or -1.0m)
+    {
+      // expression is of type (op) -1
+      return replacementOpKind is not SyntaxKind.UnaryMinusExpression;
+    }
+    
+    // default: treat as non-redundant
+    return replacementOpKind is not SyntaxKind.UnaryPlusExpression;
+  }
+
+  protected IEnumerable<SyntaxKind> ValidOperatorReplacements(
+    T originalNode, CodeAnalysisUtil.MethodSignature methodSignature, bool optimise)
+  {
     var operandAbsoluteType =
       methodSignature.OperandTypes[0].GetNullableUnderlyingType();
 
@@ -52,6 +86,14 @@ public abstract class AbstractUnaryMutationOperator<T>(
       validMutants = validMutants.Where(replacementOpEntry =>
         !CodeAnalysisUtil.VariableModifyingOperators.Contains(
           replacementOpEntry.Key));
+    }
+    
+    // Remove redundant and equivalent mutants
+    if (optimise)
+    {
+      validMutants = validMutants.Where(replacementOpEntry =>
+        IsNonRedundantArithmeticReplacement(
+          originalNode, replacementOpEntry.Key));
     }
 
     // Case 1: Special types (simple types, string)

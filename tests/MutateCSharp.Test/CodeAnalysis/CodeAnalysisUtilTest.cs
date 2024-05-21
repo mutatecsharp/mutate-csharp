@@ -424,33 +424,56 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
   }
 
   [Theory]
-  [InlineData("0")]
-  [InlineData("-1")]
-  [InlineData("0.0")]
-  [InlineData("0.0f")]
-  [InlineData("0.0d")]
-  [InlineData("0.0m")] 
-  [InlineData("1.0")]
-  [InlineData("1.0d")]
-  [InlineData("1.0f")]
-  [InlineData("1.0m")]
-  [InlineData("-1.0")]
-  [InlineData("-1.0d")]
-  [InlineData("-1.0f")]
-  [InlineData("-1.0m")]
-  public void CheckParseValueWorks(string numericValue)
+  [InlineData("int", "0")]
+  [InlineData("ulong", "0UL")]
+  [InlineData("uint", "0U")]
+  [InlineData("long", "0L")]
+  [InlineData("double", "0.0")]
+  [InlineData("float", "0.0f")]
+  [InlineData("double", "0.0d")]
+  [InlineData("decimal", "0.0m")]
+  [InlineData("uint", "1")]
+  [InlineData("long", "1L")]
+  [InlineData("ulong", "1UL")]
+  [InlineData("double", "1.0")]
+  [InlineData("double", "1.0d")]
+  [InlineData("float", "1.0f")]
+  [InlineData("decimal", "1.0m")]
+  [InlineData("int", "-1")]
+  [InlineData("long", "-1L")]
+  [InlineData("double", "-1.0")]
+  [InlineData("double", "-1.0d")]
+  [InlineData("float", "-1.0f")]
+  [InlineData("decimal", "-1.0m")]
+  public void CheckParseValueWorks(string type, string numericValue)
   {
-    var ast = CSharpSyntaxTree.ParseText(numericValue);
-    var node = ast.GetCompilationUnitRoot().DescendantNodes()
-      .OfType<LiteralExpressionSyntax>().First();
-    
-    var isOneOf = false;
-    var integral = CodeAnalysisUtil.ParseNumericIntValue(node);
-    isOneOf |= integral is 0 or 1 or -1;
-    
-    var floating = CodeAnalysisUtil.ParseNumericDoubleValue(node);
-    isOneOf |= floating is 0.0 or 1.0 or -1.0;
+    var inputUnderMutation =
+      $$"""
+        using System;
 
-    isOneOf.Should().BeTrue();
+        class A
+        {
+          public static void Main()
+          {
+            const {{type}} x = {{numericValue}};
+            const {{type}} y = x;
+            const {{type}} z = y;
+            var a = z + y;
+          }
+        }
+        """;
+    
+    var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
+    var comp = TestUtil.GetAstSemanticModelAndAssembly(ast);
+    var node = ast.GetCompilationUnitRoot().DescendantNodes()
+      .OfType<BinaryExpressionSyntax>().First();
+
+    var value = comp.model.GetConstantValue(node.Left);
+    value.HasValue.Should().BeTrue();
+    
+    var check = value.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
+      or -1 or -1L or -1.0f or -1.0 or -1.0m 
+      or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m;
+    check.Should().BeTrue();
   }
 }

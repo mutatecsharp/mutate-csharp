@@ -46,7 +46,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
     };
   }
 
-  private bool IsReplacementNotRedundant(
+  private bool IsSufficientLogicalOrRelationalReplacement(
     SyntaxKind originalOpKind,
     SyntaxKind replacementOpKind,
     ITypeSymbol returnType)
@@ -115,6 +115,84 @@ public abstract class AbstractBinaryMutationOperator<T>(
     };
   }
 
+  /*
+   * Perform local value analysis on the operand if it is of literal type.
+   * This works on all compile-time constants as long as it is stored in const variable.
+   */
+  private bool IsNonRedundantArithmeticReplacement(
+    T originalNode, SyntaxKind replacementOpKind)
+  {
+    var leftConstant = 
+      SemanticModel.GetConstantValue(GetLeftOperand(originalNode)!);
+    var rightConstant = 
+      SemanticModel.GetConstantValue(GetRightOperand(originalNode)!);
+
+    if (leftConstant.HasValue && rightConstant.HasValue)
+    {
+      // expression is of type 0 (op) 0, all mutant expressions are equivalent
+      // to the original expression 
+      // 0 / 0 will not compile in C# so we discard the mutant
+      if (leftConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
+          && rightConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m)
+      {
+        return false;
+      }
+    }
+
+    if (leftConstant is { HasValue: true, 
+          Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m })
+    {
+      // expression is of type 0 (op) x
+      return replacementOpKind is not SyntaxKind.AddExpression &&
+             replacementOpKind is not SyntaxKind.MultiplyExpression &&
+             replacementOpKind is not SyntaxKind.DivideExpression &&
+             replacementOpKind is not SyntaxKind.ModuloExpression &&
+             replacementOpKind is not SyntaxKind.BitwiseAndExpression &&
+             replacementOpKind is not SyntaxKind.BitwiseOrExpression &&
+             replacementOpKind is not SyntaxKind.ExclusiveOrExpression &&
+             replacementOpKind is not SyntaxKind.LeftShiftExpression &&
+             replacementOpKind is not SyntaxKind.RightShiftExpression;
+    }
+
+    // expression is of type 1 (op) x
+    if (leftConstant is { HasValue: true, 
+          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
+    {
+      return replacementOpKind is not SyntaxKind.MultiplyExpression;
+    }
+
+    // expression is of type x (op) 0
+    if (rightConstant is { HasValue: true, 
+          Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m })
+    {
+      return replacementOpKind is not SyntaxKind.AddExpression &&
+             replacementOpKind is not SyntaxKind.AddAssignmentExpression &&
+             replacementOpKind is not SyntaxKind.MultiplyExpression &&
+             replacementOpKind is not SyntaxKind.MultiplyAssignmentExpression &&
+             replacementOpKind is not SyntaxKind.SubtractExpression &&
+             replacementOpKind is not SyntaxKind.SubtractAssignmentExpression &&
+             replacementOpKind is not SyntaxKind.ModuloExpression &&
+             replacementOpKind is not SyntaxKind.ModuloAssignmentExpression &&
+             replacementOpKind is not SyntaxKind.LeftShiftExpression &&
+             replacementOpKind is not SyntaxKind.LeftShiftAssignmentExpression &&
+             replacementOpKind is not SyntaxKind.RightShiftExpression &&
+             replacementOpKind is not SyntaxKind.RightShiftAssignmentExpression;
+    }
+    
+    // expression is of type x (op) 1
+    if (rightConstant is { HasValue: true, 
+          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
+    {
+      return replacementOpKind is not SyntaxKind.MultiplyExpression &&
+             replacementOpKind is not SyntaxKind.MultiplyAssignmentExpression &&
+             replacementOpKind is not SyntaxKind.DivideExpression &&
+             replacementOpKind is not SyntaxKind.DivideAssignmentExpression;
+    }
+    
+    // Default: treat as non-redundant
+    return true;
+  }
+
   protected ISet<CodeAnalysisUtil.OperandKind> ValidOperandReplacements(
     T originalNode,
     CodeAnalysisUtil.MethodSignature methodSignature, 
@@ -151,56 +229,26 @@ public abstract class AbstractBinaryMutationOperator<T>(
       SemanticModel.Compilation.HasImplicitConversion(
         methodSignature.OperandTypes[1], methodSignature.ReturnType);
     
-    var shouldAddLeft = leftAssignable;
-    var shouldAddRight = rightAssignable;
+    var leftConstantValue = SemanticModel.GetConstantValue(leftOperand);
+    var rightConstantValue = SemanticModel.GetConstantValue(rightOperand);
 
-    var isLeftLiteral =
-      leftOperand.IsKind(SyntaxKind.NumericLiteralExpression) ||
-      leftOperand.IsNegativeLiteral();
-    var isRightLiteral =
-      rightOperand.IsKind(SyntaxKind.NumericLiteralExpression) ||
-      rightOperand.IsNegativeLiteral();
-
-    if (shouldAddLeft && isLeftLiteral)
+    if (leftAssignable && leftConstantValue is
+          { HasValue: true, Value: 
+            0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
+            or -1 or -1L or -1.0f or -1.0 or -1.0m 
+            or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
     {
-      var integral = 
-        CodeAnalysisUtil.ParseNumericIntValue(leftOperand);
-      if (integral is 0 or 1 or -1)
-      {
-        shouldAddLeft = false;
-      }
-      else
-      {
-        var floating =
-          CodeAnalysisUtil.ParseNumericDoubleValue(leftOperand);
-        if (floating is 0.0 or 1.0 or -1.0)
-        {
-          shouldAddLeft = false;
-        }
-      }
+      results.Add(CodeAnalysisUtil.OperandKind.LeftOperand);
     }
 
-    if (shouldAddRight && isRightLiteral)
+    if (rightAssignable && rightConstantValue is
+          { HasValue: true, Value:
+            0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
+            or -1 or -1L or -1.0f or -1.0 or -1.0m 
+            or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
     {
-      var integral = 
-        CodeAnalysisUtil.ParseNumericIntValue(rightOperand);
-      if (integral is 0 or 1 or -1)
-      {
-        shouldAddRight = false;
-      }
-      else
-      {
-        var floating =
-          CodeAnalysisUtil.ParseNumericDoubleValue(rightOperand);
-        if (floating is 0.0 or 1.0 or -1.0)
-        {
-          shouldAddRight = false;
-        }
-      }
+      results.Add(CodeAnalysisUtil.OperandKind.RightOperand);
     }
-
-    if (shouldAddLeft) results.Add(CodeAnalysisUtil.OperandKind.LeftOperand);
-    if (shouldAddRight) results.Add(CodeAnalysisUtil.OperandKind.RightOperand);
     
     // Avoid generating redundant mutants if left operand is equivalent to right operand
     if (results.Count == 2 && leftOperand.ToString().Equals(rightOperand.ToString()))
@@ -224,11 +272,13 @@ public abstract class AbstractBinaryMutationOperator<T>(
       .Where(replacementOpEntry =>
         originalNode.Kind() != replacementOpEntry.Key);
 
-    // Remove redundant mutants
+    // Remove redundant and equivalent mutants
     if (optimise)
     {
       validMutants = validMutants.Where(replacementOpEntry =>
-        IsReplacementNotRedundant(originalNode.Kind(), replacementOpEntry.Key, methodSignature.ReturnType));
+        IsSufficientLogicalOrRelationalReplacement(
+          originalNode.Kind(), replacementOpEntry.Key, methodSignature.ReturnType)
+        && IsNonRedundantArithmeticReplacement(originalNode, replacementOpEntry.Key));
     }
     
     // Simple types: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/types#835-simple-types
