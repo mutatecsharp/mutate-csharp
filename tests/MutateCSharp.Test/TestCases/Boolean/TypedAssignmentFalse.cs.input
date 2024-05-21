@@ -1,9 +1,0 @@
-namespace Boolean.TypedAssignment.False;
-
-public class Program
-{
-  static void Main()
-  {
-    bool b = false;
-  }
-}

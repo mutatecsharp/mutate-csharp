@@ -1,8 +1,0 @@
-namespace FileScopedNamespace;
-
-public class Program
-{
-  static void Main()
-  {
-  }
-}
