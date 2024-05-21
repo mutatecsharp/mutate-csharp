@@ -106,7 +106,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     var returnAbsoluteType = returnType.GetNullableUnderlyingType();
     // Don't have to check for the null keyword since no unary operator is
     // applicable to the null keyword (null has no type in C#)
-    if (operandAbsoluteType.IsNumeric())
+    if (SemanticModel.IsNumeric(operandAbsoluteType))
     {
       if (originalNode.Operand.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(

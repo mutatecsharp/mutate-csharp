@@ -139,4 +139,74 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
       .Select(mutant => mutant.ExpressionTemplate)
       .Should().BeEquivalentTo("false", "{0} >= {1}", "{0} != {1}");
   }
+  
+  [Theory]
+  [InlineData("==", "!=")]
+  [InlineData("!=", "==")]
+  public void ShouldOmitGeneratingRedundantMutantsForBooleanInequalityOperators(
+    string fromOperator, string toOperator)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = true;
+          var y = false;
+          var z = x {{fromOperator}} y;
+        }
+      }
+      """;
+
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    var templates = mutationGroup.SchemaMutantExpressions.Select(mutant => mutant.ExpressionTemplate);
+    testOutputHelper.WriteLine(string.Join(",", templates));
+
+    mutationGroup.SchemaMutantExpressions
+      .Select(mutant => mutant.ExpressionTemplate)
+      .Should().BeEquivalentTo($"{{0}} {toOperator} {{1}}");
+  }
+  
+  [Theory]
+  [InlineData("Color.Red == 0")]
+  [InlineData("Color.Blue != 0")]
+  [InlineData("0 == Color.Red")]
+  [InlineData("0 != Color.Blue")]
+  public void EnumEqualityAndInequalityMutantsShouldBeNonRedundant(string construct)
+  {
+    var inputUnderMutation =
+      $$"""
+        using System;
+
+        public enum Color
+        {
+          Red,
+          Blue
+        }
+
+        public class A
+        {
+          public static void Main()
+          {
+            var x = {{construct}};
+          }
+        }
+        """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    mutationGroup.SchemaReturnType.Should().Be("bool");
+    mutationGroup.SchemaParameterTypes.Should().Equal("Color", "Color");
+
+    foreach (var mutant in mutationGroup.SchemaMutantExpressions)
+    {
+      testOutputHelper.WriteLine(mutant.ExpressionTemplate);
+    }
+  }
 }

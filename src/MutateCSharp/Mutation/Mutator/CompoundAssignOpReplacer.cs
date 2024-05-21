@@ -123,7 +123,8 @@ public sealed partial class CompoundAssignOpReplacer(
     var operandAbsoluteType = operandType.GetNullableUnderlyingType();
 
     // It is guaranteed the left operand is an assignable variable, not a literal
-    if (varAbsoluteType.IsNumeric() && operandAbsoluteType.IsNumeric())
+    if (SemanticModel.IsNumeric(varAbsoluteType) &&
+        SemanticModel.IsNumeric(operandAbsoluteType))
     {
       // If right operand is literal, check for narrowing
       if (originalNode.Right.IsKind(SyntaxKind.NumericLiteralExpression)
@@ -165,6 +166,13 @@ public sealed partial class CompoundAssignOpReplacer(
 
     if (!operandType.IsValueType)
       operandType = operandType.GetNullableUnderlyingType();
+    
+    // Handle the special case where the right operand is of numeric type but
+    // the left operand is enum type
+    if (varAbsoluteType.TypeKind is TypeKind.Enum && SemanticModel.IsNumeric(operandType))
+    {
+      operandType = updateVariableType;
+    }
 
     return new CodeAnalysisUtil.MethodSignature(updateVariableType,
       [updateVariableType, operandType]);

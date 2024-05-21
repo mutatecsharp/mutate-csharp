@@ -184,8 +184,8 @@ public sealed partial class BinExprOpReplacer(
     // the value can be implicitly converted to sbyte, byte, short, ushort,
     // uint, ulong, nint or nuint.
     // We handle the case where the type of int literals can be implicitly narrowed
-    if (leftOperandAbsoluteType.IsNumeric() &&
-        rightOperandAbsoluteType.IsNumeric())
+    if (SemanticModel.IsNumeric(leftOperandAbsoluteType) &&
+        SemanticModel.IsNumeric(rightOperandAbsoluteType))
     {
       if (originalNode.Left.IsKind(SyntaxKind.NumericLiteralExpression)
           && SemanticModel.CanImplicitlyConvertNumericLiteral(
@@ -206,7 +206,6 @@ public sealed partial class BinExprOpReplacer(
         new CodeAnalysisUtil.MethodSignature(returnType,
           [leftOperandType, rightOperandType]);
       
-
       if (SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
             BuiltInOperatorSignatures,
             originalNode.Kind(),
@@ -238,6 +237,19 @@ public sealed partial class BinExprOpReplacer(
       leftOperandType = leftOperandType.GetNullableUnderlyingType();
     if (!rightOperandType.IsValueType)
       rightOperandType = rightOperandType.GetNullableUnderlyingType();
+    
+    // Handle the special case where left/right operand is enum type, but
+    // right/left operand is numeric type
+    if (leftOperandAbsoluteType.TypeKind is TypeKind.Enum &&
+        SemanticModel.IsNumeric(rightOperandAbsoluteType))
+    {
+      rightOperandType = leftOperandType;
+    }
+    else if (SemanticModel.IsNumeric(leftOperandAbsoluteType) &&
+             rightOperandAbsoluteType.TypeKind is TypeKind.Enum)
+    {
+      leftOperandType = rightOperandType;
+    }
 
     return new CodeAnalysisUtil.MethodSignature(returnType,
       [leftOperandType, rightOperandType]);

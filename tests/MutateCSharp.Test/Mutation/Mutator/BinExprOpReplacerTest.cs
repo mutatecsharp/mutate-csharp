@@ -1037,4 +1037,43 @@ public class BinExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 
     allTemplates.All(template => template.Contains("await")).Should().BeFalse();
   }
+
+  [Theory]
+  [InlineData("Color.Red == 0")]
+  [InlineData("Color.Blue != 0")]
+  [InlineData("0 == Color.Red")]
+  [InlineData("0 != Color.Blue")]
+  public void EnumEqualityAndInequalityChecksShouldHaveCorrectParameterTypes(string construct)
+  {
+    var inputUnderMutation =
+      $$"""
+      using System;
+
+      public enum Color
+      {
+        Red,
+        Blue
+      }
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = {{construct}};
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var mutationGroup = GetMutationGroup(inputUnderMutation);
+    
+    mutationGroup.SchemaReturnType.Should().Be("bool");
+    mutationGroup.SchemaParameterTypes.Should().Equal("Color", "Color");
+
+    foreach (var mutant in mutationGroup.SchemaMutantExpressions)
+    {
+      testOutputHelper.WriteLine(mutant.ExpressionTemplate);
+    }
+  }
 }

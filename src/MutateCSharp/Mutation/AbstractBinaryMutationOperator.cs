@@ -48,10 +48,12 @@ public abstract class AbstractBinaryMutationOperator<T>(
   private bool IsSufficientLogicalOrRelationalReplacement(
     SyntaxKind originalOpKind,
     SyntaxKind replacementOpKind,
-    ITypeSymbol returnType)
+    CodeAnalysisUtil.MethodSignature methodSignature)
   {
     var boolType =
       SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+    var leftOperandType = methodSignature.OperandTypes[0];
+    var rightOperandType = methodSignature.OperandTypes[1];
 
     return originalOpKind switch
     {
@@ -65,11 +67,6 @@ public abstract class AbstractBinaryMutationOperator<T>(
         SyntaxKind.FalseLiteralExpression
         or SyntaxKind.LessThanOrEqualExpression
         or SyntaxKind.NotEqualsExpression,
-      // == => { false, <=, >= }
-      SyntaxKind.EqualsExpression => replacementOpKind is
-        SyntaxKind.FalseLiteralExpression
-        or SyntaxKind.LessThanOrEqualExpression
-        or SyntaxKind.GreaterThanOrEqualExpression,
       // >= => { true, >, == }
       SyntaxKind.GreaterThanOrEqualExpression => replacementOpKind is
         SyntaxKind.TrueLiteralExpression
@@ -80,21 +77,36 @@ public abstract class AbstractBinaryMutationOperator<T>(
         SyntaxKind.TrueLiteralExpression
         or SyntaxKind.LessThanExpression
         or SyntaxKind.EqualsExpression,
-      // != => { true, <, > }
-      SyntaxKind.NotEqualsExpression => replacementOpKind is
+      // == (if numeric) => { false, <=, >= }
+      SyntaxKind.EqualsExpression when 
+        SemanticModel.IsNumeric(leftOperandType) &&
+         SemanticModel.IsNumeric(rightOperandType) => replacementOpKind is
+        SyntaxKind.FalseLiteralExpression
+        or SyntaxKind.LessThanOrEqualExpression
+        or SyntaxKind.GreaterThanOrEqualExpression,
+      // == (if not numeric) => !=
+      SyntaxKind.EqualsExpression => replacementOpKind is
+        SyntaxKind.NotEqualsExpression,
+      // != (if numeric) => { true, <, > }
+      SyntaxKind.NotEqualsExpression when
+        SemanticModel.IsNumeric(leftOperandType) &&
+        SemanticModel.IsNumeric(rightOperandType) => replacementOpKind is
         SyntaxKind.TrueLiteralExpression
         or SyntaxKind.LessThanExpression
         or SyntaxKind.GreaterThanExpression,
+      // != (if not numeric) => ==
+      SyntaxKind.NotEqualsExpression => replacementOpKind is
+        SyntaxKind.EqualsExpression,
       // && => { false, left operand, right operand, == }
       // Operands are handled separately
       SyntaxKind.LogicalAndExpression => replacementOpKind is
         SyntaxKind.FalseLiteralExpression
         or SyntaxKind.EqualsExpression,
-      // Logical & => { false, left operand, right operand, == }
+      // Logical & (if boolean) => { false, left operand, right operand, == }
       // Operands are handled separately
       SyntaxKind.BitwiseAndExpression
-        when SemanticModel.Compilation.HasImplicitConversion(boolType,
-          returnType)
+        when SemanticModel.Compilation.HasImplicitConversion(
+          boolType, methodSignature.ReturnType)
         => replacementOpKind is
           SyntaxKind.FalseLiteralExpression
           or SyntaxKind.EqualsExpression,
@@ -103,11 +115,11 @@ public abstract class AbstractBinaryMutationOperator<T>(
       SyntaxKind.LogicalOrExpression => replacementOpKind is
         SyntaxKind.TrueLiteralExpression
         or SyntaxKind.NotEqualsExpression,
-      // Logical | => { true, left operand, right operand, != }
+      // Logical | (if boolean) => { true, left operand, right operand, != }
       // Operands are handled separately
       SyntaxKind.BitwiseOrExpression
-        when SemanticModel.Compilation.HasImplicitConversion(boolType,
-          returnType)
+        when SemanticModel.Compilation.HasImplicitConversion(
+          boolType, methodSignature.ReturnType)
         => replacementOpKind is
           SyntaxKind.TrueLiteralExpression
           or SyntaxKind.NotEqualsExpression,
@@ -121,8 +133,19 @@ public abstract class AbstractBinaryMutationOperator<T>(
    * This works on all compile-time constants as long as it is stored in const variable.
    */
   private bool IsNonRedundantArithmeticReplacement(
-    T originalNode, SyntaxKind replacementOpKind)
+    T originalNode, SyntaxKind replacementOpKind, CodeAnalysisUtil.MethodSignature methodSignature)
   {
+    var leftOperandType = methodSignature.OperandTypes[0];
+    var rightOperandType = methodSignature.OperandTypes[1];
+    
+    // Check needed because enumerable-typed values can be cast to 0 / 1 which
+    // would filter out == from != expression
+    if (!SemanticModel.IsNumeric(leftOperandType) ||
+        !SemanticModel.IsNumeric(rightOperandType))
+    {
+      return true;
+    }
+    
     var leftConstant =
       SemanticModel.GetConstantValue(GetLeftOperand(originalNode)!);
     var rightConstant =
@@ -239,7 +262,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
         originalNode.Kind() is SyntaxKind.LessThanExpression
           or SyntaxKind.LessThanOrEqualExpression
           or SyntaxKind.GreaterThanExpression
-          or SyntaxKind.GreaterThanOrEqualExpression)
+          or SyntaxKind.GreaterThanOrEqualExpression
+          or SyntaxKind.EqualsExpression
+          or SyntaxKind.NotEqualsExpression)
       return FrozenSet<CodeAnalysisUtil.OperandKind>.Empty;
 
     var leftConstantValue = SemanticModel.GetConstantValue(leftOperand);
@@ -300,10 +325,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
     {
       validMutants = validMutants.Where(replacementOpEntry =>
         IsSufficientLogicalOrRelationalReplacement(
-          originalNode.Kind(), replacementOpEntry.Key,
-          methodSignature.ReturnType)
-        && IsNonRedundantArithmeticReplacement(originalNode,
-          replacementOpEntry.Key));
+          originalNode.Kind(), replacementOpEntry.Key, methodSignature)
+        && IsNonRedundantArithmeticReplacement(
+          originalNode, replacementOpEntry.Key, methodSignature));
     }
 
     // Simple types: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/types#835-simple-types

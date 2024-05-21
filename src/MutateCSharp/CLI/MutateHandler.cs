@@ -21,7 +21,7 @@ internal static class MutateHandler
     var pathsToIgnore =
       options.AbsoluteSourceFilePathsToIgnore.ToImmutableArray();
     
-    Log.Information($"Omitting equivalent/redundant mutants: {options.Optimise}");
+    Log.Information("Omitting equivalent/redundant mutants: {RemoveRedundantMutants}", options.Optimise);
 
     foreach (var ignorePath in pathsToIgnore)
     {

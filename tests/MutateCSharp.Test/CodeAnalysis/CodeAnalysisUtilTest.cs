@@ -470,8 +470,8 @@ public class CodeAnalysisUtilTest(ITestOutputHelper testOutputHelper)
 
     var value = comp.model.GetConstantValue(node.Left);
     value.HasValue.Should().BeTrue();
-    
-    var check = value.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
+
+    var check = value.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m
       or -1 or -1L or -1.0f or -1.0 or -1.0m 
       or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m;
     check.Should().BeTrue();
