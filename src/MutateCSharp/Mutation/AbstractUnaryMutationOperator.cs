@@ -20,11 +20,11 @@ public abstract class AbstractUnaryMutationOperator<T>(
   protected readonly FrozenDictionary<SyntaxKind,
       ImmutableArray<CodeAnalysisUtil.MethodSignature>>
     BuiltInOperatorSignatures = builtInOperatorSignatures;
-    
-  public abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+
+  protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators();
   
-  public static ExpressionSyntax? GetOperand(T originalNode)
+  private static ExpressionSyntax? GetOperand(T originalNode)
   {
     return originalNode switch
     {
@@ -43,30 +43,53 @@ public abstract class AbstractUnaryMutationOperator<T>(
   {
     var operandConstant =
       SemanticModel.GetConstantValue(GetOperand(originalNode)!);
-    if (!operandConstant.HasValue) return true;
-
     
-    if (operandConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m)
+    if (operandConstant is {HasValue: true, Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m})
     {
       // expression is of type (op) 0
-      return replacementOpKind is not SyntaxKind.UnaryPlusExpression && 
-             replacementOpKind is not SyntaxKind.UnaryMinusExpression;
+      if (replacementOpKind is SyntaxKind.UnaryPlusExpression
+          or SyntaxKind.UnaryMinusExpression)
+        return false;
     }
 
-    if (operandConstant.Value is 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m)
+    if (operandConstant is {HasValue: true, 
+          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m
+        or -1 or -1L or -1.0f or -1.0 or -1.0m})
     {
-      // expression is of type (op) 1
-      return replacementOpKind is not SyntaxKind.UnaryMinusExpression;
-    }
-
-    if (operandConstant.Value is -1 or -1L or -1.0f or -1.0 or -1.0m)
-    {
-      // expression is of type (op) -1
-      return replacementOpKind is not SyntaxKind.UnaryMinusExpression;
+      // expression is of type (op) 1 / (op) -1
+      if (replacementOpKind is SyntaxKind.UnaryMinusExpression)
+        return false;
     }
     
-    // default: treat as non-redundant
-    return replacementOpKind is not SyntaxKind.UnaryPlusExpression;
+    // Only replace inc/dec with each other
+    return originalNode.Kind() switch
+    {
+      SyntaxKind.PreIncrementExpression => replacementOpKind is 
+        SyntaxKind.PreDecrementExpression,
+      SyntaxKind.PreDecrementExpression => replacementOpKind is 
+        SyntaxKind.PreIncrementExpression,
+      SyntaxKind.PostIncrementExpression => replacementOpKind is 
+        SyntaxKind.PostDecrementExpression,
+      SyntaxKind.PostDecrementExpression => replacementOpKind is
+        SyntaxKind.PostIncrementExpression,
+      // default: treat all operator except unary plus as non-redundant
+      _ => replacementOpKind is not SyntaxKind.UnaryPlusExpression
+    };
+  }
+
+  protected ISet<CodeAnalysisUtil.OperandKind> ValidOperandReplacement(
+    T originalNode, CodeAnalysisUtil.MethodSignature originalSignature,
+    bool optimise)
+  {
+    var assignable =
+      SemanticModel.Compilation.HasImplicitConversion(
+        originalSignature.OperandTypes[0], originalSignature.ReturnType);
+    
+    var results = new HashSet<CodeAnalysisUtil.OperandKind>();
+    if (assignable)
+      results.Add(CodeAnalysisUtil.OperandKind.UnaryOperand);
+
+    return results;
   }
 
   protected IEnumerable<SyntaxKind> ValidOperatorReplacements(
@@ -92,8 +115,7 @@ public abstract class AbstractUnaryMutationOperator<T>(
     if (optimise)
     {
       validMutants = validMutants.Where(replacementOpEntry =>
-        IsNonRedundantArithmeticReplacement(
-          originalNode, replacementOpEntry.Key));
+        IsNonRedundantArithmeticReplacement(originalNode, replacementOpEntry.Key));
     }
 
     // Case 1: Special types (simple types, string)

@@ -58,7 +58,7 @@ public sealed partial class PostfixUnaryExprOpReplacer(
       ExpressionTemplate(originalNode.Kind()));
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators()
   {
     return SupportedOperators;
@@ -79,6 +79,17 @@ public sealed partial class PostfixUnaryExprOpReplacer(
     var sortedMutants = attachIdToMutants.Select(entry =>
       new ExpressionRecord(entry.op, CodeAnalysisUtil.OperandKind.None, ExpressionTemplate(entry.Item2))
     ).ToList();
+    
+    // Append operand as mutant
+    var validOperand =
+      ValidOperandReplacement(originalNode, methodSignature, optimise);
+    if (validOperand.Contains(CodeAnalysisUtil.OperandKind.UnaryOperand))
+    {
+      var operand = new ExpressionRecord(SyntaxKind.Argument,
+        CodeAnalysisUtil.OperandKind.UnaryOperand,
+        "{0}");
+      sortedMutants.Add(operand);
+    }
 
     return [..sortedMutants];
   }

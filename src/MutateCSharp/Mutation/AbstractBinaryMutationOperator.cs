@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -22,10 +21,10 @@ public abstract class AbstractBinaryMutationOperator<T>(
   protected readonly FrozenDictionary<SyntaxKind,
       ImmutableArray<CodeAnalysisUtil.MethodSignature>>
     BuiltInOperatorSignatures = builtInOperatorSignatures;
-  
+
   protected abstract FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedBinaryOperators();
-  
+
   public static ExpressionSyntax? GetLeftOperand(T originalNode)
   {
     return originalNode switch
@@ -53,7 +52,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
   {
     var boolType =
       SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
-    
+
     return originalOpKind switch
     {
       // > => { false, >=, != }
@@ -93,11 +92,12 @@ public abstract class AbstractBinaryMutationOperator<T>(
         or SyntaxKind.EqualsExpression,
       // Logical & => { false, left operand, right operand, == }
       // Operands are handled separately
-      SyntaxKind.BitwiseAndExpression 
-        when SemanticModel.Compilation.HasImplicitConversion(boolType, returnType) 
+      SyntaxKind.BitwiseAndExpression
+        when SemanticModel.Compilation.HasImplicitConversion(boolType,
+          returnType)
         => replacementOpKind is
-        SyntaxKind.FalseLiteralExpression
-        or SyntaxKind.EqualsExpression,
+          SyntaxKind.FalseLiteralExpression
+          or SyntaxKind.EqualsExpression,
       // || => { true, left operand, right operand, != }
       // Operands are handled separately
       SyntaxKind.LogicalOrExpression => replacementOpKind is
@@ -106,7 +106,8 @@ public abstract class AbstractBinaryMutationOperator<T>(
       // Logical | => { true, left operand, right operand, != }
       // Operands are handled separately
       SyntaxKind.BitwiseOrExpression
-        when SemanticModel.Compilation.HasImplicitConversion(boolType, returnType) 
+        when SemanticModel.Compilation.HasImplicitConversion(boolType,
+          returnType)
         => replacementOpKind is
           SyntaxKind.TrueLiteralExpression
           or SyntaxKind.NotEqualsExpression,
@@ -122,9 +123,9 @@ public abstract class AbstractBinaryMutationOperator<T>(
   private bool IsNonRedundantArithmeticReplacement(
     T originalNode, SyntaxKind replacementOpKind)
   {
-    var leftConstant = 
+    var leftConstant =
       SemanticModel.GetConstantValue(GetLeftOperand(originalNode)!);
-    var rightConstant = 
+    var rightConstant =
       SemanticModel.GetConstantValue(GetRightOperand(originalNode)!);
 
     if (leftConstant.HasValue && rightConstant.HasValue)
@@ -132,81 +133,106 @@ public abstract class AbstractBinaryMutationOperator<T>(
       // expression is of type 0 (op) 0, all mutant expressions are equivalent
       // to the original expression 
       // 0 / 0 will not compile in C# so we discard the mutant
-      if (leftConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
+      if (leftConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m
           && rightConstant.Value is 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m)
       {
         return false;
       }
     }
 
-    if (leftConstant is { HasValue: true, 
-          Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m })
+    if (leftConstant is
+        {
+          HasValue: true,
+          Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m
+        })
     {
       // expression is of type 0 (op) x
-      return replacementOpKind is not SyntaxKind.AddExpression &&
-             replacementOpKind is not SyntaxKind.MultiplyExpression &&
-             replacementOpKind is not SyntaxKind.DivideExpression &&
-             replacementOpKind is not SyntaxKind.ModuloExpression &&
-             replacementOpKind is not SyntaxKind.BitwiseAndExpression &&
-             replacementOpKind is not SyntaxKind.BitwiseOrExpression &&
-             replacementOpKind is not SyntaxKind.ExclusiveOrExpression &&
-             replacementOpKind is not SyntaxKind.LeftShiftExpression &&
-             replacementOpKind is not SyntaxKind.RightShiftExpression;
+      if (replacementOpKind is SyntaxKind.AddExpression
+          or SyntaxKind.MultiplyExpression 
+          or SyntaxKind.DivideExpression
+          or SyntaxKind.ModuloExpression 
+          or SyntaxKind.BitwiseAndExpression
+          or SyntaxKind.BitwiseOrExpression 
+          or SyntaxKind.ExclusiveOrExpression
+          or SyntaxKind.LeftShiftExpression 
+          or SyntaxKind.RightShiftExpression)
+        return false;
     }
 
     // expression is of type 1 (op) x
-    if (leftConstant is { HasValue: true, 
-          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
+    if (leftConstant is
+        {
+          HasValue: true,
+          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m
+        })
     {
-      return replacementOpKind is not SyntaxKind.MultiplyExpression;
+      if (replacementOpKind is SyntaxKind.MultiplyExpression) return false;
     }
 
     // expression is of type x (op) 0
-    if (rightConstant is { HasValue: true, 
-          Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m })
+    if (rightConstant is
+        {
+          HasValue: true,
+          Value: 0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m
+        })
     {
-      return replacementOpKind is not SyntaxKind.AddExpression &&
-             replacementOpKind is not SyntaxKind.AddAssignmentExpression &&
-             replacementOpKind is not SyntaxKind.MultiplyExpression &&
-             replacementOpKind is not SyntaxKind.MultiplyAssignmentExpression &&
-             replacementOpKind is not SyntaxKind.SubtractExpression &&
-             replacementOpKind is not SyntaxKind.SubtractAssignmentExpression &&
-             replacementOpKind is not SyntaxKind.ModuloExpression &&
-             replacementOpKind is not SyntaxKind.ModuloAssignmentExpression &&
-             replacementOpKind is not SyntaxKind.LeftShiftExpression &&
-             replacementOpKind is not SyntaxKind.LeftShiftAssignmentExpression &&
-             replacementOpKind is not SyntaxKind.RightShiftExpression &&
-             replacementOpKind is not SyntaxKind.RightShiftAssignmentExpression;
+      if (replacementOpKind is SyntaxKind.AddExpression
+          or SyntaxKind.AddAssignmentExpression
+          or SyntaxKind.MultiplyExpression
+          or SyntaxKind.MultiplyAssignmentExpression
+          or SyntaxKind.SubtractExpression
+          or SyntaxKind.SubtractAssignmentExpression
+          or SyntaxKind.DivideExpression // division by zero causes compilation errors
+          or SyntaxKind.DivideAssignmentExpression
+          or SyntaxKind.ModuloExpression
+          or SyntaxKind.ModuloAssignmentExpression
+          or SyntaxKind.LeftShiftExpression
+          or SyntaxKind.LeftShiftAssignmentExpression
+          or SyntaxKind.RightShiftExpression
+          or SyntaxKind.RightShiftAssignmentExpression)
+        return false;
     }
-    
+
     // expression is of type x (op) 1
-    if (rightConstant is { HasValue: true, 
-          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
+    if (rightConstant is
+        {
+          HasValue: true,
+          Value: 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m
+        })
     {
-      return replacementOpKind is not SyntaxKind.MultiplyExpression &&
-             replacementOpKind is not SyntaxKind.MultiplyAssignmentExpression &&
-             replacementOpKind is not SyntaxKind.DivideExpression &&
-             replacementOpKind is not SyntaxKind.DivideAssignmentExpression;
+      if (replacementOpKind is SyntaxKind.MultiplyExpression
+          or SyntaxKind.MultiplyAssignmentExpression
+          or SyntaxKind.DivideExpression
+          or SyntaxKind.DivideAssignmentExpression)
+        return false;
     }
-    
+
     // Default: treat as non-redundant
     return true;
   }
 
   protected ISet<CodeAnalysisUtil.OperandKind> ValidOperandReplacements(
     T originalNode,
-    CodeAnalysisUtil.MethodSignature methodSignature, 
+    CodeAnalysisUtil.MethodSignature originalSignature,
     bool optimise)
   {
-    if (!optimise)
-    {
-      return
-        new HashSet<CodeAnalysisUtil.OperandKind>
-        {
-          CodeAnalysisUtil.OperandKind.LeftOperand,
-          CodeAnalysisUtil.OperandKind.RightOperand
-        };
-    }
+    var leftOperand = GetLeftOperand(originalNode)!;
+    var rightOperand = GetRightOperand(originalNode)!;
+
+    var leftAssignable =
+      SemanticModel.Compilation.HasImplicitConversion(
+        originalSignature.OperandTypes[0], originalSignature.ReturnType);
+    var rightAssignable =
+      SemanticModel.Compilation.HasImplicitConversion(
+        originalSignature.OperandTypes[1], originalSignature.ReturnType);
+
+    var results = new HashSet<CodeAnalysisUtil.OperandKind>();
+    if (leftAssignable)
+      results.Add(CodeAnalysisUtil.OperandKind.LeftOperand);
+    if (rightAssignable)
+      results.Add(CodeAnalysisUtil.OperandKind.RightOperand);
+
+    if (!optimise) return results;
 
     if (CompoundAssignOpReplacer.SupportedOperators.ContainsKey(
           originalNode.Kind()) ||
@@ -216,55 +242,52 @@ public abstract class AbstractBinaryMutationOperator<T>(
           or SyntaxKind.GreaterThanOrEqualExpression)
       return FrozenSet<CodeAnalysisUtil.OperandKind>.Empty;
 
-    var results = new HashSet<CodeAnalysisUtil.OperandKind>();
-
-    // Omit generating equivalent mutants if left/right operand is one of (0, 1, -1)
-    var leftOperand = GetLeftOperand(originalNode)!;
-    var rightOperand = GetRightOperand(originalNode)!;
-
-    var leftAssignable =
-      SemanticModel.Compilation.HasImplicitConversion(
-        methodSignature.OperandTypes[0], methodSignature.ReturnType);
-    var rightAssignable =
-      SemanticModel.Compilation.HasImplicitConversion(
-        methodSignature.OperandTypes[1], methodSignature.ReturnType);
-    
     var leftConstantValue = SemanticModel.GetConstantValue(leftOperand);
     var rightConstantValue = SemanticModel.GetConstantValue(rightOperand);
 
+    if (!leftConstantValue.HasValue && !rightConstantValue.HasValue)
+      return results;
+
+    // Omit generating equivalent mutants if left/right operand is one of (0, 1, -1)
     if (leftAssignable && leftConstantValue is
-          { HasValue: true, Value: 
-            0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
-            or -1 or -1L or -1.0f or -1.0 or -1.0m 
-            or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
+        {
+          HasValue: true, Value:
+          0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m
+          or -1 or -1L or -1.0f or -1.0 or -1.0m
+          or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m
+        })
     {
-      results.Add(CodeAnalysisUtil.OperandKind.LeftOperand);
+      results.Remove(CodeAnalysisUtil.OperandKind.LeftOperand);
     }
 
     if (rightAssignable && rightConstantValue is
-          { HasValue: true, Value:
-            0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m 
-            or -1 or -1L or -1.0f or -1.0 or -1.0m 
-            or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m })
+        {
+          HasValue: true, Value:
+          0 or 0U or 0L or 0UL or 0.0f or 0.0 or 0.0m
+          or -1 or -1L or -1.0f or -1.0 or -1.0m
+          or 1 or 1U or 1UL or 1L or 1.0f or 1.0 or 1.0m
+        })
     {
-      results.Add(CodeAnalysisUtil.OperandKind.RightOperand);
+      results.Remove(CodeAnalysisUtil.OperandKind.RightOperand);
     }
-    
+
     // Avoid generating redundant mutants if left operand is equivalent to right operand
-    if (results.Count == 2 && leftOperand.ToString().Equals(rightOperand.ToString()))
+    if (results.Count == 2 &&
+        leftOperand.ToString().Equals(rightOperand.ToString()))
     {
       results.Remove(CodeAnalysisUtil.OperandKind.RightOperand);
     }
 
     return results;
   }
-  
+
   protected IEnumerable<SyntaxKind> ValidOperatorReplacements(
-    T originalNode, CodeAnalysisUtil.MethodSignature methodSignature, bool optimise)
+    T originalNode, CodeAnalysisUtil.MethodSignature methodSignature,
+    bool optimise)
   {
     var leftType = methodSignature.OperandTypes[0];
     var rightType = methodSignature.OperandTypes[1];
-    
+
     var leftAbsoluteType = leftType.GetNullableUnderlyingType();
     var rightAbsoluteType = rightType.GetNullableUnderlyingType();
 
@@ -277,10 +300,12 @@ public abstract class AbstractBinaryMutationOperator<T>(
     {
       validMutants = validMutants.Where(replacementOpEntry =>
         IsSufficientLogicalOrRelationalReplacement(
-          originalNode.Kind(), replacementOpEntry.Key, methodSignature.ReturnType)
-        && IsNonRedundantArithmeticReplacement(originalNode, replacementOpEntry.Key));
+          originalNode.Kind(), replacementOpEntry.Key,
+          methodSignature.ReturnType)
+        && IsNonRedundantArithmeticReplacement(originalNode,
+          replacementOpEntry.Key));
     }
-    
+
     // Simple types: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/types#835-simple-types
     // Case 1: Simple types (value types) and string type (reference type)
     if (leftAbsoluteType.SpecialType is not SpecialType.None &&
@@ -291,12 +316,14 @@ public abstract class AbstractBinaryMutationOperator<T>(
       if (leftType.IsTypeSymbolNullable() || rightType.IsTypeSymbolNullable())
       {
         validMutants = validMutants.Where(replacementOpEntry =>
-          !CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOpEntry.Key));
+          !CodeAnalysisUtil.ShortCircuitOperators.Contains(replacementOpEntry
+            .Key));
       }
-      
+
       validMutants = validMutants
         .Where(replacementOpEntry =>
-          CanApplyOperatorForSpecialTypes(methodSignature, replacementOpEntry.Value));
+          CanApplyOperatorForSpecialTypes(methodSignature,
+            replacementOpEntry.Value));
     }
     else
     {
@@ -347,26 +374,29 @@ public abstract class AbstractBinaryMutationOperator<T>(
     {
       return CanReplaceWithLiteral(originalSignature.ReturnType, replacementOp);
     }
-    
+
     // Obtain mutant expression return type for the replacement operator
-    var mutantExpressionType = 
+    var mutantExpressionType =
       SemanticModel.ResolveOverloadedPredefinedBinaryOperator(
         BuiltInOperatorSignatures, replacementOp.ExprKind, originalSignature);
     if (!mutantExpressionType.HasValue) return false;
 
     var resolvedOperatorSignature =
       mutantExpressionType.Value;
-    
+
     // Check if mutant expression return type has an implicit conversion to the
     // original return type, and if each of the original expression operand type
     // has an implicit conversion to the corresponding mutant expression operand
     // type
     return SemanticModel.Compilation.HasImplicitConversion(
-             resolvedOperatorSignature.returnSymbol, originalSignature.ReturnType)
+             resolvedOperatorSignature.returnSymbol,
+             originalSignature.ReturnType)
            && SemanticModel.Compilation.HasImplicitConversion(
-             originalSignature.OperandTypes[0], resolvedOperatorSignature.leftSymbol)
+             originalSignature.OperandTypes[0],
+             resolvedOperatorSignature.leftSymbol)
            && SemanticModel.Compilation.HasImplicitConversion(
-             originalSignature.OperandTypes[1], resolvedOperatorSignature.rightSymbol);
+             originalSignature.OperandTypes[1],
+             resolvedOperatorSignature.rightSymbol);
   }
 
   /*
@@ -422,7 +452,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
     {
       return CanReplaceWithLiteral(returnType, replacementOp);
     }
-    
+
     // 1) Get the types of variables involved in the original binary operator
     // Note that while reference parameter types are guaranteed to be non-nullable,
     // any of these operators could be overloaded to accept primitive-typed
@@ -431,15 +461,15 @@ public abstract class AbstractBinaryMutationOperator<T>(
     var rightAbsoluteType = rightType.GetNullableUnderlyingType();
 
     // 2) Check if user-defined operator exists
-    if (HasUnambiguousUserDefinedBinaryOperator(replacementOp, 
+    if (HasUnambiguousUserDefinedBinaryOperator(replacementOp,
           leftAbsoluteType, rightAbsoluteType, returnType))
     {
       return true;
     }
-    
+
     // 3) Fallback: check if equality operator applies
-    if (replacementOp.ExprKind 
-          is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
+    if (replacementOp.ExprKind
+        is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
     {
       return CanApplyEqualityOperator(
         leftAbsoluteType, rightAbsoluteType, returnType);
@@ -447,7 +477,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
 
     return false;
   }
-  
+
   /*
    * Handle literal as replacement. The only condition that should hold is that
    * the literal type should be assignable to the return type of the original
@@ -456,7 +486,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
   private bool CanReplaceWithLiteral(ITypeSymbol returnType,
     CodeAnalysisUtil.Op replacementLiteral)
   {
-    if (replacementLiteral.ExprKind is 
+    if (replacementLiteral.ExprKind is
         SyntaxKind.TrueLiteralExpression or
         SyntaxKind.FalseLiteralExpression)
     {
@@ -492,28 +522,36 @@ public abstract class AbstractBinaryMutationOperator<T>(
    * defined for the two V? operands, when x is of value type.
    */
   private bool CanApplyEqualityOperator(
-    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnType)
+    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType,
+    ITypeSymbol returnType)
   {
     var operandTypeChecks =
-      SemanticModel.Compilation.HasImplicitConversion(leftAbsoluteType, rightAbsoluteType)
-      || SemanticModel.Compilation.HasImplicitConversion(rightAbsoluteType, leftAbsoluteType);
+      SemanticModel.Compilation.HasImplicitConversion(leftAbsoluteType,
+        rightAbsoluteType)
+      || SemanticModel.Compilation.HasImplicitConversion(rightAbsoluteType,
+        leftAbsoluteType);
 
     var boolType =
       SemanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
 
     return operandTypeChecks &&
-           SemanticModel.Compilation.HasImplicitConversion(boolType, returnType);
+           SemanticModel.Compilation.HasImplicitConversion(boolType,
+             returnType);
   }
 
-  private bool HasUnambiguousUserDefinedBinaryOperator(CodeAnalysisUtil.Op replacementOp,
-    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType, ITypeSymbol returnType)
+  private bool HasUnambiguousUserDefinedBinaryOperator(
+    CodeAnalysisUtil.Op replacementOp,
+    ITypeSymbol leftAbsoluteType, ITypeSymbol rightAbsoluteType,
+    ITypeSymbol returnType)
   {
     var returnAbsoluteType = returnType.GetNullableUnderlyingType();
-    
+
     var leftAbsoluteRuntimeType = leftAbsoluteType.GetRuntimeType(SutAssembly);
-    var rightAbsoluteRuntimeType = rightAbsoluteType.GetRuntimeType(SutAssembly);
-    var returnAbsoluteRuntimeType = returnAbsoluteType.GetRuntimeType(SutAssembly);
-    
+    var rightAbsoluteRuntimeType =
+      rightAbsoluteType.GetRuntimeType(SutAssembly);
+    var returnAbsoluteRuntimeType =
+      returnAbsoluteType.GetRuntimeType(SutAssembly);
+
     // Type information not available in SUT assembly and mscorlib assembly
     if (leftAbsoluteRuntimeType is null)
     {
@@ -535,7 +573,7 @@ public abstract class AbstractBinaryMutationOperator<T>(
         returnAbsoluteType.ToClrTypeName());
       return false;
     }
-    
+
     // Get overloaded operator methods from operand user-defined types
     //
     // We leverage reflection to handle overload resolution within a single type
@@ -560,20 +598,20 @@ public abstract class AbstractBinaryMutationOperator<T>(
     if (replacementOpMethod == null)
       replacementOpMethod = DetermineBetterFunctionMember(
         leftReplacementOpMethod!, rightReplacementOpMethod!);
-    
+
     // Return type could be of value type, in which case a nullable type
     // should be constructed if the original return type is nullable
     var returnRuntimeType =
       returnAbsoluteType.IsValueType && returnType.IsTypeSymbolNullable()
-      ? returnAbsoluteRuntimeType.ConstructNullableValueType(sutAssembly)
-      : returnAbsoluteRuntimeType;
-    
+        ? returnAbsoluteRuntimeType.ConstructNullableValueType(sutAssembly)
+        : returnAbsoluteRuntimeType;
+
     // 5) Check if replacement operator method return type is assignable to
     // original operator method return type
-    return replacementOpMethod is not null && 
+    return replacementOpMethod is not null &&
            replacementOpMethod.ReturnType.IsAssignableTo(returnRuntimeType);
   }
-  
+
   public (MethodInfo?, MethodInfo?) GetResolvedBinaryOverloadedOperator(
     CodeAnalysisUtil.Op op, Type leftAbsoluteType, Type rightAbsoluteType)
   {
@@ -583,9 +621,11 @@ public abstract class AbstractBinaryMutationOperator<T>(
     try
     {
       var leftMethod =
-        leftAbsoluteType.GetMethod(op.MemberName, [leftAbsoluteType, rightAbsoluteType]);
+        leftAbsoluteType.GetMethod(op.MemberName,
+          [leftAbsoluteType, rightAbsoluteType]);
       var rightMethod =
-        rightAbsoluteType.GetMethod(op.MemberName, [leftAbsoluteType, rightAbsoluteType]);
+        rightAbsoluteType.GetMethod(op.MemberName,
+          [leftAbsoluteType, rightAbsoluteType]);
 
       return (leftMethod, rightMethod);
     }

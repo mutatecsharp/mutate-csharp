@@ -72,13 +72,25 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     if (NonMutatedTypeSymbols(originalNode, requiredReturnType) is not
         { } methodSignature) return [];
     
-    var validMutants = ValidOperatorReplacements(originalNode, methodSignature, optimise);
+    var validMutants = 
+      ValidOperatorReplacements(originalNode, methodSignature, optimise);
     var attachIdToMutants =
-      SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(OperatorIds,
-        validMutants);
+      SyntaxKindUniqueIdGenerator.ReturnSortedIdsToKind(
+        OperatorIds, validMutants);
     var sortedMutants = attachIdToMutants.Select(entry =>
         new ExpressionRecord(entry.op, CodeAnalysisUtil.OperandKind.None, ExpressionTemplate(entry.op))
     ).ToList();
+    
+    // Append operand as mutant
+    var validOperand =
+      ValidOperandReplacement(originalNode, methodSignature, optimise);
+    if (validOperand.Contains(CodeAnalysisUtil.OperandKind.UnaryOperand))
+    {
+      var operand = new ExpressionRecord(SyntaxKind.Argument,
+        CodeAnalysisUtil.OperandKind.UnaryOperand,
+        "{0}");
+      sortedMutants.Add(operand);
+    }
 
     return [..sortedMutants];
   }
@@ -157,7 +169,7 @@ public sealed partial class PrefixUnaryExprOpReplacer(
     return "ReplacePrefixUnaryExprOp";
   }
 
-  public override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
+  protected override FrozenDictionary<SyntaxKind, CodeAnalysisUtil.Op>
     SupportedUnaryOperators()
   {
     return SupportedOperators;
@@ -207,18 +219,19 @@ public sealed partial class PrefixUnaryExprOpReplacer
             WellKnownMemberNames.DecrementOperatorName)
         },
         // Boolean literals (true, false)
-        {
-          SyntaxKind.TrueLiteralExpression,
-          new(SyntaxKind.TrueLiteralExpression,
-            SyntaxKind.TrueKeyword,
-            WellKnownMemberNames.TrueOperatorName)
-        },
-        {
-          SyntaxKind.FalseLiteralExpression,
-          new(SyntaxKind.FalseLiteralExpression,
-            SyntaxKind.FalseKeyword,
-            WellKnownMemberNames.FalseOperatorName)
-        }
+        // Redundant mutants
+        // {
+        //   SyntaxKind.TrueLiteralExpression,
+        //   new(SyntaxKind.TrueLiteralExpression,
+        //     SyntaxKind.TrueKeyword,
+        //     WellKnownMemberNames.TrueOperatorName)
+        // },
+        // {
+        //   SyntaxKind.FalseLiteralExpression,
+        //   new(SyntaxKind.FalseLiteralExpression,
+        //     SyntaxKind.FalseKeyword,
+        //     WellKnownMemberNames.FalseOperatorName)
+        // }
       }.ToFrozenDictionary();
 
   private static readonly FrozenDictionary<SyntaxKind, int> OperatorIds

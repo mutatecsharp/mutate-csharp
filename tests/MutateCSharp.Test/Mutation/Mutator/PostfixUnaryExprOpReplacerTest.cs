@@ -6,15 +6,8 @@ using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.Mutator;
 
-public class PostfixUnaryExprOpReplacerTest
+public class PostfixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
 {
-  private readonly ITestOutputHelper _testOutputHelper;
-
-  public PostfixUnaryExprOpReplacerTest(ITestOutputHelper testOutputHelper)
-  {
-    _testOutputHelper = testOutputHelper;
-  }
-
   private static MutationGroup GetMutationGroup(string inputUnderMutation)
     => TestUtil
       .UnaryGetValidMutationGroup<PostfixUnaryExprOpReplacer,
@@ -38,7 +31,7 @@ public class PostfixUnaryExprOpReplacerTest
         }
         """;
 
-    _testOutputHelper.WriteLine(inputUnderMutation);
+    testOutputHelper.WriteLine(inputUnderMutation);
     
     var mutationGroup = GetMutationGroup(inputUnderMutation);
     // Type checks (Should take a reference to the assignable value)
