@@ -4,7 +4,7 @@ set -uex
 pushd "$MUTATE_CSHARP_ROOT"
 
 # Build mutate-csharp
-dotnet build "$MUTATE_CSHARP_SOLUTION"
+dotnet build "$MUTATE_CSHARP_SOLUTION" -c Release
 
 # Build examples
 find "$MUTATE_CSHARP_EXAMPLES_DIR" -type f -iname '*.sln' -exec dotnet build {} ';'

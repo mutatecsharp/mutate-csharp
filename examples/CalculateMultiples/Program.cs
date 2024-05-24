@@ -1,4 +1,4 @@
-﻿namespace CalculateMultiples;
+namespace CalculateMultiples;
 
 class Example
 {
