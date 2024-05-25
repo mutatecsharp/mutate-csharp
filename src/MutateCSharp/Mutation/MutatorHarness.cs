@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.MSBuild;
 using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SchemataGenerator;
 using MutateCSharp.Mutation.SyntaxRewriter;
 using Serilog;
 
@@ -19,6 +20,7 @@ public static class MutatorHarness
     MutateSolution(MSBuildWorkspace workspace, 
       Solution solution, 
       ImmutableArray<string> pathsToIgnore,
+      SyntaxRewriterMode mutationMode,
       bool optimise)
   {
     Log.Information("Mutating solution {Solution}.",
@@ -31,7 +33,7 @@ public static class MutatorHarness
     {
       var project = mutatedSolution.GetProject(projectId)!;
       var (mutatedProject, projectRegistry) = 
-        await MutateProject(workspace, project, pathsToIgnore, optimise).ConfigureAwait(false);
+        await MutateProject(workspace, project, pathsToIgnore, mutationMode, optimise).ConfigureAwait(false);
       mutatedSolution = mutatedProject.Solution;
 
       if (projectRegistry is not null)
@@ -45,6 +47,7 @@ public static class MutatorHarness
     MutateProject(Workspace workspace, 
       Project project, 
       ImmutableArray<string> pathsToIgnore,
+      SyntaxRewriterMode mutationMode,
       bool optimise,
       Document? specifiedDocument = default)
   {
@@ -101,7 +104,7 @@ public static class MutatorHarness
       var document = mutatedProject.GetDocument(documentId)!;
       
       var (mutatedDocument, fileSchemaRegistry) = 
-        await MutateDocument(workspace, sutAssembly, document, optimise).ConfigureAwait(false);
+        await MutateDocument(workspace, sutAssembly, document, mutationMode, optimise).ConfigureAwait(false);
       
       // Record mutations in registry
       var relativePath = Path.GetRelativePath(
@@ -120,6 +123,7 @@ public static class MutatorHarness
     MutateDocument(Workspace workspace, 
       Assembly sutAssembly, 
       Document document, 
+      SyntaxRewriterMode mutationMode,
       bool optimise)
   {
     var semanticModelTask = document.GetValidatedSemanticModel().ConfigureAwait(false);
@@ -141,12 +145,17 @@ public static class MutatorHarness
 
     // 1: Modify the body of the source file
     var mutationRewriter =
-      new MutatorAstRewriter(sutAssembly, semanticModel, mutantSchemaRegistry, optimise);
+      new MutatorAstRewriter(sutAssembly, semanticModel, mutantSchemaRegistry, mutationMode, optimise);
     var mutatedAstRoot = (CompilationUnitSyntax)mutationRewriter.Visit(root);
 
-    // 2: Generate mutant schemata for the source file under mutation
-    var schemata =
-      MutantSchemataGenerator.GenerateSchemataSyntax(mutantSchemaRegistry);
+    // 2: Generate mutant/tracer schemata for the source file under mutation
+    var schemata = mutationMode switch
+    {
+      SyntaxRewriterMode.Mutate => MutantSchemataGenerator.GenerateSchemataSyntax(mutantSchemaRegistry),
+      SyntaxRewriterMode.TraceExecution => ExecutionTracerSchemataGenerator.GenerateSchemataSyntax(mutantSchemaRegistry),
+      _ => null
+    };
+    
     if (schemata is null)
     {
       Log.Information(

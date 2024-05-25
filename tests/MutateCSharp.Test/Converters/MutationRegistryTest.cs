@@ -17,7 +17,7 @@ public class MutationRegistryTest(ITestOutputHelper testOutputHelper)
     {
       FileRelativePath = "temp/file.cs",
       EnvironmentVariable = "MUTANT_CSHARP_ACTIVATED_MUTANT",
-      Mutations = new Dictionary<long, MutateCSharp.Mutation.Mutation>
+      Mutations = new Dictionary<int, MutateCSharp.Mutation.Mutation>
       {
         [1] = new()
         {

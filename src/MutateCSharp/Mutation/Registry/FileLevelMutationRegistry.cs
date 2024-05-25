@@ -18,7 +18,7 @@ public sealed record FileLevelMutationRegistry
   // mapping; mutation ID and mutant ID can be used interchangeably.
   // A mutation stores the original and replacement syntax trees.
   [JsonInclude]
-  public required FrozenDictionary<long, Mutation> Mutations { get; init; }
+  public required FrozenDictionary<int, Mutation> Mutations { get; init; }
   
-  public Mutation GetMutation(long mutantId) => Mutations[mutantId];
+  public Mutation GetMutation(int mutantId) => Mutations[mutantId];
 }

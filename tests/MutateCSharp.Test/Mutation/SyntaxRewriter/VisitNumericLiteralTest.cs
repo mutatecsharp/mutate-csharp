@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SyntaxRewriter;
 
 namespace MutateCSharp.Test.Mutation.SyntaxRewriter;
 
@@ -17,7 +18,8 @@ public class VisitNumericLiteralTest
       <LiteralExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitLiteralExpression(node)
+        (rewriter, node) => rewriter.VisitLiteralExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     return TestUtil.GetReplacedNodeArguments(node, schemaRegistry);
   }
@@ -30,7 +32,8 @@ public class VisitNumericLiteralTest
       <PrefixUnaryExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitPrefixUnaryExpression(node)
+        (rewriter, node) => rewriter.VisitPrefixUnaryExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     return TestUtil.GetReplacedNodeArguments(node, schemaRegistry);
   }

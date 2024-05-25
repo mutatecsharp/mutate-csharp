@@ -17,7 +17,7 @@ public sealed class
 
     var relativePath = string.Empty;
     var envVar = string.Empty;
-    var mutations = FrozenDictionary<long, Mutation.Mutation>.Empty;
+    var mutations = FrozenDictionary<int, Mutation.Mutation>.Empty;
 
     while (reader.Read())
     {
@@ -51,7 +51,7 @@ public sealed class
           if (reader.TokenType != JsonTokenType.StartObject)
             throw new JsonException("Expected StartObject token for Mutations");
 
-          var mutationsDictionary = new Dictionary<long, Mutation.Mutation>();
+          var mutationsDictionary = new Dictionary<int, Mutation.Mutation>();
           while (reader.Read())
           {
             if (reader.TokenType == JsonTokenType.EndObject)
@@ -60,7 +60,7 @@ public sealed class
             if (reader.TokenType != JsonTokenType.PropertyName)
               throw new JsonException("Expected PropertyName token for Mutations");
 
-            var mutationKey = Convert.ToInt64(reader.GetString());
+            var mutationKey = Convert.ToInt32(reader.GetString());
             var mutationValue = JsonSerializer.Deserialize<Mutation.Mutation>(ref reader, options);
             
             mutationsDictionary[mutationKey] = mutationValue!;

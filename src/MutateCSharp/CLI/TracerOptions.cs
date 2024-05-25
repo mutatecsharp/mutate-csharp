@@ -5,8 +5,9 @@ using MutateCSharp.Util;
 
 namespace MutateCSharp.CLI;
 
-[Verb("mutate", HelpText = "Commence mutation.")]
-internal class MutateOptions: IMutateOptions
+[Verb("trace",
+  HelpText = "Generate mutant execution tracer.")]
+internal sealed class TracerOptions: IMutateOptions
 {
   private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteProjectPath = string.Empty;
@@ -43,7 +44,7 @@ internal class MutateOptions: IMutateOptions
   [Option("restore",
     Default = false,
     HelpText =
-      "Restore files to original state after applying mutation testing.")]
+      "Restore files to original state after generating mutant execution tracer.")]
   public bool Backup { get; init; }
   
   [Option("omit-redundant", 
@@ -86,7 +87,7 @@ internal class MutateOptions: IMutateOptions
 
   SyntaxRewriterMode IMutateOptions.MutationMode()
   {
-    return SyntaxRewriterMode.Mutate;
+    return SyntaxRewriterMode.TraceExecution;
   }
 
   IEnumerable<string> IMutateOptions.AbsoluteSourceFilePathsToIgnore()

@@ -1,8 +1,10 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
+using MutateCSharp.Mutation.SyntaxRewriter;
 
 namespace MutateCSharp.Mutation.Registry;
 
-using MutantId = long;
+using MutantId = int;
 using SchemaSuffixId = int;
 
 public class FileLevelMutantSchemaRegistry
@@ -22,13 +24,16 @@ public class FileLevelMutantSchemaRegistry
   // This information is useful to omit generation of redundant schemas.
   private readonly Dictionary<MutationGroup, SchemaSuffixId> _mutationGroupsToSuffix;
 
+  // Each entry records a base id to a mutation group, where base id is guaranteed
+  // to be unique for a mutated construct, but the mutation group may contain the
+  // same mutations as another mutated construct.
   private readonly Dictionary<MutantId, MutationGroup> _baseIdToMutationGroup;
   
   public static Type MutantIdType { get; } = typeof(MutantId);
   
   public string ClassName { get; private init; }
 
-  public string EnvironmentVariable { get; private init; }
+  public string ActivatedMutantEnvVar { get; private init; }
 
   public FileLevelMutantSchemaRegistry()
   {
@@ -36,7 +41,7 @@ public class FileLevelMutantSchemaRegistry
     // Every file id is guaranteed to be unique
     var fileId = Interlocked.Increment(ref _fileIdGenerator);
     ClassName = $"Schemata{fileId}";
-    EnvironmentVariable = $"MUTATE_CSHARP_ACTIVATED_MUTANT{fileId}";
+    ActivatedMutantEnvVar = $"MUTATE_CSHARP_ACTIVATED_MUTANT{fileId}";
     _mutationGroupsToSuffix = new Dictionary<MutationGroup, SchemaSuffixId>();
     _baseIdToMutationGroup = new Dictionary<MutantId, MutationGroup>();
   }
@@ -54,14 +59,20 @@ public class FileLevelMutantSchemaRegistry
     return baseId;
   }
 
-  public string GetUniqueSchemaName(MutationGroup mutationGroup)
+  public string GetUniqueSchemaName(MutationGroup mutationGroup, SyntaxRewriterMode mutationMode)
   {
-    return $"{mutationGroup.SchemaName}_{_mutationGroupsToSuffix[mutationGroup]}";
+    var prefix = mutationMode is SyntaxRewriterMode.TraceExecution ? "Trace" : string.Empty;
+    return $"{prefix}{mutationGroup.SchemaName}_{_mutationGroupsToSuffix[mutationGroup]}";
   }
 
   public IReadOnlySet<MutationGroup> GetAllMutationGroups()
   {
     return _mutationGroupsToSuffix.Keys.ToFrozenSet();
+  }
+
+  public IReadOnlyDictionary<MutantId, MutationGroup> GetAllIdToMutationGroups()
+  {
+    return _baseIdToMutationGroup.ToImmutableDictionary();
   }
 
   public FileLevelMutationRegistry ToMutationRegistry(string fileRelativePath)
@@ -91,7 +102,7 @@ public class FileLevelMutantSchemaRegistry
     return new FileLevelMutationRegistry
     {
       FileRelativePath = fileRelativePath,
-      EnvironmentVariable = EnvironmentVariable,
+      EnvironmentVariable = ActivatedMutantEnvVar,
       Mutations = mutations.ToFrozenDictionary()
     };
   }

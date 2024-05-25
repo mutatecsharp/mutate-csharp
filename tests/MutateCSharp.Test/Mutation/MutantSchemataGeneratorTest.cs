@@ -5,6 +5,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Mutator;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SchemataGenerator;
+using MutateCSharp.Mutation.SyntaxRewriter;
 using MutateCSharp.Util;
 using Xunit.Abstractions;
 
@@ -133,7 +135,7 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
     var envVar = ExtractMutantSchemataEnvVarName(ast.SyntaxTree);
     
     var mutationRegistry = schemaRegistry.ToMutationRegistry("some/path");
-    envVar.Should().BeEquivalentTo(schemaRegistry.EnvironmentVariable);
+    envVar.Should().BeEquivalentTo(schemaRegistry.ActivatedMutantEnvVar);
     envVar.Should().BeEquivalentTo(mutationRegistry.EnvironmentVariable);
   }
 
@@ -168,9 +170,9 @@ public class MutantSchemataGeneratorTest(ITestOutputHelper testOutputHelper)
     firstBaseId.Should().NotBe(secondBaseId);
     
     var firstSchemaName = 
-      schemaRegistry.GetUniqueSchemaName(mutationGroups[0]);
+      schemaRegistry.GetUniqueSchemaName(mutationGroups[0], SyntaxRewriterMode.Mutate);
     var secondSchemaName =
-      schemaRegistry.GetUniqueSchemaName(mutationGroups[1]);
+      schemaRegistry.GetUniqueSchemaName(mutationGroups[1], SyntaxRewriterMode.Mutate);
     
     // Schema method name should be the same
     firstSchemaName.Should().Be(secondSchemaName);

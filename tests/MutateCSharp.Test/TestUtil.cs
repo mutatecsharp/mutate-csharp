@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SchemataGenerator;
 using MutateCSharp.Mutation.SyntaxRewriter;
 using MutateCSharp.Util;
 
@@ -328,13 +329,14 @@ public static class TestUtil
     string inputUnderMutation,
     FileLevelMutantSchemaRegistry schemaRegistry,
     Func<MutatorAstRewriter, T, SyntaxNode> visitSyntaxUnderTest,
+    SyntaxRewriterMode mutationMode,
     bool optimise = false)
     where T : SyntaxNode
   {
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
-      compilation.sutAssembly, compilation.model, schemaRegistry, optimise);
+      compilation.sutAssembly, compilation.model, schemaRegistry, mutationMode, optimise);
     var construct = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<T>().First();
     return visitSyntaxUnderTest(rewriter, construct);

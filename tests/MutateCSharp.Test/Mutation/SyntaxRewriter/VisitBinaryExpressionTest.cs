@@ -21,7 +21,8 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
       <BinaryExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+        (rewriter, node) => rewriter.VisitBinaryExpression(node),
+        SyntaxRewriterMode.Mutate
         );
     return TestUtil.GetReplacedNodeArguments(node, schemaRegistry);
   }
@@ -95,7 +96,7 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
-      compilation.sutAssembly, compilation.model, schemaRegistry, optimise: false);
+      compilation.sutAssembly, compilation.model, schemaRegistry, SyntaxRewriterMode.Mutate, optimise: false);
     var binExpr = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<BinaryExpressionSyntax>().First();
 
@@ -151,7 +152,8 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
       <BinaryExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+        (rewriter, node) => rewriter.VisitBinaryExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     mutatedNode.Should().BeOfType<AwaitExpressionSyntax>();
     var awaitExpr = (AwaitExpressionSyntax)mutatedNode;
@@ -198,7 +200,8 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
       <BinaryExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+        (rewriter, node) => rewriter.VisitBinaryExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     mutatedNode.Should().BeOfType<InvocationExpressionSyntax>();
       
@@ -237,7 +240,8 @@ public class VisitBinaryExpressionTest(ITestOutputHelper testOutputHelper)
       <BinaryExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+        (rewriter, node) => rewriter.VisitBinaryExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     // Should only be the case iff a short circuit operator exists and operands
     // are await expressions

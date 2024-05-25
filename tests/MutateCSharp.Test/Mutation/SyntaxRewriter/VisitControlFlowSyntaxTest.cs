@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SyntaxRewriter;
 using Xunit.Abstractions;
 
 namespace MutateCSharp.Test.Mutation.SyntaxRewriter;
@@ -52,7 +53,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <SwitchSectionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitSwitchSection(node)
+        (rewriter, node) => rewriter.VisitSwitchSection(node),
+        SyntaxRewriterMode.Mutate
       );
 
     node.Should().BeOfType<SwitchSectionSyntax>();
@@ -102,7 +104,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <SwitchSectionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitSwitchSection(node)
+        (rewriter, node) => rewriter.VisitSwitchSection(node),
+        SyntaxRewriterMode.Mutate
       );
 
     mutatedNode.Should().BeOfType<SwitchSectionSyntax>();
@@ -143,7 +146,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <MethodDeclarationSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitMethodDeclaration(node)
+        (rewriter, node) => rewriter.VisitMethodDeclaration(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -195,7 +199,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <MethodDeclarationSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitMethodDeclaration(node)
+        (rewriter, node) => rewriter.VisitMethodDeclaration(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -253,7 +258,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <LocalFunctionStatementSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitLocalFunctionStatement(node)
+        (rewriter, node) => rewriter.VisitLocalFunctionStatement(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -310,7 +316,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <LocalFunctionStatementSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitLocalFunctionStatement(node)
+        (rewriter, node) => rewriter.VisitLocalFunctionStatement(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -364,7 +371,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <ParenthesizedLambdaExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitParenthesizedLambdaExpression(node)
+        (rewriter, node) => rewriter.VisitParenthesizedLambdaExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -415,7 +423,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <SimpleLambdaExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitSimpleLambdaExpression(node)
+        (rewriter, node) => rewriter.VisitSimpleLambdaExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -474,7 +483,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <PropertyDeclarationSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitPropertyDeclaration(node)
+        (rewriter, node) => rewriter.VisitPropertyDeclaration(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());
@@ -527,7 +537,8 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
       <PropertyDeclarationSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitPropertyDeclaration(node)
+        (rewriter, node) => rewriter.VisitPropertyDeclaration(node),
+        SyntaxRewriterMode.Mutate
       );
     
     testOutputHelper.WriteLine(mutatedNode.ToFullString());

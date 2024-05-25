@@ -41,7 +41,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       <ArrayCreationExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitArrayCreationExpression(node)
+        (rewriter, node) => rewriter.VisitArrayCreationExpression(node),
+        SyntaxRewriterMode.Mutate
       );
 
     node.Should().BeOfType<ArrayCreationExpressionSyntax>();
@@ -102,7 +103,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       <VariableDeclaratorSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitVariableDeclarator(node)!
+        (rewriter, node) => rewriter.VisitVariableDeclarator(node)!,
+        SyntaxRewriterMode.Mutate
       );
 
     foreach (var node in
@@ -155,7 +157,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       <BinaryExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitBinaryExpression(node)
+        (rewriter, node) => rewriter.VisitBinaryExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     testOutputHelper.WriteLine(mutatedBinaryNode.ToFullString());
     mutatedBinaryNode.Should().BeOfType<BinaryExpressionSyntax>();
@@ -166,7 +169,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
         <PrefixUnaryExpressionSyntax>(
           inputUnderMutation, 
           schemaRegistry,
-          (rewriter, node) => rewriter.VisitPrefixUnaryExpression(node)
+          (rewriter, node) => rewriter.VisitPrefixUnaryExpression(node),
+          SyntaxRewriterMode.Mutate
         );
       testOutputHelper.WriteLine(mutatedUnaryNode.ToFullString());
       mutatedUnaryNode.Should().BeOfType<PrefixUnaryExpressionSyntax>();
@@ -176,7 +180,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       <ReturnStatementSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitReturnStatement(node)
+        (rewriter, node) => rewriter.VisitReturnStatement(node),
+        SyntaxRewriterMode.Mutate
       );
     mutatedReturnStatementNode.Should().BeOfType<ReturnStatementSyntax>();
     var returnStat = (ReturnStatementSyntax)mutatedReturnStatementNode;
@@ -216,7 +221,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       <ReturnStatementSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitReturnStatement(node)
+        (rewriter, node) => rewriter.VisitReturnStatement(node),
+        SyntaxRewriterMode.Mutate
       );
     mutatedReturnStatementNode.Should().BeOfType<ReturnStatementSyntax>();
     var returnStat = (ReturnStatementSyntax)mutatedReturnStatementNode;
@@ -253,7 +259,8 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
       <LiteralExpressionSyntax>(
         inputUnderMutation,
         schemaRegistry,
-        (rewriter, node) => rewriter.VisitLiteralExpression(node)
+        (rewriter, node) => rewriter.VisitLiteralExpression(node),
+        SyntaxRewriterMode.Mutate
       );
     mutatedNode.Should().BeOfType<LiteralExpressionSyntax>();
     var literalSyntax = (LiteralExpressionSyntax)mutatedNode;
@@ -310,7 +317,7 @@ public class VisitIrreplacableConstructTest(ITestOutputHelper testOutputHelper)
     var ast = CSharpSyntaxTree.ParseText(inputUnderMutation);
     var compilation = TestUtil.GetAstSemanticModelAndAssembly(ast);
     var rewriter = new MutatorAstRewriter(
-      compilation.sutAssembly, compilation.model, schemaRegistry, optimise: false);
+      compilation.sutAssembly, compilation.model, schemaRegistry, SyntaxRewriterMode.Mutate, optimise: false);
     var binExprs = ast.GetCompilationUnitRoot().DescendantNodes()
       .OfType<BinaryExpressionSyntax>();
 

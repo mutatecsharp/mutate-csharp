@@ -14,7 +14,7 @@ namespace MutateCSharp.Mutation;
 public record Mutation
 {
   [JsonInclude]
-  public required long MutantId { get; init; }
+  public required int MutantId { get; init; }
   
   [JsonInclude]
   public required SyntaxKind OriginalOperation { get; init; }

@@ -2,9 +2,10 @@ using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SyntaxRewriter;
 using MutateCSharp.Util;
 
-namespace MutateCSharp.Mutation;
+namespace MutateCSharp.Mutation.SchemataGenerator;
 
 public static class MutantSchemataGenerator
 {
@@ -33,9 +34,11 @@ public static class MutantSchemataGenerator
     MutationGroup mutationGroup, FileLevelMutantSchemaRegistry schemaRegistry)
   {
     var result = new StringBuilder();
+    var methodName =
+      schemaRegistry.GetUniqueSchemaName(mutationGroup, SyntaxRewriterMode.Mutate);
 
     result.Append(
-      $"internal static {mutationGroup.SchemaReturnType} {schemaRegistry.GetUniqueSchemaName(mutationGroup)}({MutantIdType} mutantId"
+      $"internal static {mutationGroup.SchemaReturnType} {methodName}({MutantIdType} mutantId"
     );
 
     for (var i = 0; i < mutationGroup.SchemaParameterTypes.Length; i++)
@@ -47,7 +50,7 @@ public static class MutantSchemataGenerator
     return result;
   }
 
-  // C# treats T and T? equally. Thus, given the same method signature, we can
+  // C# treats T and T? equally for reference types. Thus, given the same method signature, we can
   // only have one unique parameter set containing absolute types
   // Example: the following two method signatures are treated equivalently
   // public void foo(T t) {}
@@ -108,17 +111,17 @@ public static class MutantSchemataGenerator
   {
     return
       $$"""
-      private static readonly System.Lazy<{{MutantIdType}}> ActivatedMutantId =
-        new System.Lazy<{{MutantIdType}}>(() => {
-          var activatedMutant = System.Environment.GetEnvironmentVariable("{{environmentVariable}}");
-          return !string.IsNullOrEmpty(activatedMutant) ? {{MutantIdType}}.Parse(activatedMutant) : 0;
-        });
+        private static readonly System.Lazy<{{MutantIdType}}> ActivatedMutantId =
+          new System.Lazy<{{MutantIdType}}>(() => {
+            var activatedMutant = System.Environment.GetEnvironmentVariable("{{environmentVariable}}");
+            return !string.IsNullOrEmpty(activatedMutant) ? {{MutantIdType}}.Parse(activatedMutant) : 0;
+          });
 
-      private static bool ActivatedInRange({{MutantIdType}} lowerBound, {{MutantIdType}} upperBound)
-      {
-        return lowerBound <= ActivatedMutantId.Value && ActivatedMutantId.Value <= upperBound;
-      }
-      """;
+        private static bool ActivatedInRange({{MutantIdType}} lowerBound, {{MutantIdType}} upperBound)
+        {
+          return lowerBound <= ActivatedMutantId.Value && ActivatedMutantId.Value <= upperBound;
+        }
+        """;
   }
 
   public static StringBuilder GenerateIndividualSchema(
@@ -149,7 +152,7 @@ public static class MutantSchemataGenerator
     result.AppendLine();
     result.Append('{');
     result.AppendLine();
-    result.Append(GenerateInitialiseMethod(schemaRegistry.EnvironmentVariable));
+    result.Append(GenerateInitialiseMethod(schemaRegistry.ActivatedMutantEnvVar));
     result.AppendLine();
 
     foreach (var mutationGroup in schemaRegistry.GetAllMutationGroups())

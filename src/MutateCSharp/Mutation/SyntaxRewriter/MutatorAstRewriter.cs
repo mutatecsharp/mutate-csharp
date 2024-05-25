@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MutateCSharp.Mutation.Mutator;
 using MutateCSharp.Mutation.Registry;
+using MutateCSharp.Mutation.SchemataGenerator;
 using MutateCSharp.Util;
 
 namespace MutateCSharp.Mutation.SyntaxRewriter;
@@ -19,20 +20,20 @@ public sealed partial class MutatorAstRewriter
 {
   private readonly SemanticModel _semanticModel;
   private readonly FileLevelMutantSchemaRegistry _schemaRegistry;
+  private readonly FrozenDictionary<Type, IMutationOperator> _mutators;
+  private readonly FrozenDictionary<Type, ImmutableArray<Type>> _mutatorGroups;
+  private readonly SyntaxRewriterMode _mutationMode;
 
-  private readonly FrozenDictionary<Type, IMutationOperator>
-    _mutators;
-
-  private readonly FrozenDictionary<Type, ImmutableArray<Type>>
-    _mutatorGroups;
-
-  public MutatorAstRewriter(Assembly sutAssembly,
+  public MutatorAstRewriter(
+    Assembly sutAssembly,
     SemanticModel semanticModel,
     FileLevelMutantSchemaRegistry schemaRegistry,
+    SyntaxRewriterMode mutationMode,
     bool optimise)
   {
     _semanticModel = semanticModel;
     _schemaRegistry = schemaRegistry;
+    _mutationMode = mutationMode;
     var predefinedUnaryOperatorSignatures =
       semanticModel.BuildUnaryNumericOperatorMethodSignature();
     var predefinedBinaryOperatorSignatures =
@@ -158,7 +159,7 @@ public sealed partial class MutatorAstRewriter
     return SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       _schemaRegistry.ClassName,
-      _schemaRegistry.GetUniqueSchemaName(mutationGroup),
+      _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
       baseMutantIdLiteral,
       node);
   }
@@ -280,7 +281,7 @@ public sealed partial class MutatorAstRewriter
     var returnExpr = SyntaxFactoryUtil.CreateMethodCall(
       MutantSchemataGenerator.Namespace,
       _schemaRegistry.ClassName,
-      _schemaRegistry.GetUniqueSchemaName(mutationGroup),
+      _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
       baseMutantIdLiteral,
       leftArgument,
       rightArgument
@@ -354,7 +355,7 @@ public sealed partial class MutatorAstRewriter
     return SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
       MutantSchemataGenerator.Namespace,
       _schemaRegistry.ClassName,
-      _schemaRegistry.GetUniqueSchemaName(mutationGroup),
+      _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
       SyntaxFactory.Argument(baseMutantIdLiteral),
       operand
     );
@@ -393,7 +394,7 @@ public sealed partial class MutatorAstRewriter
     return SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
       MutantSchemataGenerator.Namespace,
       _schemaRegistry.ClassName,
-      _schemaRegistry.GetUniqueSchemaName(mutationGroup),
+      _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
       SyntaxFactory.Argument(baseMutantIdLiteral),
       operand
     );

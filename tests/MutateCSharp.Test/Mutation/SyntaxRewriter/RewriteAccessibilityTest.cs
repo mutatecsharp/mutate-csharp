@@ -69,7 +69,7 @@ public class RewriteAccessibilityTest
     var schemaRegistry = CreateSchemaRegistry();
     var comp = TestUtil.GetAstSemanticModelAndAssembly(ast);
     var mutationRewriter =
-      new MutatorAstRewriter(comp.sutAssembly, comp.model, schemaRegistry, optimise: false);
+      new MutatorAstRewriter(comp.sutAssembly, comp.model, schemaRegistry, SyntaxRewriterMode.Mutate, optimise: false);
     var mutationRewrittenNode = mutationRewriter.Visit(ast.GetCompilationUnitRoot());
     
     _testOutputHelper.WriteLine(mutationRewrittenNode.ToString());
