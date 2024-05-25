@@ -87,7 +87,7 @@ internal sealed class TraceOptions
           $"Mutation registry file name expected to be {MutationRegistryPersister.ExecutionTracerRegistryFileName}.");
       }
       
-      _absoluteMutationRegistryPath = 
+      _absoluteExecutionTraceRegistryPath = 
         ParseUtil.ParseAbsolutePath(value, FileExtension.Json);
     }
   }

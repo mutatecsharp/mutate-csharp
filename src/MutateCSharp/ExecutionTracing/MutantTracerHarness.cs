@@ -46,10 +46,10 @@ public static class MutantTracerHarness
     var envVar = ExecutionTracerSchemataGenerator.MutantTracerFilePathEnvVar;
 
     // 2) Initialise necessary arguments for test runs
-    var buildArgs = "--no-restore --no-build --nologo -c Release";
+    var buildArgs = "--no-build --nologo -c Release";
     var loggerArgs = "--logger \"console;verbosity=normal\"";
     var runsettingsArgs = !string.IsNullOrEmpty(runSettingsPath)
-      ? "--settings \"{runSettingsPath}\""
+      ? $"--settings \"{runSettingsPath}\""
       : string.Empty;
     var injectEnvVarFlags = $"-e {envVar}=\"{outputPath}\"";
     var testcaseFilterArgs = $"--filter \"DisplayName~{testName}\"";
@@ -67,7 +67,8 @@ public static class MutantTracerHarness
       RedirectStandardError = true
     };
 
-    Log.Debug("Executing the process with command: {Binary} {CommandArguments}",
+    Log.Information("Testing {TestName}.", testName);
+    Log.Information("Executing the process with command: {Binary} {CommandArguments}",
       processInfo.FileName, processInfo.Arguments);
 
     // 3) Start the testing subprocess
@@ -84,8 +85,13 @@ public static class MutantTracerHarness
     await process.WaitForExitAsync();
 
     // 4) Record test result to console
-    Console.WriteLine(outputTrace.ToString());
-    await Console.Error.WriteLineAsync(errorTrace.ToString());
+    Log.Information(outputTrace.ToString());
+
+    var errorTraceString = errorTrace.ToString();
+    if (!string.IsNullOrWhiteSpace(errorTraceString))
+    {
+      Log.Error("{TestName} failed:\n{TestErrorReason}", testName, errorTraceString);
+    }
 
     // 5) Return exit code
     return process.ExitCode;
