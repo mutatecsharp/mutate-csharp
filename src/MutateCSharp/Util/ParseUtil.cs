@@ -10,9 +10,12 @@ public static class ParseUtil
       throw new ArgumentException("Unable to parse malformed path.");
 
     var absolutePath = Path.GetFullPath(path);
+    var expectedExtension = extension.ToFriendlyString();
+    var extensionMatches = 
+      expectedExtension == string.Empty ||
+      Path.GetExtension(absolutePath) == expectedExtension;
 
-    if (!File.Exists(absolutePath) ||
-        Path.GetExtension(absolutePath) != extension.ToFriendlyString())
+    if (!File.Exists(absolutePath) || !extensionMatches)
       throw new ArgumentException(
         $"{Path.GetFileName(absolutePath)} does not exist or is invalid.");
 
@@ -28,11 +31,7 @@ public static class ParseUtil
     if (!string.IsNullOrEmpty(Path.GetExtension(absolutePath)))
       throw new ArgumentException(
         "Unable to parse file paths; directory paths expected.");
-
-    if (!Directory.Exists(absolutePath))
-      throw new ArgumentException(
-        $"{absolutePath} does not exist or is invalid.");
-
+    
     return absolutePath;
   }
 }

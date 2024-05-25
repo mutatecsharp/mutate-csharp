@@ -6,8 +6,8 @@ namespace MutateCSharp.FileSystem;
 
 public static class MutationRegistryPersister
 {
-  private const string MutationRegistryFileName = "registry.mucs.json";
-  private const string ExecutionTracerRegistryFileName = "tracer-registry.mucs.json";
+  public const string MutationRegistryFileName = "registry.mucs.json";
+  public const string ExecutionTracerRegistryFileName = "tracer-registry.mucs.json";
   private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
   // Persist mutation information corresponding to each source file on disk
@@ -23,16 +23,17 @@ public static class MutationRegistryPersister
     if (string.IsNullOrEmpty(fileName)) return string.Empty;
     
     var outputPath = Path.Combine(basePath, fileName);
-    await using var fs = File.Create(outputPath, 8192, FileOptions.Asynchronous);
+    await using var fs = File.Create(outputPath, bufferSize: 8192, FileOptions.Asynchronous);
     await JsonSerializer.SerializeAsync(fs, registry, JsonOptions);
     return outputPath;
   }
 
   public static async Task<ProjectLevelMutationRegistry> ReconstructRegistryFromDisk(string absolutePath)
   {
-    using var fs = new StreamReader(absolutePath);
+    await using var fs =
+      new FileStream(absolutePath, FileMode.Open, FileAccess.Read);
     var registry =
-      await JsonSerializer.DeserializeAsync<ProjectLevelMutationRegistry>(fs.BaseStream, JsonOptions);
+      await JsonSerializer.DeserializeAsync<ProjectLevelMutationRegistry>(fs);
     return registry!;
   }
 }

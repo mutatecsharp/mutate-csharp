@@ -7,7 +7,9 @@ public enum FileExtension
   Solution,
   Project,
   CSharpSourceFile,
-  Json
+  Json,
+  DotnetRunSettings,
+  Any
 }
 
 public static class FileExtensionConstants
@@ -19,7 +21,8 @@ public static class FileExtensionConstants
         [FileExtension.Solution] = ".sln",
         [FileExtension.Project] = ".csproj",
         [FileExtension.CSharpSourceFile] = ".cs",
-        [FileExtension.Json] = ".json"
+        [FileExtension.Json] = ".json",
+        [FileExtension.DotnetRunSettings] = ".runsettings"
       }.ToFrozenDictionary();
 
   public static string ToFriendlyString(this FileExtension fileExtension)

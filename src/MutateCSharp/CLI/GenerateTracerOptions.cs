@@ -5,9 +5,9 @@ using MutateCSharp.Util;
 
 namespace MutateCSharp.CLI;
 
-[Verb("trace",
-  HelpText = "Generate mutant execution tracer.")]
-internal sealed class TracerOptions: IMutateOptions
+[Verb("generate-tracer",
+  HelpText = "Instrument system under test to trace mutant execution.")]
+internal sealed class GenerateTracerOptions: IMutateOptions
 {
   private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteProjectPath = string.Empty;
