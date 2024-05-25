@@ -23,7 +23,8 @@ internal static class MutateHandler
       options.AbsoluteSourceFilePathsToIgnore().ToImmutableArray();
     var directoriesToConsider =
       options.AbsoluteDirectoryPaths().ToImmutableArray();
-    
+
+    Log.Information("Dry run: {DryRunStatus}", options.DryRun());
     Log.Information("Omitting equivalent/redundant mutants: {RemoveRedundantMutants}", options.Optimise());
 
     foreach (var ignorePath in pathsToIgnore)

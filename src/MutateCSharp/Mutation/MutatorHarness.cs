@@ -134,8 +134,8 @@ public static class MutatorHarness
     var tree = await document.GetValidatedSyntaxTree().ConfigureAwait(false);
     if (tree is null) return (document, null);
     
-    Log.Information("Processing source file: {SourceFilePath}",
-      document.FilePath);
+    Log.Information("{DryRunStatus}Processing source file: {SourceFilePath}",
+      dryRun ? "[DryRun] " : string.Empty, document.FilePath);
     if (dryRun) return (document, null);
     
     var root = tree.GetCompilationUnitRoot();
@@ -189,12 +189,11 @@ public static class MutatorHarness
     Document? specifiedDocument)
   {
     if (specifiedDocument is not null) return [specifiedDocument.Id];
-    if (pathsToIgnore.IsDefaultOrEmpty)
-      return [..project.Documents.Select(doc => doc.Id)];
-    
     var ignorePathSet = pathsToIgnore.ToImmutableHashSet();
 
-    var filterIgnoredPaths = project.Documents.Where(doc =>
+    var filterIgnoredPaths = ignorePathSet.IsEmpty
+      ? project.Documents
+      : project.Documents.Where(doc =>
       !ignorePathSet.Contains(Path.GetFullPath(doc.FilePath!)));
 
     if (directories.IsDefaultOrEmpty)
