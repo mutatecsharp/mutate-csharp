@@ -138,7 +138,7 @@ public static class ExecutionTracerSchemataGenerator
           for (var i = lowerBound; i < lowerBound + mutationCount; i++)
           {
             MutantsExecuted.TryAdd(i, byte.MinValue);
-            executedMutants.Add($"{{schemaRegistry.ClassName}}:{i}{System.Environment.NewLine}");
+            executedMutants.Add($"{{schemaRegistry.ActivatedMutantEnvVar}}:{i}{System.Environment.NewLine}");
           }
               
           // Persist mutant execution trace to disk

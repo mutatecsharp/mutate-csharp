@@ -21,6 +21,8 @@ internal static class MutateHandler
     workspace.SkipUnrecognizedProjects = true;
     var pathsToIgnore =
       options.AbsoluteSourceFilePathsToIgnore().ToImmutableArray();
+    var directoriesToConsider =
+      options.AbsoluteDirectoryPaths().ToImmutableArray();
     
     Log.Information("Omitting equivalent/redundant mutants: {RemoveRedundantMutants}", options.Optimise());
 
@@ -38,8 +40,10 @@ internal static class MutateHandler
         options.AbsoluteProjectPath(), 
         options.AbsoluteSourceFilePath(), 
         pathsToIgnore,
+        directoriesToConsider,
         options.MutationMode(),
-        options.Optimise());
+        options.Optimise(),
+        options.DryRun());
     }
     else if (options.AbsoluteProjectPath().Length > 0)
     {
@@ -49,8 +53,10 @@ internal static class MutateHandler
       await ProcessProject(workspace, 
         options.AbsoluteProjectPath(), 
         pathsToIgnore, 
+        directoriesToConsider,
         options.MutationMode(),
-        options.Optimise());
+        options.Optimise(),
+        options.DryRun());
     }
     else if (options.AbsoluteSolutionPath().Length > 0)
     {
@@ -60,8 +66,10 @@ internal static class MutateHandler
       await ProcessSolution(workspace, 
         options.AbsoluteSolutionPath(), 
         pathsToIgnore, 
+        directoriesToConsider,
         options.MutationMode(),
-        options.Optimise());
+        options.Optimise(),
+        options.DryRun());
     }
     else
       Log.Error("No project or solution specified.");
@@ -81,14 +89,18 @@ internal static class MutateHandler
     MSBuildWorkspace workspace, 
     string absolutePath, 
     ImmutableArray<string> pathsToIgnore,
+    ImmutableArray<string> directoriesToConsider,
     SyntaxRewriterMode mutationMode,
-    bool optimise)
+    bool optimise, bool dryRun)
   {
     var solution = await workspace.OpenSolutionAsync(absolutePath);
     
     // 1: Generate mutant schema and acquire mutation registry
     var (mutatedSolution, projectRegistries) =
-      await MutatorHarness.MutateSolution(workspace, solution, pathsToIgnore, mutationMode, optimise);
+      await MutatorHarness.MutateSolution(workspace, solution, pathsToIgnore,
+        directoriesToConsider, mutationMode, optimise, dryRun);
+
+    if (dryRun) return;
     
     // 2: Persist mutated solution under test
     var mutateResult = workspace.TryApplyChanges(mutatedSolution);
@@ -110,14 +122,18 @@ internal static class MutateHandler
     MSBuildWorkspace workspace, 
     string absolutePath, 
     ImmutableArray<string> pathsToIgnore,
+    ImmutableArray<string> directoriesToConsider,
     SyntaxRewriterMode mutationMode,
-    bool optimise)
+    bool optimise, bool dryRun)
   {
     var project = await workspace.OpenProjectAsync(absolutePath);
     
     // 1: Generate mutant schema and acquire mutation registry
     var (mutatedProject, projectRegistry) =
-      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, mutationMode, optimise);
+      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, 
+        directoriesToConsider, mutationMode, optimise, dryRun);
+
+    if (dryRun) return;
     
     // 2: Persist mutated project under test
     var mutateResult = workspace.TryApplyChanges(mutatedProject.Solution);
@@ -139,8 +155,9 @@ internal static class MutateHandler
     string projectAbsolutePath, 
     string sourceFileAbsolutePath, 
     ImmutableArray<string> pathsToIgnore,
+    ImmutableArray<string> directoriesToConsider,
     SyntaxRewriterMode mutationMode,
-    bool optimise)
+    bool optimise, bool dryRun)
   {
     var project = await workspace.OpenProjectAsync(projectAbsolutePath);
     var document = project.Documents.FirstOrDefault(doc =>
@@ -148,7 +165,10 @@ internal static class MutateHandler
     
     // 1: Generate mutant schema and acquire mutation registry
     var (mutatedProject, projectRegistry) =
-      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, mutationMode, optimise, document);
+      await MutatorHarness.MutateProject(workspace, project, pathsToIgnore, 
+        directoriesToConsider, mutationMode, optimise, dryRun, document);
+
+    if (dryRun) return;
     
     // 2: Persist mutated project under test
     var mutateResult = workspace.TryApplyChanges(mutatedProject.Solution);

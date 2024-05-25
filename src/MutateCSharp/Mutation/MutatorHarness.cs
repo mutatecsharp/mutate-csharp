@@ -20,8 +20,9 @@ public static class MutatorHarness
     MutateSolution(MSBuildWorkspace workspace, 
       Solution solution, 
       ImmutableArray<string> pathsToIgnore,
+      ImmutableArray<string> directoriesToConsider,
       SyntaxRewriterMode mutationMode,
-      bool optimise)
+      bool optimise, bool dryRun)
   {
     Log.Information("Mutating solution {Solution}.",
       Path.GetFileName(solution.FilePath));
@@ -33,7 +34,8 @@ public static class MutatorHarness
     {
       var project = mutatedSolution.GetProject(projectId)!;
       var (mutatedProject, projectRegistry) = 
-        await MutateProject(workspace, project, pathsToIgnore, mutationMode, optimise).ConfigureAwait(false);
+        await MutateProject(workspace, project, pathsToIgnore, 
+          directoriesToConsider, mutationMode, optimise, dryRun).ConfigureAwait(false);
       mutatedSolution = mutatedProject.Solution;
 
       if (projectRegistry is not null)
@@ -47,8 +49,9 @@ public static class MutatorHarness
     MutateProject(Workspace workspace, 
       Project project, 
       ImmutableArray<string> pathsToIgnore,
+      ImmutableArray<string> directoriesToConsider,
       SyntaxRewriterMode mutationMode,
-      bool optimise,
+      bool optimise, bool dryRun,
       Document? specifiedDocument = default)
   {
     Log.Information("Mutating project {Project}.", project.Name);
@@ -97,14 +100,15 @@ public static class MutatorHarness
       AssemblyLoadContext.Default.LoadFromStream(portableExecutableStream);
 
     var idOfDocumentsToMutate =
-      GetDocumentsToMutate(ref project, pathsToIgnore, specifiedDocument);
+      GetDocumentsToMutate(ref project, pathsToIgnore,  directoriesToConsider, specifiedDocument);
     
     foreach (var documentId in idOfDocumentsToMutate)
     {
       var document = mutatedProject.GetDocument(documentId)!;
       
       var (mutatedDocument, fileSchemaRegistry) = 
-        await MutateDocument(workspace, sutAssembly, document, mutationMode, optimise).ConfigureAwait(false);
+        await MutateDocument(workspace, sutAssembly, document, 
+          mutationMode, optimise, dryRun).ConfigureAwait(false);
       
       // Record mutations in registry
       var relativePath = Path.GetRelativePath(
@@ -124,7 +128,7 @@ public static class MutatorHarness
       Assembly sutAssembly, 
       Document document, 
       SyntaxRewriterMode mutationMode,
-      bool optimise)
+      bool optimise, bool dryRun)
   {
     var semanticModelTask = document.GetValidatedSemanticModel().ConfigureAwait(false);
     var tree = await document.GetValidatedSyntaxTree().ConfigureAwait(false);
@@ -132,6 +136,8 @@ public static class MutatorHarness
     
     Log.Information("Processing source file: {SourceFilePath}",
       document.FilePath);
+    if (dryRun) return (document, null);
+    
     var root = tree.GetCompilationUnitRoot();
     var mutantSchemaRegistry = new FileLevelMutantSchemaRegistry();
     var accessRewriter = new AccessModifierRewriter();
@@ -177,7 +183,9 @@ public static class MutatorHarness
   }
 
   private static ImmutableArray<DocumentId> GetDocumentsToMutate(
-    ref readonly Project project, ImmutableArray<string> pathsToIgnore,
+    ref readonly Project project, 
+    ImmutableArray<string> pathsToIgnore,
+    ImmutableArray<string> directories,
     Document? specifiedDocument)
   {
     if (specifiedDocument is not null) return [specifiedDocument.Id];
@@ -186,9 +194,18 @@ public static class MutatorHarness
     
     var ignorePathSet = pathsToIgnore.ToImmutableHashSet();
 
-    return [
-      ..project.Documents.Where(doc =>
-        !ignorePathSet.Contains(Path.GetFullPath(doc.FilePath!)))
+    var filterIgnoredPaths = project.Documents.Where(doc =>
+      !ignorePathSet.Contains(Path.GetFullPath(doc.FilePath!)));
+
+    if (directories.IsDefaultOrEmpty)
+    {
+      return [..filterIgnoredPaths.Select(doc => doc.Id)];
+    }
+    
+    return
+    [
+      ..filterIgnoredPaths.Where(doc =>
+          directories.Any(dir => Path.GetFullPath(doc.FilePath!).StartsWith(dir)))
         .Select(doc => doc.Id)
     ];
   }

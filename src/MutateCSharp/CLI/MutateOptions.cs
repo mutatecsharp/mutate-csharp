@@ -11,6 +11,7 @@ internal class MutateOptions: IMutateOptions
   private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteProjectPath = string.Empty;
   private readonly string _absoluteSourceFilePath = string.Empty;
+  private readonly string[] _absoluteDirectoryPaths = [];
   private readonly string[] _absoluteSourceFilePathsToIgnore = [];
   
   [Option("solution",
@@ -29,6 +30,16 @@ internal class MutateOptions: IMutateOptions
     get => _absoluteProjectPath;
     init => _absoluteProjectPath =
       ParseUtil.ParseAbsolutePath(value, FileExtension.Project);
+  }
+  
+  [Option("directories",
+    HelpText =
+      "The directories within a C# project containing C# source files.")]
+  public IEnumerable<string> AbsoluteDirectoryPaths
+  {
+    get => _absoluteDirectoryPaths;
+    init => _absoluteDirectoryPaths =
+      value.Select(ParseUtil.ParseAbsoluteDirectory).ToArray();
   }
 
   [Option("source-file",
@@ -50,6 +61,9 @@ internal class MutateOptions: IMutateOptions
     Default = false, 
     HelpText = "Do not generate equivalent or redundant mutants.")]
   public bool Optimise { get; init; }
+  
+  [Option("dry-run", Default = false, HelpText = "Perform a dry run.")]
+  public bool DryRun { get; init; }
 
   [Option("ignore-files",
     HelpText = "Path(s) to C# source files to ignore (.cs).")]
@@ -83,6 +97,11 @@ internal class MutateOptions: IMutateOptions
   {
     return Optimise;
   }
+  
+  bool IMutateOptions.DryRun()
+  {
+    return DryRun;
+  }
 
   SyntaxRewriterMode IMutateOptions.MutationMode()
   {
@@ -92,5 +111,10 @@ internal class MutateOptions: IMutateOptions
   IEnumerable<string> IMutateOptions.AbsoluteSourceFilePathsToIgnore()
   {
     return AbsoluteSourceFilePathsToIgnore;
+  }
+
+  IEnumerable<string> IMutateOptions.AbsoluteDirectoryPaths()
+  {
+    return AbsoluteDirectoryPaths;
   }
 }
