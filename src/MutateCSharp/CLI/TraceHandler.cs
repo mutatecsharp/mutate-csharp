@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using MutateCSharp.ExecutionTracing;
 using MutateCSharp.FileSystem;
+using MutateCSharp.Util;
 using Serilog;
 
 namespace MutateCSharp.CLI;
@@ -24,7 +25,20 @@ internal static class TraceHandler
                 "registries are the result of the same optimisation level enabled.");
       return;
     }
+
+    // 1) Rebuild the SUT, as the SUT assembly could be stale.
+    Log.Information("Building solution: {SolutionPath}.",
+      options.AbsoluteSolutionUnderTestPath);
+    var buildExitCode =
+      await DotnetUtil.Build(options.AbsoluteSolutionUnderTestPath);
+    if (buildExitCode != 0)
+    {
+      Log.Error(
+        "Solution cannot be rebuild. Perhaps the tracer generation/mutation failed?");
+      return;
+    }
     
+    // 2) Execute tests and trace which mutants are invoked for each test.
     Log.Information("Tracing mutant execution.");
     var failedTests = await MutantTracerHarness.TraceExecutionForAllTests(
       options.AbsoluteTestProjectDirectory,
@@ -34,6 +48,7 @@ internal static class TraceHandler
 
     Log.Information("Mutant tracing complete.");
     
+    // 3) Record flaky tests.
     foreach (var failedTest in failedTests)
     {
       Log.Warning("Failed test: {FailedTestName}", failedTest);

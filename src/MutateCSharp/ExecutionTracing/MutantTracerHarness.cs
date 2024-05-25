@@ -54,7 +54,7 @@ public static class MutantTracerHarness
     var injectEnvVarFlags = $"-e {envVar}=\"{outputPath}\"";
     var testcaseFilterArgs = $"--filter \"DisplayName~{testName}\"";
 
-    // 2) Create an isolated subprocess with environment variable injected into
+    // 3) Create an isolated subprocess with environment variable injected into
     // the subprocess
     var processInfo = new ProcessStartInfo
     {
@@ -71,7 +71,7 @@ public static class MutantTracerHarness
     Log.Information("Executing the process with command: {Binary} {CommandArguments}",
       processInfo.FileName, processInfo.Arguments);
 
-    // 3) Start the testing subprocess
+    // 4) Start the testing subprocess
     var outputTrace = new StringBuilder();
     var errorTrace = new StringBuilder();
     using var process = new Process();
@@ -84,7 +84,7 @@ public static class MutantTracerHarness
     process.BeginErrorReadLine();
     await process.WaitForExitAsync();
 
-    // 4) Record test result to console
+    // 5) Record test result to console
     Log.Information(outputTrace.ToString());
 
     var errorTraceString = errorTrace.ToString();
@@ -93,7 +93,7 @@ public static class MutantTracerHarness
       Log.Error("{TestName} failed:\n{TestErrorReason}", testName, errorTraceString);
     }
 
-    // 5) Return exit code
+    // 6) Return exit code
     return process.ExitCode;
   }
 }
