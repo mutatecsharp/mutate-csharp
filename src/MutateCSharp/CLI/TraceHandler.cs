@@ -27,10 +27,10 @@ internal static class TraceHandler
     }
 
     // 1) Rebuild the SUT, as the SUT assembly could be stale.
-    Log.Information("Building solution: {SolutionPath}.",
-      options.AbsoluteSolutionUnderTestPath);
+    Log.Information("Building solution: {TestProjectPath}.",
+      options.AbsoluteTestProjectDirectory);
     var buildExitCode =
-      await DotnetUtil.Build(options.AbsoluteSolutionUnderTestPath);
+      await DotnetUtil.Build(options.AbsoluteTestProjectDirectory);
     if (buildExitCode != 0)
     {
       Log.Error(

@@ -7,23 +7,12 @@ namespace MutateCSharp.CLI;
 [Verb("trace", HelpText = "Commence mutant execution tracing.")]
 internal sealed class TraceOptions
 {
-  private readonly string _absoluteSolutionPath = string.Empty;
   private readonly string _absoluteTestProjectDirectory = string.Empty;
   private readonly string _absoluteTraceOutputDirectory = string.Empty;
   private readonly string _absoluteListOfTestsFilePath = string.Empty;
   private readonly string _absoluteMutationRegistryPath = string.Empty;
   private readonly string _absoluteExecutionTraceRegistryPath = string.Empty;
   private readonly string _absoluteRunSettingsPath = string.Empty;
-
-  [Option("solution",
-    Required = true,
-    HelpText = "The path to the solution under test. Used for rebuilding.")]
-  public required string AbsoluteSolutionUnderTestPath
-  {
-    get => _absoluteSolutionPath;
-    init => _absoluteSolutionPath =
-      ParseUtil.ParseAbsolutePath(value, FileExtension.Solution);
-  }
   
   [Option("test-project",
     Required = true,
