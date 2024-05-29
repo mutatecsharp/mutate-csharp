@@ -25,7 +25,7 @@ public sealed class MutantActivationInfoConverter : JsonConverter<MutantActivati
 
       if (reader.TokenType == JsonTokenType.PropertyName)
       {
-        string propertyName = reader.GetString()!;
+        var propertyName = reader.GetString()!;
         reader.Read();
 
         switch (propertyName)
@@ -36,6 +36,8 @@ public sealed class MutantActivationInfoConverter : JsonConverter<MutantActivati
           case nameof(MutantActivationInfo.MutantId):
             mutantId = reader.GetInt32();
             break;
+          default:
+            throw new JsonException($"Unexpected property: {propertyName}");
         }
       }
     }

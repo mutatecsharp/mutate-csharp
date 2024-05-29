@@ -1,5 +1,5 @@
+using System.Text.Json.Serialization;
 using MutateCSharp.Util.Converters;
-using Newtonsoft.Json;
 
 namespace MutateCSharp.ExecutionTracing;
 

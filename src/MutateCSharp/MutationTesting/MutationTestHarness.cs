@@ -33,7 +33,7 @@ public sealed class MutationTestHarness
     _timedOutMutants;
 
   private readonly ConcurrentDictionary<TestCase,
-    ImmutableArray<(MutantActivationInfo, TestRunResult)>> _mutationTestingResults;
+    FrozenDictionary<MutantActivationInfo, TestRunResult>> _mutationTestingResults;
 
   public MutationTestHarness(
     ImmutableArray<TestCase> testsSortedByDuration,
@@ -53,7 +53,7 @@ public sealed class MutationTestHarness
       new ConcurrentDictionary<MutantActivationInfo, TestCase>();
     _mutationTestingResults =
       new ConcurrentDictionary<TestCase,
-        ImmutableArray<(MutantActivationInfo, TestRunResult)>>();
+        FrozenDictionary<MutantActivationInfo, TestRunResult>>();
 
     // Sanity check: each mutant trace entry has a corresponding entry in mutation registry
     var traceableMutants = _testsSortedByDuration
@@ -97,7 +97,7 @@ public sealed class MutationTestHarness
     {
       var testCase = _testsSortedByDuration[i];
       Log.Information(
-        "Processing test {TestName} ({CurrentCount}/{TotalCount})",
+        "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
         testCase.Name, i + 1, _testsSortedByDuration.Length);
 
       // 1) Check if any mutants qualify as candidates
@@ -194,12 +194,17 @@ public sealed class MutationTestHarness
             break;
         }
       }
-      
-      var results = mutantRunResults.
-        Select(result => (result.mutant, result.testResult)).ToList();
-      results.AddRange(ignoredMutants.Select(mutant => (mutant, TestRunResult.Skipped)));
 
-      _mutationTestingResults[testCase] = [..results];
+      var results = mutantRunResults.ToDictionary(
+        result => result.mutant,
+        result => result.testResult);
+
+      foreach (var mutant in ignoredMutants)
+      {
+        results[mutant] = TestRunResult.Skipped;
+      }
+
+      _mutationTestingResults[testCase] = results.ToFrozenDictionary();
     }
     
     // 6) Summarise all mutation testing at the end
@@ -223,8 +228,10 @@ public sealed class MutationTestHarness
 
     return new MutationTestResult
     {
-      TestResultsOfMutants = _mutationTestingResults.ToDictionary(),
-      MutantStatus = mutantStatus
+      MutantTestResultsOfTestCases = _mutationTestingResults
+        .ToDictionary(testCaseToMutantResults => testCaseToMutantResults.Key.Name, 
+          entry => entry.Value).ToFrozenDictionary(),
+      MutantStatus = mutantStatus.ToFrozenDictionary()
     };
   }
 }
