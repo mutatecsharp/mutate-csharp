@@ -9,7 +9,6 @@ internal static class AnalyseHandler
 {
   internal static async Task RunOptions(AnalyseOptions options)
   {
-    // TODO: create test harness
     if (options.AbsoluteRegistryPath.Length > 0)
     {
       Log.Information("Loading mutation registry...");

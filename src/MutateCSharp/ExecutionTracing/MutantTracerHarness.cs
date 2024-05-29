@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
 using MutateCSharp.Mutation.SchemataGenerator;
+using MutateCSharp.Util;
 using Serilog;
 
 namespace MutateCSharp.ExecutionTracing;
@@ -19,13 +20,11 @@ public static class MutantTracerHarness
     ImmutableArray<string> testNames,
     string runSettingsPath)
   {
-    var invalidFileNameChars = Path.GetInvalidFileNameChars().ToFrozenSet();
     var failedTests = new HashSet<string>();
 
     foreach (var testName in testNames)
     {
-      var sanitisedName = string.Join(string.Empty,
-        testName.Where(c => !invalidFileNameChars.Contains(c)));
+      var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
       var traceFilePath = Path.Combine(outputDirectory, sanitisedName);
       var exitCode = await TraceExecutionForTest(testProjectDirectory,
         traceFilePath, testName, runSettingsPath);
