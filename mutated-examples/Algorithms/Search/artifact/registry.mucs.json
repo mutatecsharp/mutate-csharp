@@ -1,0 +1,4332 @@
+{
+  "BinarySearch.cs": {
+    "FileRelativePath": "BinarySearch.cs",
+    "EnvironmentVariable": "MUTATE_CSHARP_ACTIVATED_MUTANT1",
+    "Mutations": {
+      "1": {
+        "MutantId": 1,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 234,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 13
+          }
+        }
+      },
+      "2": {
+        "MutantId": 2,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 234,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 13
+          }
+        }
+      },
+      "3": {
+        "MutantId": 3,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 268,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 31
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "4": {
+        "MutantId": 4,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 268,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 31
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "5": {
+        "MutantId": 5,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 268,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 31
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "6": {
+        "MutantId": 6,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 268,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 31
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "7": {
+        "MutantId": 7,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "8": {
+        "MutantId": 8,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "9": {
+        "MutantId": 9,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "10": {
+        "MutantId": 10,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "11": {
+        "MutantId": 11,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "12": {
+        "MutantId": 12,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "13": {
+        "MutantId": 13,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "14": {
+        "MutantId": 14,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 249,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 11,
+            "Character": 12
+          },
+          "EndLinePosition": {
+            "Line": 11,
+            "Character": 32
+          }
+        }
+      },
+      "15": {
+        "MutantId": 15,
+        "OriginalOperation": 8683,
+        "OriginalExpressionTemplate": "{0} \u003C= {1}",
+        "MutantOperation": 8680,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} == {1}",
+        "SourceSpan": {
+          "Start": 283,
+          "Length": 6
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 17
+          }
+        }
+      },
+      "16": {
+        "MutantId": 16,
+        "OriginalOperation": 8683,
+        "OriginalExpressionTemplate": "{0} \u003C= {1}",
+        "MutantOperation": 8682,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C {1}",
+        "SourceSpan": {
+          "Start": 283,
+          "Length": 6
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 17
+          }
+        }
+      },
+      "17": {
+        "MutantId": 17,
+        "OriginalOperation": 8683,
+        "OriginalExpressionTemplate": "{0} \u003C= {1}",
+        "MutantOperation": 8752,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "true",
+        "SourceSpan": {
+          "Start": 283,
+          "Length": 6
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 17
+          }
+        }
+      },
+      "18": {
+        "MutantId": 18,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "19": {
+        "MutantId": 19,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "20": {
+        "MutantId": 20,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8671,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} / {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "21": {
+        "MutantId": 21,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "22": {
+        "MutantId": 22,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "23": {
+        "MutantId": 23,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "24": {
+        "MutantId": 24,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "25": {
+        "MutantId": 25,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "26": {
+        "MutantId": 26,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "27": {
+        "MutantId": 27,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "28": {
+        "MutantId": 28,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 318,
+          "Length": 5
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 26
+          }
+        }
+      },
+      "29": {
+        "MutantId": 29,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 327,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 30
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "30": {
+        "MutantId": 30,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 327,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 30
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "31": {
+        "MutantId": 31,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 327,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 30
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "32": {
+        "MutantId": 32,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 327,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 30
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "33": {
+        "MutantId": 33,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "34": {
+        "MutantId": 34,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "35": {
+        "MutantId": 35,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "36": {
+        "MutantId": 36,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "37": {
+        "MutantId": 37,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "38": {
+        "MutantId": 38,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "39": {
+        "MutantId": 39,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "40": {
+        "MutantId": 40,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "41": {
+        "MutantId": 41,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "42": {
+        "MutantId": 42,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "43": {
+        "MutantId": 43,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 317,
+          "Length": 11
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "44": {
+        "MutantId": 44,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "45": {
+        "MutantId": 45,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "46": {
+        "MutantId": 46,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8671,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} / {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "47": {
+        "MutantId": 47,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "48": {
+        "MutantId": 48,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "49": {
+        "MutantId": 49,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "50": {
+        "MutantId": 50,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "51": {
+        "MutantId": 51,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "52": {
+        "MutantId": 52,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "53": {
+        "MutantId": 53,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "54": {
+        "MutantId": 54,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 313,
+          "Length": 15
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 31
+          }
+        }
+      },
+      "55": {
+        "MutantId": 55,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 802,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 41
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 42
+          }
+        }
+      },
+      "56": {
+        "MutantId": 56,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 802,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 41
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 42
+          }
+        }
+      },
+      "57": {
+        "MutantId": 57,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 824,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 63
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "58": {
+        "MutantId": 58,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 824,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 63
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "59": {
+        "MutantId": 59,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 824,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 63
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "60": {
+        "MutantId": 60,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 824,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 63
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "61": {
+        "MutantId": 61,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "62": {
+        "MutantId": 62,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "63": {
+        "MutantId": 63,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "64": {
+        "MutantId": 64,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "65": {
+        "MutantId": 65,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "66": {
+        "MutantId": 66,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "67": {
+        "MutantId": 67,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "68": {
+        "MutantId": 68,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 805,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 39,
+            "Character": 44
+          },
+          "EndLinePosition": {
+            "Line": 39,
+            "Character": 64
+          }
+        }
+      },
+      "69": {
+        "MutantId": 69,
+        "OriginalOperation": 8684,
+        "OriginalExpressionTemplate": "{0} \u003E {1}",
+        "MutantOperation": 8681,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} != {1}",
+        "SourceSpan": {
+          "Start": 927,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 44,
+            "Character": 8
+          },
+          "EndLinePosition": {
+            "Line": 44,
+            "Character": 20
+          }
+        }
+      },
+      "70": {
+        "MutantId": 70,
+        "OriginalOperation": 8684,
+        "OriginalExpressionTemplate": "{0} \u003E {1}",
+        "MutantOperation": 8685,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E= {1}",
+        "SourceSpan": {
+          "Start": 927,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 44,
+            "Character": 8
+          },
+          "EndLinePosition": {
+            "Line": 44,
+            "Character": 20
+          }
+        }
+      },
+      "71": {
+        "MutantId": 71,
+        "OriginalOperation": 8684,
+        "OriginalExpressionTemplate": "{0} \u003E {1}",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 927,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 44,
+            "Character": 8
+          },
+          "EndLinePosition": {
+            "Line": 44,
+            "Character": 20
+          }
+        }
+      },
+      "72": {
+        "MutantId": 72,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "73": {
+        "MutantId": 73,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "74": {
+        "MutantId": 74,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8671,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} / {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "75": {
+        "MutantId": 75,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "76": {
+        "MutantId": 76,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "77": {
+        "MutantId": 77,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "78": {
+        "MutantId": 78,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "79": {
+        "MutantId": 79,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "80": {
+        "MutantId": 80,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "81": {
+        "MutantId": 81,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "82": {
+        "MutantId": 82,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 990,
+          "Length": 12
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 34
+          }
+        }
+      },
+      "83": {
+        "MutantId": 83,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 1006,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 38
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "84": {
+        "MutantId": 84,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 1006,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 38
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "85": {
+        "MutantId": 85,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 1006,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 38
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "86": {
+        "MutantId": 86,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 1006,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 38
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "87": {
+        "MutantId": 87,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "88": {
+        "MutantId": 88,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "89": {
+        "MutantId": 89,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "90": {
+        "MutantId": 90,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "91": {
+        "MutantId": 91,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "92": {
+        "MutantId": 92,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "93": {
+        "MutantId": 93,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "94": {
+        "MutantId": 94,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "95": {
+        "MutantId": 95,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "96": {
+        "MutantId": 96,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "97": {
+        "MutantId": 97,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 989,
+          "Length": 18
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 21
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "98": {
+        "MutantId": 98,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "99": {
+        "MutantId": 99,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "100": {
+        "MutantId": 100,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8671,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} / {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "101": {
+        "MutantId": 101,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "102": {
+        "MutantId": 102,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "103": {
+        "MutantId": 103,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "104": {
+        "MutantId": 104,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "105": {
+        "MutantId": 105,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "106": {
+        "MutantId": 106,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "107": {
+        "MutantId": 107,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "108": {
+        "MutantId": 108,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 982,
+          "Length": 25
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 45,
+            "Character": 14
+          },
+          "EndLinePosition": {
+            "Line": 45,
+            "Character": 39
+          }
+        }
+      },
+      "109": {
+        "MutantId": 109,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 1142,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "110": {
+        "MutantId": 110,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 1142,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "111": {
+        "MutantId": 111,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 1142,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "112": {
+        "MutantId": 112,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 1142,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "113": {
+        "MutantId": 113,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "114": {
+        "MutantId": 114,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "115": {
+        "MutantId": 115,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "116": {
+        "MutantId": 116,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "117": {
+        "MutantId": 117,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "118": {
+        "MutantId": 118,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "119": {
+        "MutantId": 119,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "120": {
+        "MutantId": 120,
+        "OriginalOperation": 8668,
+        "OriginalExpressionTemplate": "{0} \u002B {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 1136,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 50,
+            "Character": 43
+          },
+          "EndLinePosition": {
+            "Line": 50,
+            "Character": 50
+          }
+        }
+      },
+      "121": {
+        "MutantId": 121,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 1208,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 55
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "122": {
+        "MutantId": 122,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 1208,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 55
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "123": {
+        "MutantId": 123,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 1208,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 55
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "124": {
+        "MutantId": 124,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 1208,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 55
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "125": {
+        "MutantId": 125,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "126": {
+        "MutantId": 126,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "127": {
+        "MutantId": 127,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "128": {
+        "MutantId": 128,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "129": {
+        "MutantId": 129,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "130": {
+        "MutantId": 130,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "131": {
+        "MutantId": 131,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      },
+      "132": {
+        "MutantId": 132,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 1202,
+          "Length": 7
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 51,
+            "Character": 49
+          },
+          "EndLinePosition": {
+            "Line": 51,
+            "Character": 56
+          }
+        }
+      }
+    }
+  },
+  "ExponentialSearch.cs": {
+    "FileRelativePath": "ExponentialSearch.cs",
+    "EnvironmentVariable": "MUTATE_CSHARP_ACTIVATED_MUTANT2",
+    "Mutations": {
+      "1": {
+        "MutantId": 1,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 246,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 28
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 29
+          }
+        }
+      },
+      "2": {
+        "MutantId": 2,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 246,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 28
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 29
+          }
+        }
+      },
+      "3": {
+        "MutantId": 3,
+        "OriginalOperation": 8680,
+        "OriginalExpressionTemplate": "{0} == {1}",
+        "MutantOperation": 8683,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C= {1}",
+        "SourceSpan": {
+          "Start": 226,
+          "Length": 21
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 8
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 29
+          }
+        }
+      },
+      "4": {
+        "MutantId": 4,
+        "OriginalOperation": 8680,
+        "OriginalExpressionTemplate": "{0} == {1}",
+        "MutantOperation": 8685,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E= {1}",
+        "SourceSpan": {
+          "Start": 226,
+          "Length": 21
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 8
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 29
+          }
+        }
+      },
+      "5": {
+        "MutantId": 5,
+        "OriginalOperation": 8680,
+        "OriginalExpressionTemplate": "{0} == {1}",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 226,
+          "Length": 21
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 8
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 29
+          }
+        }
+      },
+      "6": {
+        "MutantId": 6,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 293,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 17
+          }
+        }
+      },
+      "7": {
+        "MutantId": 7,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 293,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 17
+          }
+        }
+      },
+      "8": {
+        "MutantId": 8,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 293,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 17
+          }
+        }
+      },
+      "9": {
+        "MutantId": 9,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 293,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 16
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 17
+          }
+        }
+      },
+      "10": {
+        "MutantId": 10,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8681,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} != {1}",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 24
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 35
+          }
+        }
+      },
+      "11": {
+        "MutantId": 11,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8683,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C= {1}",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 24
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 35
+          }
+        }
+      },
+      "12": {
+        "MutantId": 12,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 24
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 35
+          }
+        }
+      },
+      "13": {
+        "MutantId": 13,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 373,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 77
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "14": {
+        "MutantId": 14,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 373,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 77
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "15": {
+        "MutantId": 15,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8681,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} != {1}",
+        "SourceSpan": {
+          "Start": 335,
+          "Length": 39
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 39
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "16": {
+        "MutantId": 16,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8683,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C= {1}",
+        "SourceSpan": {
+          "Start": 335,
+          "Length": 39
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 39
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "17": {
+        "MutantId": 17,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 335,
+          "Length": 39
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 39
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "18": {
+        "MutantId": 18,
+        "OriginalOperation": 8676,
+        "OriginalExpressionTemplate": "{0}() \u0026\u0026 {1}()",
+        "MutantOperation": 8680,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0}() == {1}()",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 67
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "19": {
+        "MutantId": 19,
+        "OriginalOperation": 8676,
+        "OriginalExpressionTemplate": "{0}() \u0026\u0026 {1}()",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 67
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "20": {
+        "MutantId": 20,
+        "OriginalOperation": 8676,
+        "OriginalExpressionTemplate": "{0}() \u0026\u0026 {1}()",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}()",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 67
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "21": {
+        "MutantId": 21,
+        "OriginalOperation": 8676,
+        "OriginalExpressionTemplate": "{0}() \u0026\u0026 {1}()",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}()",
+        "SourceSpan": {
+          "Start": 307,
+          "Length": 67
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 13,
+            "Character": 11
+          },
+          "EndLinePosition": {
+            "Line": 13,
+            "Character": 78
+          }
+        }
+      },
+      "22": {
+        "MutantId": 22,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 397,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 15
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 16
+          }
+        }
+      },
+      "23": {
+        "MutantId": 23,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 397,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 15
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 16
+          }
+        }
+      },
+      "24": {
+        "MutantId": 24,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 397,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 15
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 16
+          }
+        }
+      },
+      "25": {
+        "MutantId": 25,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 397,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 15,
+            "Character": 15
+          },
+          "EndLinePosition": {
+            "Line": 15,
+            "Character": 16
+          }
+        }
+      },
+      "26": {
+        "MutantId": 26,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 481,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 74
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "27": {
+        "MutantId": 27,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 481,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 74
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "28": {
+        "MutantId": 28,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 481,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 74
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "29": {
+        "MutantId": 29,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 481,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 74
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "30": {
+        "MutantId": 30,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "31": {
+        "MutantId": 31,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "32": {
+        "MutantId": 32,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8670,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} * {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "33": {
+        "MutantId": 33,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "34": {
+        "MutantId": 34,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "35": {
+        "MutantId": 35,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "36": {
+        "MutantId": 36,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "37": {
+        "MutantId": 37,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "38": {
+        "MutantId": 38,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "39": {
+        "MutantId": 39,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "40": {
+        "MutantId": 40,
+        "OriginalOperation": 8671,
+        "OriginalExpressionTemplate": "{0} / {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 3,
+        "MutantExpressionTemplate": "{1}",
+        "SourceSpan": {
+          "Start": 473,
+          "Length": 9
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 18,
+            "Character": 66
+          },
+          "EndLinePosition": {
+            "Line": 18,
+            "Character": 75
+          }
+        }
+      },
+      "41": {
+        "MutantId": 41,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 525,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 41
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "42": {
+        "MutantId": 42,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 525,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 41
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "43": {
+        "MutantId": 43,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8731,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "-{0}",
+        "SourceSpan": {
+          "Start": 525,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 41
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "44": {
+        "MutantId": 44,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8749,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "0",
+        "SourceSpan": {
+          "Start": 525,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 41
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "45": {
+        "MutantId": 45,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "46": {
+        "MutantId": 46,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8672,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} % {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "47": {
+        "MutantId": 47,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8673,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C\u003C {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "48": {
+        "MutantId": 48,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8674,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E\u003E {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "49": {
+        "MutantId": 49,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8677,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} | {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "50": {
+        "MutantId": 50,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8678,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u0026 {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "51": {
+        "MutantId": 51,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8679,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} ^ {1}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      },
+      "52": {
+        "MutantId": 52,
+        "OriginalOperation": 8669,
+        "OriginalExpressionTemplate": "{0} - {1}",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 2,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 506,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 19,
+            "Character": 22
+          },
+          "EndLinePosition": {
+            "Line": 19,
+            "Character": 42
+          }
+        }
+      }
+    }
+  },
+  "LinearSearch.cs": {
+    "FileRelativePath": "LinearSearch.cs",
+    "EnvironmentVariable": "MUTATE_CSHARP_ACTIVATED_MUTANT4",
+    "Mutations": {
+      "1": {
+        "MutantId": 1,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 230,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 17
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 18
+          }
+        }
+      },
+      "2": {
+        "MutantId": 2,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 230,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 17
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 18
+          }
+        }
+      },
+      "3": {
+        "MutantId": 3,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8681,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} != {1}",
+        "SourceSpan": {
+          "Start": 233,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 40
+          }
+        }
+      },
+      "4": {
+        "MutantId": 4,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8683,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C= {1}",
+        "SourceSpan": {
+          "Start": 233,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 40
+          }
+        }
+      },
+      "5": {
+        "MutantId": 5,
+        "OriginalOperation": 8682,
+        "OriginalExpressionTemplate": "{0} \u003C {1}",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 233,
+          "Length": 20
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 20
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 40
+          }
+        }
+      },
+      "6": {
+        "MutantId": 6,
+        "OriginalOperation": 8738,
+        "OriginalExpressionTemplate": "{0}\u002B\u002B",
+        "MutantOperation": 8739,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0}--",
+        "SourceSpan": {
+          "Start": 255,
+          "Length": 3
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 42
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 45
+          }
+        }
+      },
+      "7": {
+        "MutantId": 7,
+        "OriginalOperation": 8738,
+        "OriginalExpressionTemplate": "{0}\u002B\u002B",
+        "MutantOperation": 8638,
+        "MutantOperandKind": 1,
+        "MutantExpressionTemplate": "{0}",
+        "SourceSpan": {
+          "Start": 255,
+          "Length": 3
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 10,
+            "Character": 42
+          },
+          "EndLinePosition": {
+            "Line": 10,
+            "Character": 45
+          }
+        }
+      },
+      "8": {
+        "MutantId": 8,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8668,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u002B 1",
+        "SourceSpan": {
+          "Start": 311,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 45
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 46
+          }
+        }
+      },
+      "9": {
+        "MutantId": 9,
+        "OriginalOperation": 8749,
+        "OriginalExpressionTemplate": "{0}",
+        "MutantOperation": 8669,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} - 1",
+        "SourceSpan": {
+          "Start": 311,
+          "Length": 1
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 45
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 46
+          }
+        }
+      },
+      "10": {
+        "MutantId": 10,
+        "OriginalOperation": 8680,
+        "OriginalExpressionTemplate": "{0} == {1}",
+        "MutantOperation": 8683,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003C= {1}",
+        "SourceSpan": {
+          "Start": 276,
+          "Length": 36
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 10
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 46
+          }
+        }
+      },
+      "11": {
+        "MutantId": 11,
+        "OriginalOperation": 8680,
+        "OriginalExpressionTemplate": "{0} == {1}",
+        "MutantOperation": 8685,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "{0} \u003E= {1}",
+        "SourceSpan": {
+          "Start": 276,
+          "Length": 36
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 10
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 46
+          }
+        }
+      },
+      "12": {
+        "MutantId": 12,
+        "OriginalOperation": 8680,
+        "OriginalExpressionTemplate": "{0} == {1}",
+        "MutantOperation": 8753,
+        "MutantOperandKind": 0,
+        "MutantExpressionTemplate": "false",
+        "SourceSpan": {
+          "Start": 276,
+          "Length": 36
+        },
+        "LineSpan": {
+          "StartLinePosition": {
+            "Line": 12,
+            "Character": 10
+          },
+          "EndLinePosition": {
+            "Line": 12,
+            "Character": 46
+          }
+        }
+      }
+    }
+  }
+}
