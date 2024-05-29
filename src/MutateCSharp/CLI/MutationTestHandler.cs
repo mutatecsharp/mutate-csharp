@@ -1,37 +1,99 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using MutateCSharp.ExecutionTracing;
 using MutateCSharp.FileSystem;
+using MutateCSharp.Mutation.Registry;
 using MutateCSharp.MutationTesting;
 using MutateCSharp.Util;
 using Serilog;
 
 namespace MutateCSharp.CLI;
 
-internal static class TestHandler
+internal static class MutationTestHandler
 {
-  internal static async Task RunOptions(TestOptions options)
+  internal static async Task RunOptions(MutationTestOptions options)
   {
+    var match = await CheckMutationRegistryMatches(
+      options.AbsoluteMutationRegistryPath,
+      options.AbsoluteExecutionTraceRegistryPath);
+    
+    if (!match)
+    {
+      Log.Error("The mutation registry does not match. Check again if both" +
+                "registries are the result of the same optimisation level enabled.");
+      return;
+    }
+    
+    // Rebuild the test project, as the test project assembly could be stale.
+    Log.Information("Building test project: {TestProjectPath}.",
+      options.AbsoluteTestProjectPath);
+    var buildExitCode =
+      await DotnetUtil.Build(options.AbsoluteTestProjectPath);
+    if (buildExitCode != 0)
+    {
+      Log.Error(
+        "Test project cannot be rebuild. Perhaps the tracer generation/mutation failed?");
+      return;
+    }
+    
     // (Re)construct the required ingredients to perform mutation testing
+    // Tests list
     var passingTestNamesSortedByDuration =
       await File.ReadAllLinesAsync(options.AbsolutePassingTestsFilePath);
     
     var passingTestCasesSortedByDuration =
       passingTestNamesSortedByDuration
-      .Select(testName =>
-        new TestCase(
-          testName: testName,
-          testProjectPath: options.AbsoluteTestProjectPath,
-          runSettingsPath: options.AbsoluteRunSettingsPath)).ToImmutableArray();
+        .Select(testName =>
+          new TestCase(
+            testName: testName,
+            testProjectPath: options.AbsoluteTestProjectPath,
+            runSettingsPath: options.AbsoluteRunSettingsPath)).ToImmutableArray();
 
+    // Mutation registry
     var mutationRegistry =
       await MutationRegistryPersister.ReconstructRegistryFromDisk(
         options.AbsoluteMutationRegistryPath);
+    var fileEnvVar = string.Empty;
 
+    if (!string.IsNullOrEmpty(options.AbsoluteSourceFileUnderTestPath))
+    {
+      if (string.IsNullOrEmpty(options.AbsoluteProjectUnderTestPath))
+      {
+        throw new ArgumentException(
+          "Project path must be specified if source file path is specified.");
+      }
+      
+      // Derive relative path and create a mutation registry specific for the file
+      var relativePath = Path.GetRelativePath(
+        Path.GetDirectoryName(options.AbsoluteProjectUnderTestPath)!, 
+        options.AbsoluteSourceFileUnderTestPath);
+      
+      mutationRegistry = new ProjectLevelMutationRegistry
+      {
+        ProjectRelativePathToRegistry = new Dictionary<string, FileLevelMutationRegistry>
+        {
+          [relativePath] = mutationRegistry.ProjectRelativePathToRegistry[relativePath]
+        }.ToFrozenDictionary()
+      };
+
+      fileEnvVar = mutationRegistry.ProjectRelativePathToRegistry[relativePath]
+        .EnvironmentVariable;
+      Trace.Assert(fileEnvVar.Length > 0);
+    }
+
+    // Mutant execution trace
+    // Filter the mutant traces with the environment variable corresponding
+    // to the file
     var mutantTraces =
-      await MutantExecutionTraces.ReconstructTraceFromDisk(
-        options.AbsoluteRecordedExecutionTraceDirectory,
-        passingTestCasesSortedByDuration);
+      string.IsNullOrEmpty(options.AbsoluteSourceFileUnderTestPath)
+        ? await MutantExecutionTraces.ReconstructTraceFromDisk(
+          options.AbsoluteRecordedExecutionTraceDirectory,
+          passingTestCasesSortedByDuration)
+        : await MutantExecutionTraces.ReconstructTraceFromDisk(
+          options.AbsoluteRecordedExecutionTraceDirectory,
+          passingTestCasesSortedByDuration,
+          fileEnvVar);
     
     // Sanity checks
     WarnIfExecutionTraceIsAbsent(ref passingTestCasesSortedByDuration, ref mutantTraces);
@@ -106,5 +168,27 @@ internal static class TestHandler
     if (!anyTraceRecorded)
       throw new ArgumentException(
         "Mutant execution trace directory does not contain any execution traces.");
+  }
+  
+  // Sanity check: the mutation registry should match that of tracer's mutation
+  // registry. This defends against the case where a registry corresponding with 
+  // optimised mutant generation is matched with a registry corresponding with
+  // non-optimised mutant generation.
+  private static async Task<bool> CheckMutationRegistryMatches(
+    string registryPath, string tracerRegistryPath)
+  {
+    var registry =
+      (await MutationRegistryPersister.ReconstructRegistryFromDisk(registryPath))
+      .ProjectRelativePathToRegistry;
+
+    var tracerRegistry =
+      (await MutationRegistryPersister.ReconstructRegistryFromDisk(tracerRegistryPath))
+      .ProjectRelativePathToRegistry;
+
+    return registry.Count == tracerRegistry.Count &&
+           registry.All(entry =>
+             tracerRegistry.ContainsKey(entry.Key) &&
+             entry.Value.Mutations.Count == 
+             tracerRegistry[entry.Key].Mutations.Count);
   }
 }

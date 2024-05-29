@@ -16,13 +16,13 @@ try
       AnalyseOptions,
       GenerateTracerOptions, 
       TraceOptions, 
-      TestOptions>(args)
+      MutationTestOptions>(args)
     .WithNotParsed(MutateHandler.HandleParseError);
   result = await result.WithParsedAsync<MutateOptions>(MutateHandler.RunOptions);
   result = await result.WithParsedAsync<AnalyseOptions>(AnalyseHandler.RunOptions);
   result = await result.WithParsedAsync<GenerateTracerOptions>(MutateHandler.RunOptions);
   result = await result.WithParsedAsync<TraceOptions>(TraceHandler.RunOptions);
-  result = await result.WithParsedAsync<TestOptions>(TestHandler.RunOptions);
+  result = await result.WithParsedAsync<MutationTestOptions>(MutationTestHandler.RunOptions);
   return result.Tag is ParserResultType.Parsed ? 0 : 1;
 }
 catch (Exception e)

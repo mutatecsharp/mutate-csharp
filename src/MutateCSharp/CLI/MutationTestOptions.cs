@@ -5,14 +5,16 @@ using MutateCSharp.Util;
 namespace MutateCSharp.CLI;
 
 [Verb("test", HelpText = "Commence mutation testing using execution trace information.")]
-internal sealed class TestOptions
+internal sealed class MutationTestOptions
 {
+  private readonly string _absoluteSourceFileUnderTestPath = string.Empty;
   private readonly string _absoluteTestProjectPath = string.Empty;
   private readonly string _absolutePassingTestsPath = string.Empty;
   private readonly string _absoluteMutationRegistryPath = string.Empty;
   private readonly string _absoluteExecutionTraceRegistryPath = string.Empty;
   private readonly string _absoluteMutantExecutionTraceDirectory = string.Empty;
   private readonly string _absoluteRunSettingsPath = string.Empty;
+  private readonly string _absoluteProjectUnderTestPath = string.Empty;
 
   [Option("test-project",
     Required = true,
@@ -33,6 +35,25 @@ internal sealed class TestOptions
     get => _absolutePassingTestsPath;
     init => _absolutePassingTestsPath =
       ParseUtil.ParseAbsolutePath(value, FileExtension.Any);
+  }
+
+  [Option("project",
+    HelpText = "Optional. The path to the project under test (.csproj).")]
+  public string AbsoluteProjectUnderTestPath
+  {
+    get => _absoluteProjectUnderTestPath;
+    init => _absoluteProjectUnderTestPath =
+      ParseUtil.ParseAbsolutePath(value, FileExtension.Project);
+  }
+
+  [Option("source-file-under-test",
+    HelpText =
+      "Optional. If specified, mutation testing will only focus its efforts to the particular source file.")]
+  public string AbsoluteSourceFileUnderTestPath
+  {
+    get => _absoluteSourceFileUnderTestPath;
+    init => _absoluteSourceFileUnderTestPath =
+      ParseUtil.ParseAbsolutePath(value, FileExtension.CSharpSourceFile);
   }
 
   [Option("mutation-registry",

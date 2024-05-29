@@ -17,9 +17,15 @@ public sealed class MutantExecutionTraces
   {
     _executionTraces = traces;
   }
-  
+
   public static async Task<MutantExecutionTraces> ReconstructTraceFromDisk(
     string traceDirectory, ImmutableArray<TestCase> testCases)
+  {
+    return await ReconstructTraceFromDisk(traceDirectory, testCases, string.Empty);
+  }
+  
+  public static async Task<MutantExecutionTraces> ReconstructTraceFromDisk(
+    string traceDirectory, ImmutableArray<TestCase> testCases, string envVar)
   {
     var executionTraces = new Dictionary<TestCase, FrozenSet<MutantActivationInfo>>();
 
@@ -36,8 +42,16 @@ public sealed class MutantExecutionTraces
       // Execution trace recorded
       var mutantTracesForTestCase = await File.ReadAllLinesAsync(testTracePath);
 
-      executionTraces[testCase] = mutantTracesForTestCase
-        .Select(ParseRecordedTrace).ToFrozenSet();
+      var parsedTrace = mutantTracesForTestCase.Select(ParseRecordedTrace);
+
+      // If mutation testing is only directed to the specific file, then we
+      // only care about mutants in that file that is covered in the trace
+      if (!string.IsNullOrEmpty(envVar))
+      {
+        parsedTrace = parsedTrace.Where(trace => trace.EnvVar.Equals(envVar));
+      }
+
+      executionTraces[testCase] = parsedTrace.ToFrozenSet();
     }
 
     return new MutantExecutionTraces(executionTraces.ToFrozenDictionary());
