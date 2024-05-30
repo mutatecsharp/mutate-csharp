@@ -9,6 +9,9 @@ namespace MutateCSharp.Util.Converters;
 public sealed class MutantStatusConverter : JsonConverter<
   FrozenDictionary<MutantActivationInfo, MutantStatus>>
 {
+  private static readonly EnumDisplayConverter<MutantStatus>
+    MutantStatusEnumConverter = new();
+  
   public override FrozenDictionary<MutantActivationInfo, MutantStatus> Read(
     ref Utf8JsonReader reader, Type typeToConvert,
     JsonSerializerOptions options)
@@ -19,9 +22,6 @@ public sealed class MutantStatusConverter : JsonConverter<
     {
       throw new JsonException();
     }
-
-    var valueConverter =
-      (JsonConverter<MutantStatus>)options.GetConverter(typeof(MutantStatus));
 
     while (reader.Read())
     {
@@ -36,7 +36,7 @@ public sealed class MutantStatusConverter : JsonConverter<
         var split = key.Split(':');
         reader.Read();
         var value =
-          valueConverter.Read(ref reader, typeof(MutantStatus), options);
+          MutantStatusEnumConverter.Read(ref reader, typeof(MutantStatus), options);
         dictionary.Add(new MutantActivationInfo(split[0], int.Parse(split[1])),
           value);
       }
@@ -50,13 +50,11 @@ public sealed class MutantStatusConverter : JsonConverter<
     JsonSerializerOptions options)
   {
     writer.WriteStartObject();
-    var valueConverter =
-      (JsonConverter<MutantStatus>)options.GetConverter(typeof(MutantStatus));
 
     foreach (var kvp in value)
     {
       writer.WritePropertyName($"{kvp.Key.EnvVar}:{kvp.Key.MutantId}");
-      valueConverter.Write(writer, kvp.Value, options);
+      MutantStatusEnumConverter.Write(writer, kvp.Value, options);
     }
 
     writer.WriteEndObject();
@@ -66,6 +64,9 @@ public sealed class MutantStatusConverter : JsonConverter<
 public sealed class IndividualTestCaseMutantTestResultConverter : JsonConverter<
   FrozenDictionary<MutantActivationInfo, TestRunResult>>
 {
+  private static readonly EnumDisplayConverter<TestRunResult>
+    TestRunResultEnumConverter = new();
+  
   public override FrozenDictionary<MutantActivationInfo, TestRunResult> Read(
     ref Utf8JsonReader reader, Type typeToConvert,
     JsonSerializerOptions options)
@@ -76,9 +77,6 @@ public sealed class IndividualTestCaseMutantTestResultConverter : JsonConverter<
     {
       throw new JsonException();
     }
-
-    var valueConverter =
-      (JsonConverter<TestRunResult>)options.GetConverter(typeof(TestRunResult));
 
     while (reader.Read())
     {
@@ -93,8 +91,9 @@ public sealed class IndividualTestCaseMutantTestResultConverter : JsonConverter<
         var split = key.Split(':');
         reader.Read();
         var value =
-          valueConverter.Read(ref reader, typeof(MutantStatus), options);
-        dictionary.Add(new MutantActivationInfo(split[0], int.Parse(split[1])),
+          TestRunResultEnumConverter.Read(ref reader, typeof(MutantStatus), options);
+        dictionary.Add(
+          new MutantActivationInfo(split[0], int.Parse(split[1])),
           value);
       }
     }
@@ -107,13 +106,11 @@ public sealed class IndividualTestCaseMutantTestResultConverter : JsonConverter<
     JsonSerializerOptions options)
   {
     writer.WriteStartObject();
-    var valueConverter =
-      (JsonConverter<TestRunResult>)options.GetConverter(typeof(TestRunResult));
 
     foreach (var kvp in value)
     {
       writer.WritePropertyName($"{kvp.Key.EnvVar}:{kvp.Key.MutantId}");
-      valueConverter.Write(writer, kvp.Value, options);
+      TestRunResultEnumConverter.Write(writer, kvp.Value, options);
     }
 
     writer.WriteEndObject();

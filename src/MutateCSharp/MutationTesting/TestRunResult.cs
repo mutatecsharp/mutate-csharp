@@ -1,5 +1,9 @@
+using MutateCSharp.Util.Converters;
+using Newtonsoft.Json;
+
 namespace MutateCSharp.MutationTesting;
 
+[JsonConverter(typeof(EnumDisplayConverter<TestRunResult>))]
 public enum TestRunResult
 {
   None,
