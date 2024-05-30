@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Data;
 using System.Diagnostics;
 using MutateCSharp.MutationTesting;
 using MutateCSharp.Util;
@@ -72,8 +73,13 @@ public sealed class MutantExecutionTraces
   private static MutantActivationInfo ParseRecordedTrace(string trace)
   {
     var result = trace.Split(':');
-    Trace.Assert(result.Length == 2);
-    Trace.Assert(result[0].StartsWith("MUTATE_CSHARP_ACTIVATED_MUTANT"));
+    
+    if (result.Length != 2 ||
+        !result[0].StartsWith("MUTATE_CSHARP_ACTIVATED_MUTANT"))
+    {
+      throw new DataException($"Parse failed: {trace}");
+    }
+    
     return new MutantActivationInfo(
       EnvVar: result[0], MutantId: int.Parse(result[1]));
   }
