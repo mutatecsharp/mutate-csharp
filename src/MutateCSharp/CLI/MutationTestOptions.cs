@@ -15,6 +15,7 @@ internal sealed class MutationTestOptions
   private readonly string _absoluteMutantExecutionTraceDirectory = string.Empty;
   private readonly string _absoluteRunSettingsPath = string.Empty;
   private readonly string _absoluteProjectUnderTestPath = string.Empty;
+  private readonly string _absoluteTemporaryDirectoryPath = string.Empty;
 
   [Option("test-project",
     Required = true,
@@ -120,5 +121,15 @@ internal sealed class MutationTestOptions
     get => _absoluteRunSettingsPath;
     init => _absoluteRunSettingsPath =
       ParseUtil.ParseAbsolutePath(value, FileExtension.DotnetRunSettings);
+  }
+
+  [Option("temporary-directory",
+    HelpText =
+      "The directory that contains artifacts. If specified, it will be emptied between mutation testing iterations.")]
+  public string AbsoluteTemporaryDirectoryPath
+  {
+    get => _absoluteTemporaryDirectoryPath;
+    init => _absoluteTemporaryDirectoryPath =
+      ParseUtil.ParseAbsoluteDirectory(value);
   }
 }

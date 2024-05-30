@@ -98,7 +98,13 @@ internal static class MutationTestHandler
     // Sanity checks
     WarnIfExecutionTraceIsAbsent(ref passingTestCasesSortedByDuration, ref mutantTraces);
 
-    var testHarness = new MutationTestHarness(passingTestCasesSortedByDuration, mutantTraces, mutationRegistry);
+    var testHarness = 
+      new MutationTestHarness(
+        passingTestCasesSortedByDuration, 
+        mutantTraces, 
+        mutationRegistry, 
+        options.AbsoluteTemporaryDirectoryPath
+      );
   
     // Run mutation testing
     var stopwatch = new Stopwatch();

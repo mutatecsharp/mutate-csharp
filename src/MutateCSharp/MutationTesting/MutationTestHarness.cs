@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using MutateCSharp.ExecutionTracing;
+using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 using Serilog;
@@ -35,10 +36,13 @@ public sealed class MutationTestHarness
   private readonly ConcurrentDictionary<TestCase,
     FrozenDictionary<MutantActivationInfo, TestRunResult>> _mutationTestingResults;
 
+  private readonly string _absoluteArtifactPath;
+
   public MutationTestHarness(
     ImmutableArray<TestCase> testsSortedByDuration,
     MutantExecutionTraces executionTraces,
-    ProjectLevelMutationRegistry mutationRegistry)
+    ProjectLevelMutationRegistry mutationRegistry,
+    string absoluteTemporaryDirectoryPath)
   {
     _testsSortedByDuration = testsSortedByDuration;
     _executionTraces = executionTraces;
@@ -54,6 +58,7 @@ public sealed class MutationTestHarness
     _mutationTestingResults =
       new ConcurrentDictionary<TestCase,
         FrozenDictionary<MutantActivationInfo, TestRunResult>>();
+    _absoluteArtifactPath = absoluteTemporaryDirectoryPath;
 
     // Sanity check: each mutant trace entry has a corresponding entry in mutation registry
     var traceableMutants = _testsSortedByDuration
@@ -178,6 +183,11 @@ public sealed class MutationTestHarness
               testCase.Name);
           }
         });
+      
+      // Initiate cleanup if specified.
+      var deleteArtifactsTask =
+        DirectoryCleanup.DeleteAllFilesAndFoldersRecursively(
+          _absoluteArtifactPath);
 
       // 5) Record results
       foreach (var runResult in mutantRunResults)
@@ -205,6 +215,9 @@ public sealed class MutationTestHarness
       }
 
       _mutationTestingResults[testCase] = results.ToFrozenDictionary();
+      
+      // Await cleanup completion.
+      await deleteArtifactsTask;
     }
   
     // 6) Summarise all mutation testing at the end
