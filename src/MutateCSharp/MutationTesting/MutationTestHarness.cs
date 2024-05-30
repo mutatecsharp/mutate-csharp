@@ -10,7 +10,7 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed class MutationTestHarness
 {
-  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
+  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(90);
   private const int MaximumTimeoutScaleFactor = 3;
 
   private readonly ImmutableArray<TestCase> _testsSortedByDuration;
