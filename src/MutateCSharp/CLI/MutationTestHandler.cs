@@ -24,6 +24,8 @@ internal static class MutationTestHandler
                 "registries are the result of the same optimisation level enabled.");
       return;
     }
+
+    Log.Information("Dry run: {DryRun}", options.DryRun);
     
     // Rebuild the test project, as the test project assembly could be stale.
     Log.Information("Building test project: {TestProjectPath}.",
@@ -112,6 +114,8 @@ internal static class MutationTestHandler
     stopwatch.Start();
     var mutationTestResults = await testHarness.PerformMutationTesting();
     stopwatch.Stop();
+
+    if (options.DryRun) return;
     
     // Log results 
     Log.Information("Mutation testing completed.");
