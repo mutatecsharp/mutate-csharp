@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using MutateCSharp.MutationTesting;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.ExecutionTracing;
 
@@ -42,16 +43,26 @@ public sealed class MutantExecutionTraces
       // Execution trace recorded
       var mutantTracesForTestCase = await File.ReadAllLinesAsync(testTracePath);
 
-      var parsedTrace = mutantTracesForTestCase.Select(ParseRecordedTrace);
-
-      // If mutation testing is only directed to the specific file, then we
-      // only care about mutants in that file that is covered in the trace
-      if (!string.IsNullOrEmpty(envVar))
+      try
       {
-        parsedTrace = parsedTrace.Where(trace => trace.EnvVar.Equals(envVar));
-      }
+        var parsedTrace = mutantTracesForTestCase
+          .Select(ParseRecordedTrace);
 
-      executionTraces[testCase] = parsedTrace.ToFrozenSet();
+        // If mutation testing is only directed to the specific file, then we
+        // only care about mutants in that file that is covered in the trace
+        if (!string.IsNullOrEmpty(envVar))
+        {
+          parsedTrace = parsedTrace.Where(trace => trace.EnvVar.Equals(envVar));
+        }
+
+        executionTraces[testCase] = parsedTrace.ToFrozenSet();
+      }
+      catch (Exception)
+      {
+        Log.Error("Error while parsing execution trace for test {TestName}.",
+          testTracePath);
+        throw;
+      }
     }
 
     return new MutantExecutionTraces(executionTraces.ToFrozenDictionary());
@@ -62,6 +73,7 @@ public sealed class MutantExecutionTraces
   {
     var result = trace.Split(':');
     Trace.Assert(result.Length == 2);
+    Trace.Assert(result[0].StartsWith("MUTATE_CSHARP_ACTIVATED_MUTANT"));
     return new MutantActivationInfo(
       EnvVar: result[0], MutantId: int.Parse(result[1]));
   }
