@@ -1,3 +1,4 @@
 [submodule "third-party/fuzz-d"]
 	path = third-party/fuzz-d
 	url = git@github.com:khemichew/fuzz-d.git
+  branch = add-rust-target
