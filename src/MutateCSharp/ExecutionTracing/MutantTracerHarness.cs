@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -20,17 +21,17 @@ public static class MutantTracerHarness
     ImmutableArray<string> testNames,
     string runSettingsPath)
   {
-    var failedTests = new HashSet<string>();
+    var failedTests = new ConcurrentBag<string>();
 
-    foreach (var testName in testNames)
-    {
-      var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
-      var traceFilePath = Path.Combine(outputDirectory, sanitisedName);
-      var exitCode = await TraceExecutionForTest(testProjectDirectory,
-        traceFilePath, testName, runSettingsPath);
-      
-      if (exitCode != 0) failedTests.Add(testName);
-    }
+    await Parallel.ForEachAsync(testNames,
+      async (testName, cancellationToken) =>
+      {
+        var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
+        var traceFilePath = Path.Combine(outputDirectory, sanitisedName);
+        var exitCode = await TraceExecutionForTest(testProjectDirectory,
+          traceFilePath, testName, runSettingsPath);
+        if (exitCode != 0) failedTests.Add(testName);
+      });
 
     return failedTests.ToFrozenSet();
   }
