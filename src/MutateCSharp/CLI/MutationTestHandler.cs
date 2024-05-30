@@ -17,7 +17,7 @@ internal static class MutationTestHandler
     var match = await CheckMutationRegistryMatches(
       options.AbsoluteMutationRegistryPath,
       options.AbsoluteExecutionTraceRegistryPath);
-    
+
     if (!match)
     {
       Log.Error("The mutation registry does not match. Check again if both" +
@@ -26,17 +26,20 @@ internal static class MutationTestHandler
     }
 
     Log.Information("Dry run: {DryRun}", options.DryRun);
-    
+
     // Rebuild the test project, as the test project assembly could be stale.
-    Log.Information("Building test project: {TestProjectPath}.",
-      options.AbsoluteTestProjectPath);
-    var buildExitCode =
-      await DotnetUtil.Build(options.AbsoluteTestProjectPath);
-    if (buildExitCode != 0)
+    if (!options.DryRun)
     {
-      Log.Error(
-        "Test project cannot be rebuild. Perhaps the tracer generation/mutation failed?");
-      return;
+      Log.Information("Building test project: {TestProjectPath}.",
+        options.AbsoluteTestProjectPath);
+      var buildExitCode =
+        await DotnetUtil.Build(options.AbsoluteTestProjectPath);
+      if (buildExitCode != 0)
+      {
+        Log.Error(
+          "Test project cannot be rebuild. Perhaps the tracer generation/mutation failed?");
+        return;
+      }
     }
     
     // (Re)construct the required ingredients to perform mutation testing
