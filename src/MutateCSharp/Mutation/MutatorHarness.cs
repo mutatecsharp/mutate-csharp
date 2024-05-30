@@ -120,6 +120,17 @@ public static class MutatorHarness
         registryBuilder.AddRegistry(fileSchemaRegistry.ToMutationRegistry(relativePath));
     }
     
+    // If in execution tracing mode, add generated file as writer lock
+    if (mutationMode is SyntaxRewriterMode.TraceExecution)
+    {
+      var writerLockGeneratedFilePath = Path.Combine(
+        Path.GetDirectoryName(project.FilePath)!,
+        ExecutionTracerWriterLockGenerator.FileName);
+      
+      await File.WriteAllTextAsync(writerLockGeneratedFilePath, 
+        ExecutionTracerWriterLockGenerator.GenerateGlobalWriterLock());
+    }
+    
     return (mutatedProject, registryBuilder.ToFinalisedRegistry());
   }
 
