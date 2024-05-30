@@ -10,7 +10,7 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed class MutationTestHarness
 {
-  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(1);
+  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(90);
   private const int MaximumTimeoutScaleFactor = 3;
 
   private readonly ImmutableArray<TestCase> _testsSortedByDuration;
@@ -93,51 +93,55 @@ public sealed class MutationTestHarness
     }
     
     // Executes the test cases in order of ascending duration.
-    for (var i = 0; i < _testsSortedByDuration.Length; i++)
+    // Note: the operation will execute at most ProcessorCount operations in parallel.
+    var testsProcessed = 0;
+    var testsToProcess = new ConcurrentQueue<TestCase>(_testsSortedByDuration);
+    
+    await Parallel.ForEachAsync(testsToProcess, async (test, cancellationToken) =>
     {
-      var testCase = _testsSortedByDuration[i];
+      var currentTestOrder = Interlocked.Increment(ref testsProcessed);
+      
       Log.Information(
         "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
-        testCase.Name, i + 1, _testsSortedByDuration.Length);
-
+        test.Name, currentTestOrder, _testsSortedByDuration.Length);
+      
       // 1) Check if any mutants qualify as candidates
       var tracedMutants =
-        _executionTraces.GetCandidateMutantsForTestCase(testCase);
-
+        _executionTraces.GetCandidateMutantsForTestCase(test);
+      
       if (tracedMutants.Count == 0)
       {
         Log.Information(
           "Skipping {TestName} as no mutants were triggered in the test execution path.",
-          testCase.Name);
-        continue;
+          test.Name);
+        return;
       }
-
+      
       var ignoredMutants =
-        tracedMutants.Where(mutant => _killedMutants.ContainsKey(mutant) || 
-                                      _timedOutMutants.ContainsKey(mutant))
+        tracedMutants.Where(mutant => !_coveredAndSurvivedMutants.ContainsKey(mutant))
           .ToImmutableHashSet();
-
+      
       foreach (var mutant in ignoredMutants)
       {
         Log.Information(
           "Skipping mutant {MutantId} in {SourceFile} as it was killed by another test.",
           mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
       }
-
+      
       var candidateMutants = tracedMutants
         .Where(mutant => !ignoredMutants.Contains(mutant)).ToImmutableHashSet();
 
       // 2) Run the test without mutation to check for failures and record time taken
-      var originalRunResult = await testCase.RunTestWithTimeout(DefaultTimeout);
+      var originalRunResult = await test.RunTestWithTimeout(DefaultTimeout);
       if (originalRunResult.testResult is not TestRunResult.Success)
       {
-        Log.Information("Skipping {TestName} as it did not originally pass.",
-          testCase.Name);
-        continue;
+        Log.Information("Skipping {TestName} as it did not originally pass within the time constraint (default: 90 seconds).",
+          test.Name);
+        return;
       }
 
-      // 3) Concurrently run the test with mutations to check for failures
-      // Raise the timeout to be 3x the original timeout with a minimum timeout of 1 seconds
+      // 3) Run the test with mutations to check for failures
+      // Raise the timeout to be 3x the original timeout with a minimum timeout of 90 seconds
       var derivedTimeout =
         originalRunResult.timeTaken.Scale(MaximumTimeoutScaleFactor);
       if (derivedTimeout < DefaultTimeout) derivedTimeout = DefaultTimeout;
@@ -147,54 +151,55 @@ public sealed class MutationTestHarness
           MutantActivationInfo mutant, TestRunResult testResult, TimeSpan
           timeTaken)>();
 
-      // Note: the operation will execute at most ProcessorCount operations in parallel.
-      await Parallel.ForEachAsync(candidateMutants,
-        async (mutant, cancellationToken) =>
-        {
-          var result = await testCase.RunTestWithTimeout(mutant.EnvVar,
-            mutant.MutantId, derivedTimeout);
-          mutantRunResults.Add((mutant, result.testResult, result.timeTaken));
+      foreach (var mutant in candidateMutants)
+      {
+        var result = await test.RunTestWithTimeout(mutant.EnvVar,
+          mutant.MutantId, derivedTimeout);
 
-          // 4) Check result and mark test as killed or surviving
-          if (result.testResult is TestRunResult.Failed)
+        // 4) Check result and mark test as killed or surviving
+        if (result.testResult is TestRunResult.Failed)
+        {
+          _coveredAndSurvivedMutants.TryRemove(mutant, out _);
+          if (!_killedMutants.TryAdd(mutant, test))
+          {
+            Log.Information("Another test has been registered that killed mutant {MutantId} in {SourceFile}.", 
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
+          }
+          else
           {
             Log.Information(
               "Mutant {MutantId} in {SourceFile} has been killed by test {TestName}.",
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
+              test.Name);
           }
-          else if (result.testResult is TestRunResult.Timeout)
+        }
+        else if (result.testResult is TestRunResult.Timeout)
+        {
+          _coveredAndSurvivedMutants.TryRemove(mutant, out _);
+          if (!_timedOutMutants.TryAdd(mutant, test))
+          {
+            Log.Information("Another test has been registered that caused timeout for mutant {MutantId} in {SourceFile}.", 
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
+          }
+          else
           {
             Log.Information(
               "Mutant {MutantId} in {SourceFile} timed out while running {TestName}.",
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
+              test.Name);
           }
-          else if (result.testResult is TestRunResult.Success)
-          {
-            Log.Information(
-              "Mutant {MutantId} in {SourceFile} survives after running {TestName}!",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
-          }
-        });
-
-      // 5) Record results
-      foreach (var runResult in mutantRunResults)
-      {
-        switch (runResult.testResult)
-        {
-          case TestRunResult.Failed:
-            _coveredAndSurvivedMutants.TryRemove(runResult.mutant, out _);
-            _killedMutants.TryAdd(runResult.mutant, testCase);
-            break;
-          case TestRunResult.Timeout:
-            _coveredAndSurvivedMutants.TryRemove(runResult.mutant, out _);
-            _timedOutMutants.TryAdd(runResult.mutant, testCase);
-            break;
         }
+        else if (result.testResult is TestRunResult.Success)
+        {
+          Log.Information(
+            "Mutant {MutantId} in {SourceFile} survives after running {TestName}!",
+            mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+            test.Name);
+        }
+        
+        mutantRunResults.Add((mutant, result.testResult, result.timeTaken));
       }
-
+      
       var results = mutantRunResults.ToDictionary(
         result => result.mutant,
         result => result.testResult);
@@ -203,9 +208,10 @@ public sealed class MutationTestHarness
       {
         results[mutant] = TestRunResult.Skipped;
       }
-
-      _mutationTestingResults[testCase] = results.ToFrozenDictionary();
-    }
+      
+      // 5) Record results for test case
+      _mutationTestingResults[test] = results.ToFrozenDictionary();
+    });
     
     // 6) Summarise all mutation testing at the end
     var mutantStatus = new Dictionary<MutantActivationInfo, MutantStatus>();
