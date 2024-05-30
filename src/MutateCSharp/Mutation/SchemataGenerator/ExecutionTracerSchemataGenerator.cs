@@ -120,6 +120,7 @@ public static class ExecutionTracerSchemataGenerator
             var tracerFilePath = System.Environment.GetEnvironmentVariable("{{MutantTracerFilePathEnvVar}}");
             return !string.IsNullOrEmpty(tracerFilePath) ? tracerFilePath : string.Empty;
           });
+        private static readonly object LockObject = new();
         
         private static readonly System.Collections.Concurrent
           .ConcurrentDictionary<{{MutantIdType}}, byte> MutantsExecuted
@@ -142,7 +143,10 @@ public static class ExecutionTracerSchemataGenerator
           }
               
           // Persist mutant execution trace to disk
-          System.IO.File.AppendAllText(MutantTracerFilePath.Value, string.Join(string.Empty, executedMutants));
+          lock (LockObject)
+          {
+            System.IO.File.AppendAllText(MutantTracerFilePath.Value, string.Join(string.Empty, executedMutants));
+          }
         }
         """;
   }
