@@ -7,7 +7,7 @@ try
 {
   Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
-    .WriteTo.File("log.txt")
+    .WriteTo.File("mutate-csharp.log")
     .WriteTo.Console(LogEventLevel.Information)
     .CreateLogger();
 
