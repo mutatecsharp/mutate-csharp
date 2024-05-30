@@ -38,6 +38,7 @@ public sealed class MutationTestHarness
     FrozenDictionary<MutantActivationInfo, TestRunResult>> _mutationTestingResults;
 
   private readonly string _absoluteArtifactPath;
+  private readonly int _totalTraceableMutantCount;
 
   public MutationTestHarness(
     ImmutableArray<TestCase> testsSortedByDuration,
@@ -87,6 +88,7 @@ public sealed class MutationTestHarness
         new MutantActivationInfo(envVarToRegistry.Key, mutations.Key))).ToHashSet();
 
     _nonTraceableMutants = allMutants.Except(traceableMutants).ToFrozenSet();
+    _totalTraceableMutantCount = traceableMutants.Count;
   }
   
   public async Task<MutationTestResult> PerformMutationTesting()
@@ -102,7 +104,7 @@ public sealed class MutationTestHarness
 
     Log.Information(
       "{TraceableMutantCount} out of {TotalMutantCount} mutants are traceable.",
-      _coveredAndSurvivedMutants.Count, 
+      _totalTraceableMutantCount, 
       _mutantsByEnvVar.Values
         .Select(registry => registry.Mutations.Count).Sum());
     Log.Information(
@@ -128,6 +130,12 @@ public sealed class MutationTestHarness
       Log.Information(
         "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
         testCase.Name, i + 1, _testsSortedByDuration.Length);
+      Log.Information(
+        "Survived mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TotalMutantCount}",
+        _coveredAndSurvivedMutants.Count, 
+        _killedMutants.Count,
+        _timedOutMutants.Count,
+        _totalTraceableMutantCount);
 
       // 1) Check if any mutants qualify as candidates
       var tracedMutants =
