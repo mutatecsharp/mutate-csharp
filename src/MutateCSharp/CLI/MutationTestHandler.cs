@@ -103,7 +103,8 @@ internal static class MutationTestHandler
         passingTestCasesSortedByDuration, 
         mutantTraces, 
         mutationRegistry, 
-        options.AbsoluteTemporaryDirectoryPath
+        options.AbsoluteTemporaryDirectoryPath,
+        options.DryRun
       );
   
     // Run mutation testing

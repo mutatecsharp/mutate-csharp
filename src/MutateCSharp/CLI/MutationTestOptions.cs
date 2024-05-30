@@ -132,4 +132,7 @@ internal sealed class MutationTestOptions
     init => _absoluteTemporaryDirectoryPath =
       ParseUtil.ParseAbsoluteDirectory(value);
   }
+
+  [Option("dry-run", Default = false, HelpText = "Dry run.")]
+  public bool DryRun { get; init; }
 }

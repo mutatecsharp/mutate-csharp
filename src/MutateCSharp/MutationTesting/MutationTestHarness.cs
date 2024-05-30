@@ -13,6 +13,7 @@ public sealed class MutationTestHarness
 {
   private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(90);
   private const int MaximumTimeoutScaleFactor = 3;
+  private readonly bool _dryRun;
 
   private readonly ImmutableArray<TestCase> _testsSortedByDuration;
   private readonly MutantExecutionTraces _executionTraces;
@@ -42,8 +43,10 @@ public sealed class MutationTestHarness
     ImmutableArray<TestCase> testsSortedByDuration,
     MutantExecutionTraces executionTraces,
     ProjectLevelMutationRegistry mutationRegistry,
-    string absoluteTemporaryDirectoryPath)
+    string absoluteTemporaryDirectoryPath,
+    bool dryRun)
   {
+    _dryRun = dryRun;
     _testsSortedByDuration = testsSortedByDuration;
     _executionTraces = executionTraces;
     _mutantsByEnvVar = 
@@ -95,6 +98,27 @@ public sealed class MutationTestHarness
       Log.Warning(
         "Mutant {MutantId} in {SourceFilePath} is not covered by any tests.",
         nonTracedMutant.MutantId, _mutantsByEnvVar[nonTracedMutant.EnvVar].FileRelativePath);
+    }
+
+    Log.Information(
+      "{TraceableMutantCount} out of {TotalMutantCount} mutants are traceable.",
+      _coveredAndSurvivedMutants.Count, 
+      _mutantsByEnvVar.Values
+        .Select(registry => registry.Mutations.Count).Sum());
+    Log.Information(
+      "{RelevantTestCount} out of {TotalTestCount} tests cover one or more mutants.",
+      _testsSortedByDuration
+        .Select(test => _executionTraces.GetCandidateMutantsForTestCase(test))
+        .Count(candidates => candidates.Count > 0), _testsSortedByDuration.Length);
+
+    if (_dryRun)
+    {
+      return new MutationTestResult
+      {
+        MutantTestResultsOfTestCases = FrozenDictionary<string, 
+          FrozenDictionary<MutantActivationInfo, TestRunResult>>.Empty,
+        MutantStatus = FrozenDictionary<MutantActivationInfo, MutantStatus>.Empty
+      };
     }
     
     // Executes the test cases in order of ascending duration.
