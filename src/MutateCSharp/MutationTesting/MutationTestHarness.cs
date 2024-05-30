@@ -10,7 +10,7 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed class MutationTestHarness
 {
-  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(90);
+  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
   private const int MaximumTimeoutScaleFactor = 3;
 
   private readonly ImmutableArray<TestCase> _testsSortedByDuration;
@@ -128,8 +128,12 @@ public sealed class MutationTestHarness
           mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
       }
       
-      var candidateMutants = tracedMutants
-        .Where(mutant => !ignoredMutants.Contains(mutant)).ToImmutableHashSet();
+      // 2) Randomly shuffle the execution order of candidate mutants 
+      // This step is crucial to reduce overlapping work performed
+      var candidateMutantsInterim = tracedMutants
+        .Where(mutant => !ignoredMutants.Contains(mutant)).ToArray();
+      Random.Shared.Shuffle(candidateMutantsInterim);
+      var candidateMutants = candidateMutantsInterim.ToImmutableArray();
 
       // 2) Run the test without mutation to check for failures and record time taken
       var originalRunResult = await test.RunTestWithTimeout(DefaultTimeout);
