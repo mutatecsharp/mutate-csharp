@@ -107,9 +107,12 @@ internal static class TraceHandler
     string testName,
     string runSettingsPath)
   {
+    var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
+    var traceFilePath = Path.Combine(traceOutputDir, sanitisedName);
+    
     var exitCode = await MutantTracerHarness.TraceExecutionForTest(
       testProjectDirectory: testProjectDir, 
-      outputPath: traceOutputDir,
+      outputPath: traceFilePath,
       testName: testName,
       runSettingsPath: runSettingsPath);
     
