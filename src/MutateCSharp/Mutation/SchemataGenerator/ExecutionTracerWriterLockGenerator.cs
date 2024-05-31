@@ -16,7 +16,7 @@ public static class ExecutionTracerWriterLockGenerator
       
       public static class {{Class}}
       {
-        public static readonly object {{LockObjectName}} = new();
+        public static readonly object {{LockObjectName}} = new object();
         
         public static readonly System.Lazy<string> MutantTracerFilePath =
           new System.Lazy<string>(() => {
