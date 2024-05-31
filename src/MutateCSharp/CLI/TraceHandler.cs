@@ -41,15 +41,18 @@ internal static class TraceHandler
     }
 
     // 1) Rebuild the SUT, as the SUT assembly could be stale.
-    Log.Information("Building solution: {TestProjectPath}.",
-      options.AbsoluteTestProjectDirectory);
-    var buildExitCode =
-      await DotnetUtil.Build(options.AbsoluteTestProjectDirectory);
-    if (buildExitCode != 0)
+    if (!options.DoNotBuild)
     {
-      Log.Error(
-        "Solution cannot be rebuild. Perhaps the tracer generation/mutation failed?");
-      return;
+      Log.Information("Building solution: {TestProjectPath}.",
+        options.AbsoluteTestProjectDirectory);
+      var buildExitCode =
+        await DotnetUtil.Build(options.AbsoluteTestProjectDirectory);
+      if (buildExitCode != 0)
+      {
+        Log.Error(
+          "Solution cannot be rebuild. Perhaps the tracer generation/mutation failed?");
+        return;
+      }
     }
     
     // 2) Execute tests and trace which mutants are invoked for each test.

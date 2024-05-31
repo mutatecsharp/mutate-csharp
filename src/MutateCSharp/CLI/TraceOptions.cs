@@ -103,4 +103,8 @@ internal sealed class TraceOptions
     init => _absoluteRunSettingsPath =
       ParseUtil.ParseAbsolutePath(value, FileExtension.DotnetRunSettings);
   }
+  
+  [Option("no-build", Default = false,
+    HelpText = "Do not build test project.")]
+  public bool DoNotBuild { get; init; }
 }
