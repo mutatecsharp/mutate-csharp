@@ -36,7 +36,7 @@ public static class MutantTracerHarness
     return failedTests.ToFrozenSet();
   }
 
-  private static async Task<int> TraceExecutionForTest(
+  public static async Task<int> TraceExecutionForTest(
     string testProjectDirectory,
     string outputPath,
     string testName,

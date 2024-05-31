@@ -13,7 +13,7 @@ internal sealed class TraceOptions
   private readonly string _absoluteMutationRegistryPath = string.Empty;
   private readonly string _absoluteExecutionTraceRegistryPath = string.Empty;
   private readonly string _absoluteRunSettingsPath = string.Empty;
-  
+
   [Option("test-project",
     Required = true,
     HelpText = "The directory/path to test project containing the tests.")]
@@ -45,14 +45,17 @@ internal sealed class TraceOptions
   }
 
   [Option("tests-list",
-    Required = true,
     HelpText = "The list of tests to trace mutant execution against.")]
-  public required string AbsoluteListOfTestsFilePath
+  public string AbsoluteListOfTestsFilePath
   {
     get => _absoluteListOfTestsFilePath;
     init => _absoluteListOfTestsFilePath =
       ParseUtil.ParseAbsolutePath(value, FileExtension.Any);
   }
+
+  [Option("test-name",
+    HelpText = "The full name of test to trace mutant execution against.")]
+  public string SpecifiedTestName { get; init; } = string.Empty;
 
   [Option("mutation-registry",
     Required = true,

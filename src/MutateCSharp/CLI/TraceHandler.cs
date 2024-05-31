@@ -10,11 +10,25 @@ internal static class TraceHandler
 {
   internal static async Task RunOptions(TraceOptions options)
   {
+    // Validation checks
+    var individualTestSpecified =
+      !string.IsNullOrEmpty(options.SpecifiedTestName);
+    var testSuiteSpecified =
+      !string.IsNullOrEmpty(options.AbsoluteListOfTestsFilePath);
+
+    if (individualTestSpecified && testSuiteSpecified ||
+        !(individualTestSpecified && testSuiteSpecified))
+    {
+      throw new ArgumentException(
+        "Either both the test suite and an individual test are specified," +
+        "or both are not provided as input, but only either one is accepted.");
+    }
+    
     if (!Directory.Exists(options.AbsoluteExecutionTraceOutputDirectory))
     {
       Directory.CreateDirectory(options.AbsoluteExecutionTraceOutputDirectory);
     }
-
+    
     var match = await CheckMutationRegistryMatches(
       options.AbsoluteMutationRegistryPath,
       options.AbsoluteExecutionTraceRegistryPath);
@@ -40,23 +54,22 @@ internal static class TraceHandler
     
     // 2) Execute tests and trace which mutants are invoked for each test.
     Log.Information("Tracing mutant execution.");
-    var failedTests = await MutantTracerHarness.TraceExecutionForAllTests(
-      options.AbsoluteTestProjectDirectory,
-      options.AbsoluteExecutionTraceOutputDirectory,
-      await ParseListOfTestsFile(options.AbsoluteListOfTestsFilePath),
-      options.AbsoluteRunSettingsPath);
-
-    Log.Information("Mutant tracing complete.");
     
-    // 3) Record flaky tests.
-    foreach (var failedTest in failedTests)
+    if (individualTestSpecified)
     {
-      Log.Warning("Failed test: {FailedTestName}", failedTest);
+      await ProcessTest(
+        testProjectDir: options.AbsoluteTestProjectDirectory,
+        traceOutputDir: options.AbsoluteExecutionTraceOutputDirectory,
+        testName: options.SpecifiedTestName,
+        runSettingsPath: options.AbsoluteRunSettingsPath);
     }
-
-    if (failedTests.Count > 0)
+    else
     {
-      Log.Warning("Remove the flaky tests that fail by default before proceeding.");
+      await ProcessAllTests(
+        testProjectDir: options.AbsoluteTestProjectDirectory,
+        traceOutputDir: options.AbsoluteExecutionTraceOutputDirectory,
+        testListFilePath: options.AbsoluteListOfTestsFilePath,
+        runSettingsPath: options.AbsoluteRunSettingsPath);
     }
   }
 
@@ -86,5 +99,51 @@ internal static class TraceHandler
   {
     var testNames = await File.ReadAllLinesAsync(filePath);
     return [..testNames.Select(name => name.Trim())];
+  }
+
+  private static async Task ProcessTest(
+    string testProjectDir,
+    string traceOutputDir,
+    string testName,
+    string runSettingsPath)
+  {
+    var exitCode = await MutantTracerHarness.TraceExecutionForTest(
+      testProjectDirectory: testProjectDir, 
+      outputPath: traceOutputDir,
+      testName: testName,
+      runSettingsPath: runSettingsPath);
+    
+    // 3) Record flaky test.
+    if (exitCode != 0)
+    {
+      Log.Warning("Failed test: {FailedTestName}", testName);
+      Log.Warning("Remove the flaky test that fail by default before proceeding.");
+    }
+  }
+
+  private static async Task ProcessAllTests(
+    string testProjectDir, 
+    string traceOutputDir, 
+    string testListFilePath,
+    string runSettingsPath)
+  {
+    var failedTests = await MutantTracerHarness.TraceExecutionForAllTests(
+      testProjectDirectory: testProjectDir,
+      outputDirectory: traceOutputDir,
+      testNames: await ParseListOfTestsFile(testListFilePath),
+      runSettingsPath: runSettingsPath);
+
+    Log.Information("Mutant tracing complete.");
+    
+    // 3) Record flaky tests.
+    foreach (var failedTest in failedTests)
+    {
+      Log.Warning("Failed test: {FailedTestName}", failedTest);
+    }
+
+    if (failedTests.Count > 0)
+    {
+      Log.Warning("Remove the flaky tests that fail by default before proceeding.");
+    }
   }
 }
