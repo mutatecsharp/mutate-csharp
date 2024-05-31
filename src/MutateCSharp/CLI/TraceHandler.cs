@@ -17,7 +17,7 @@ internal static class TraceHandler
       !string.IsNullOrEmpty(options.AbsoluteListOfTestsFilePath);
 
     if (individualTestSpecified && testSuiteSpecified ||
-        !(individualTestSpecified && testSuiteSpecified))
+        !individualTestSpecified && !testSuiteSpecified)
     {
       throw new ArgumentException(
         "Either both the test suite and an individual test are specified," +
