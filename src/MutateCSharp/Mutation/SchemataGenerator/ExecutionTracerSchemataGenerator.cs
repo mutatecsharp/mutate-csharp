@@ -140,7 +140,7 @@ public static class ExecutionTracerSchemataGenerator
           // Persist mutant execution trace to disk
           lock ({{ExecutionTracerWriterLockGenerator.Class}}.{{ExecutionTracerWriterLockGenerator.LockObjectName}})
           {
-            System.IO.File.AppendAllText(MutantTracerFilePath.Value, mutantsToRecord);
+            System.IO.File.AppendAllText({{ExecutionTracerWriterLockGenerator.Class}}.MutantTracerFilePath.Value, mutantsToRecord);
           }
         }
         """;
