@@ -115,19 +115,13 @@ public static class ExecutionTracerSchemataGenerator
       
     return
       $$"""
-        private static readonly System.Lazy<string> MutantTracerFilePath =
-          new System.Lazy<string>(() => {
-            var tracerFilePath = System.Environment.GetEnvironmentVariable("{{MutantTracerFilePathEnvVar}}");
-            return !string.IsNullOrEmpty(tracerFilePath) ? tracerFilePath : string.Empty;
-          });
-        
         private static readonly System.Collections.Concurrent
           .ConcurrentDictionary<{{MutantIdType}}, byte> MutantsExecuted
             = new (System.Environment.ProcessorCount, capacity: {{totalMutationCount}});
 
         private static bool MutantIsAlreadyTraced({{MutantIdType}} lowerBound)
         {
-          return string.IsNullOrEmpty(MutantTracerFilePath.Value) || 
+          return string.IsNullOrEmpty({{ExecutionTracerWriterLockGenerator.Class}}.MutantTracerFilePath.Value) || 
             MutantsExecuted.ContainsKey(lowerBound);
         }
         
@@ -138,13 +132,15 @@ public static class ExecutionTracerSchemataGenerator
           for (var i = lowerBound; i < lowerBound + mutationCount; i++)
           {
             MutantsExecuted.TryAdd(i, byte.MinValue);
-            executedMutants.Add($"{{schemaRegistry.ActivatedMutantEnvVar}}:{i}{System.Environment.NewLine}");
+            executedMutants.Add($"{{schemaRegistry.ActivatedMutantEnvVar}}:{i}\n");
           }
-              
+          
+          var mutantsToRecord = string.Join(string.Empty, executedMutants);
+          
           // Persist mutant execution trace to disk
           lock ({{ExecutionTracerWriterLockGenerator.Class}}.{{ExecutionTracerWriterLockGenerator.LockObjectName}})
           {
-            System.IO.File.AppendAllText(MutantTracerFilePath.Value, string.Join(string.Empty, executedMutants));
+            System.IO.File.AppendAllText(MutantTracerFilePath.Value, mutantsToRecord);
           }
         }
         """;
