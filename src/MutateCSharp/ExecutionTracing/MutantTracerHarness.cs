@@ -52,7 +52,7 @@ public static class MutantTracerHarness
       ? $"--settings \"{runSettingsPath}\""
       : string.Empty;
     var injectEnvVarFlags = $"-e {envVar}=\"{outputPath}\"";
-    var testcaseFilterArgs = $"--filter \"DisplayName~{testName}\"";
+    var testcaseFilterArgs = $"--filter \"DisplayName={testName}\"";
 
     // 3) Create an isolated subprocess with environment variable injected into
     // the subprocess

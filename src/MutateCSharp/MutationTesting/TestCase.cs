@@ -73,7 +73,7 @@ public sealed partial class TestCase(string testName, string testProjectPath = "
 
   private string TestCommandArguments(string mutantFileEnvVar, int mutantId)
   {
-    return $"test {BuildFlags} {LoggerFlags} {SettingsFlag()} -e \"{mutantFileEnvVar}={mutantId}\" --filter \"DisplayName~{Name}\" {testProjectPath}";
+    return $"test {BuildFlags} {LoggerFlags} {SettingsFlag()} -e \"{mutantFileEnvVar}={mutantId}\" --filter \"DisplayName={Name}\" {testProjectPath}";
   }
   
   private string SettingsFlag() => !string.IsNullOrEmpty(runSettingsPath) 
