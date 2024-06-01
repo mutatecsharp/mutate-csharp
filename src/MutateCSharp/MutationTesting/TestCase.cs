@@ -1,3 +1,4 @@
+using System.Data;
 using System.Diagnostics;
 using System.Text;
 using Serilog;
@@ -50,9 +51,16 @@ public sealed partial class TestCase(string testName, string testProjectPath = "
       stopwatch.Stop();
       return (TestRunResult.Timeout, stopwatch.Elapsed);
     }
-    
-    Log.Information(outputTrace.ToString());
 
+    var outputTraceString = outputTrace.ToString();
+    
+    Log.Information(outputTraceString);
+    if (outputTraceString.Contains(
+          "No test matches the given testcase filter"))
+    {
+      throw new DataException($"{Name} failed: test not found");
+    }
+    
     var errorTraceString = errorTrace.ToString();
     if (!string.IsNullOrWhiteSpace(errorTraceString))
     {

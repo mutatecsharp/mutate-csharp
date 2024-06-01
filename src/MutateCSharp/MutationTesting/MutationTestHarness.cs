@@ -158,11 +158,12 @@ public sealed class MutationTestHarness
         "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
         testCase.Name, i + 1, _testsSortedByDuration.Length);
       Log.Information(
-        "Survived mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TotalMutantCount}",
+        "Live mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
         _coveredAndSurvivedMutants.Count,
         _killedMutants.Count,
         _timedOutMutants.Count,
-        _totalTraceableMutantCount);
+        _totalTraceableMutantCount,
+        _nonTraceableMutants.Count);
 
       // 1) Check if the current test has been evaluated or are under evaluation.
       // We perform the check using persisted metadata; this allows us to recover

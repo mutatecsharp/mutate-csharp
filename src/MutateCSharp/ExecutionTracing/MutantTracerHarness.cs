@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Data;
 using System.Diagnostics;
 using System.Text;
 using MutateCSharp.Mutation.SchemataGenerator;
@@ -85,7 +86,14 @@ public static class MutantTracerHarness
     await process.WaitForExitAsync();
 
     // 5) Record test result to console
-    Log.Information(outputTrace.ToString());
+    var outputTraceString = outputTrace.ToString();
+    
+    Log.Information(outputTraceString);
+    if (outputTraceString.Contains(
+          "No test matches the given testcase filter"))
+    {
+      throw new DataException($"{testName} failed: test not found");
+    }
 
     var errorTraceString = errorTrace.ToString();
     if (!string.IsNullOrWhiteSpace(errorTraceString))
