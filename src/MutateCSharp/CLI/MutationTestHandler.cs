@@ -102,14 +102,20 @@ internal static class MutationTestHandler
     
     // Sanity checks
     WarnIfExecutionTraceIsAbsent(ref passingTestCasesSortedByDuration, ref mutantTraces);
+    
+    // Create directories if they don't exist
+    Directory.CreateDirectory(options.AbsoluteTestMetadataDirectory);
+    Directory.CreateDirectory(options.AbsoluteKilledMutantsMetadataDirectory);
 
     var testHarness = 
       new MutationTestHarness(
-        passingTestCasesSortedByDuration, 
-        mutantTraces, 
-        mutationRegistry, 
-        options.AbsoluteTemporaryDirectoryPath,
-        options.DryRun
+        testsSortedByDuration: passingTestCasesSortedByDuration, 
+        executionTraces: mutantTraces, 
+        mutationRegistry: mutationRegistry, 
+        absoluteCompilationTemporaryDirectoryPath: options.AbsoluteCompilationArtifactDirectory,
+        absoluteTestMetadataPath: options.AbsoluteTestMetadataDirectory,
+        absoluteKilledMutantsMetadataPath: options.AbsoluteKilledMutantsMetadataDirectory,
+        dryRun: options.DryRun
       );
   
     // Run mutation testing

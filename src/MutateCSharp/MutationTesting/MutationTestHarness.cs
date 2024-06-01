@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Text.Json;
 using MutateCSharp.ExecutionTracing;
 using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
@@ -25,26 +26,39 @@ public sealed class MutationTestHarness
 
   private readonly FrozenSet<MutantActivationInfo> _nonTraceableMutants;
 
+  // Mutants that survived after the mutation test campaign.
   private readonly ConcurrentDictionary<MutantActivationInfo, byte>
-    _coveredAndSurvivedMutants;
+    _coveredAndSurvivedMutants; 
+  
+  // Mutants that are independently discovered to be killed or timed out.
+  private readonly ConcurrentDictionary<MutantActivationInfo, byte>
+    _skippedMutants; 
 
+  // Mutants that are killed during the mutation test campaign.
   private readonly ConcurrentDictionary<MutantActivationInfo, TestCase>
     _killedMutants;
 
+  // Mutants that timed out during the mutation test campaign.
+  // We treat these mutants as killed.
   private readonly ConcurrentDictionary<MutantActivationInfo, TestCase>
     _timedOutMutants;
 
   private readonly ConcurrentDictionary<TestCase,
     FrozenDictionary<MutantActivationInfo, TestRunResult>> _mutationTestingResults;
 
-  private readonly string _absoluteArtifactPath;
+  private readonly string _absoluteCompilationArtifactPath;
+  private readonly string _absoluteTestMetadataPath;
+  private readonly string _absoluteKilledMutantsMetadataPath;
+  
   private readonly int _totalTraceableMutantCount;
 
   public MutationTestHarness(
     ImmutableArray<TestCase> testsSortedByDuration,
     MutantExecutionTraces executionTraces,
     ProjectLevelMutationRegistry mutationRegistry,
-    string absoluteTemporaryDirectoryPath,
+    string absoluteCompilationTemporaryDirectoryPath,
+    string absoluteTestMetadataPath,
+    string absoluteKilledMutantsMetadataPath,
     bool dryRun)
   {
     _dryRun = dryRun;
@@ -55,6 +69,8 @@ public sealed class MutationTestHarness
       .Values
       .ToFrozenDictionary(registry => registry.EnvironmentVariable,
         registry => registry);
+    _skippedMutants =
+      new ConcurrentDictionary<MutantActivationInfo, byte>();
     _killedMutants = 
       new ConcurrentDictionary<MutantActivationInfo, TestCase>();
     _timedOutMutants =
@@ -62,7 +78,9 @@ public sealed class MutationTestHarness
     _mutationTestingResults =
       new ConcurrentDictionary<TestCase,
         FrozenDictionary<MutantActivationInfo, TestRunResult>>();
-    _absoluteArtifactPath = absoluteTemporaryDirectoryPath;
+    _absoluteCompilationArtifactPath = absoluteCompilationTemporaryDirectoryPath;
+    _absoluteTestMetadataPath = absoluteTestMetadataPath;
+    _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
 
     // Sanity check: each mutant trace entry has a corresponding entry in mutation registry
     var traceableMutants = _testsSortedByDuration
@@ -107,6 +125,7 @@ public sealed class MutationTestHarness
       _totalTraceableMutantCount, 
       _mutantsByEnvVar.Values
         .Select(registry => registry.Mutations.Count).Sum());
+    
     Log.Information(
       "{RelevantTestCount} out of {TotalTestCount} tests cover one or more mutants.",
       _testsSortedByDuration
@@ -136,8 +155,26 @@ public sealed class MutationTestHarness
         _killedMutants.Count,
         _timedOutMutants.Count,
         _totalTraceableMutantCount);
+      
+      // 1) Check if the current test has been evaluated or are under evaluation.
+      // We perform the check using persisted metadata; this allows us to recover
+      // from crashes and start at the same spot where we left off.
+      var testCaseMetadataDir = Path.Combine(_absoluteTestMetadataPath,
+        TestCaseUtil.ValidTestFileName(testCase.Name));
+      
+      // Note: this check is not thread-safe, and assumes only this program
+      // instance is working on mutation testing.
+      if (Directory.Exists(testCaseMetadataDir))
+      {
+        Log.Information(
+          "Skipping {TestName} as it is under evaluation or has been evaluated.",
+          testCase.Name);
+        continue;
+      }
 
-      // 1) Check if any mutants qualify as candidates
+      Directory.CreateDirectory(testCaseMetadataDir);
+
+      // 2) Check if any mutants qualify as candidates
       var tracedMutants =
         _executionTraces.GetCandidateMutantsForTestCase(testCase);
 
@@ -150,21 +187,20 @@ public sealed class MutationTestHarness
       }
 
       var ignoredMutants =
-        tracedMutants.Where(mutant => _killedMutants.ContainsKey(mutant) || 
-                                      _timedOutMutants.ContainsKey(mutant))
+        tracedMutants.Where(mutant => !_coveredAndSurvivedMutants.ContainsKey(mutant))
           .ToImmutableHashSet();
 
       foreach (var mutant in ignoredMutants)
       {
         Log.Information(
-          "Skipping mutant {MutantId} in {SourceFile} as it was killed by another test.",
+          "Skipping mutant {MutantId} in {SourceFile} as it was evaluated as killed/timed out.",
           mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
       }
 
       var candidateMutants = tracedMutants
         .Where(mutant => !ignoredMutants.Contains(mutant)).ToImmutableHashSet();
 
-      // 2) Run the test without mutation to check for failures and record time taken
+      // 3) Run the test without mutation to check for failures and record time taken
       var originalRunResult = await testCase.RunTestWithTimeout(DefaultTimeout);
       if (originalRunResult.testResult is not TestRunResult.Success)
       {
@@ -173,26 +209,74 @@ public sealed class MutationTestHarness
         continue;
       }
 
-      // 3) Concurrently run the test with mutations to check for failures
-      // Raise the timeout to be 3x the original timeout with a minimum timeout of 1 seconds
+      // 4) Concurrently run the test with mutations to check for failures
+      // Raise the timeout to be 3x the original timeout with a minimum timeout of 90 seconds
       var derivedTimeout =
         originalRunResult.timeTaken.Scale(MaximumTimeoutScaleFactor);
       if (derivedTimeout < DefaultTimeout) derivedTimeout = DefaultTimeout;
 
       var mutantRunResults =
-        new ConcurrentBag<(
-          MutantActivationInfo mutant, TestRunResult testResult, TimeSpan
-          timeTaken)>();
+        new ConcurrentBag<(MutantActivationInfo mutant, TestRunResult testResult)>();
 
       // Note: the operation will execute at most ProcessorCount operations in parallel.
       await Parallel.ForEachAsync(candidateMutants,
         async (mutant, cancellationToken) =>
         {
+          // 5) Check if mutant is already killed.
+          var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
+          var killedMutantMetadataDir =
+            Path.Combine(_absoluteKilledMutantsMetadataPath, mutantFileName);
+          
+          if (Directory.Exists(killedMutantMetadataDir))
+          {
+            Log.Information("Skipping mutant {MutantId} in {SourceFile} as it has been killed.",
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
+            mutantRunResults.Add((mutant, TestRunResult.Skipped));
+            return;
+          }
+          
           var result = await testCase.RunTestWithTimeout(mutant.EnvVar,
             mutant.MutantId, derivedTimeout);
-          mutantRunResults.Add((mutant, result.testResult, result.timeTaken));
+          mutantRunResults.Add((mutant, result.testResult));
+          if (result.testResult is TestRunResult.Success)
+          {
+            Log.Information(
+              "Mutant {MutantId} in {SourceFile} survives after running {TestName}!",
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+              testCase.Name);
+            return;
+          }
+          
+          // 6) Persist individual mutant kill result.
+          // Note: since all mutants are only tested at most once concurrently,
+          // we don't have to check if the mutant is killed again.
+          var jsonData = new { 
+            mutant = $"{mutant.EnvVar}:{mutant.MutantId}", 
+            killed_by_test = testCase.Name,
+            kill_status = result.testResult.ToString()
+          };
 
-          // 4) Check result and mark test as killed or surviving
+          var killMetadataPath =
+            Path.Combine(killedMutantMetadataDir, "kill_info.json");
+          
+          try
+          {
+            Directory.CreateDirectory(killedMutantMetadataDir);
+            Log.Information(
+              "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+              killMetadataPath);
+            await File.WriteAllTextAsync(killMetadataPath, JsonSerializer.Serialize(jsonData), cancellationToken);
+          }
+          catch (Exception)
+          {
+            Log.Error(
+              "Kill information could not be recorded for mutant {MutantId} in {SourceFile} against test {TestName}.",
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+              testCase.Name);
+          }
+
+          // 5) Check result and mark test as killed or surviving
           if (result.testResult is TestRunResult.Failed)
           {
             Log.Information(
@@ -207,21 +291,9 @@ public sealed class MutationTestHarness
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
               testCase.Name);
           }
-          else if (result.testResult is TestRunResult.Success)
-          {
-            Log.Information(
-              "Mutant {MutantId} in {SourceFile} survives after running {TestName}!",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
-          }
         });
-      
-      // Initiate cleanup if specified.
-      var deleteArtifactsTask =
-        DirectoryCleanup.DeleteAllFilesAndFoldersRecursively(
-          _absoluteArtifactPath);
 
-      // 5) Record results
+      // 6) Record results (put the killed mutants in corresponding bins)
       foreach (var runResult in mutantRunResults)
       {
         switch (runResult.testResult)
@@ -233,6 +305,10 @@ public sealed class MutationTestHarness
           case TestRunResult.Timeout:
             _coveredAndSurvivedMutants.TryRemove(runResult.mutant, out _);
             _timedOutMutants.TryAdd(runResult.mutant, testCase);
+            break;
+          case TestRunResult.Skipped:
+            _coveredAndSurvivedMutants.TryRemove(runResult.mutant, out _);
+            _skippedMutants.TryAdd(runResult.mutant, byte.MinValue);
             break;
         }
       }
@@ -248,11 +324,15 @@ public sealed class MutationTestHarness
 
       _mutationTestingResults[testCase] = results.ToFrozenDictionary();
       
-      // Await cleanup completion.
-      await deleteArtifactsTask;
+      // 7) Persist current test case result summary.
+      
+      
+      // Delete compilation artifacts.
+      DirectoryCleanup.DeleteAllDirectoryContents(
+        _absoluteCompilationArtifactPath);
     }
   
-    // 6) Summarise all mutation testing at the end
+    // 6) Summarise all mutation testing at the end.
     var mutantStatus = new Dictionary<MutantActivationInfo, MutantStatus>();
     foreach (var mutantEntry in _killedMutants)
     {
@@ -269,6 +349,11 @@ public sealed class MutationTestHarness
     foreach (var mutantEntry in _coveredAndSurvivedMutants)
     {
       mutantStatus[mutantEntry.Key] = MutantStatus.Survived;
+    }
+
+    foreach (var mutantEntry in _skippedMutants)
+    {
+      mutantStatus[mutantEntry.Key] = MutantStatus.Skipped;
     }
 
     return new MutationTestResult

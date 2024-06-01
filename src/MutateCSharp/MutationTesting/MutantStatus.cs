@@ -9,6 +9,7 @@ public enum MutantStatus
   None,
   Killed,
   Survived,
+  Skipped,
   Timeout,
   Uncovered
 }

@@ -15,7 +15,9 @@ internal sealed class MutationTestOptions
   private readonly string _absoluteMutantExecutionTraceDirectory = string.Empty;
   private readonly string _absoluteRunSettingsPath = string.Empty;
   private readonly string _absoluteProjectUnderTestPath = string.Empty;
-  private readonly string _absoluteTemporaryDirectoryPath = string.Empty;
+  private readonly string _absoluteCompilationArtifactDirectory = string.Empty;
+  private readonly string _absoluteTestMetadataDirectory = string.Empty;
+  private readonly string _absoluteKilledMutantsMetadataDirectory = string.Empty;
 
   [Option("test-project",
     Required = true,
@@ -96,7 +98,8 @@ internal sealed class MutationTestOptions
     }
   }
 
-  [Option("mutant-traces", Required = true, HelpText = "The directory to mutant execution trace.")]
+  [Option("mutant-traces", Required = true, 
+    HelpText = "The directory to mutant execution trace.")]
   public required string AbsoluteRecordedExecutionTraceDirectory
   {
     get => _absoluteMutantExecutionTraceDirectory;
@@ -123,16 +126,36 @@ internal sealed class MutationTestOptions
       ParseUtil.ParseAbsolutePath(value, FileExtension.DotnetRunSettings);
   }
 
-  [Option("temporary-directory",
+  [Option("compilation-artifact-directory",
     HelpText =
-      "The directory that contains artifacts. If specified, it will be emptied between mutation testing iterations.")]
-  public string AbsoluteTemporaryDirectoryPath
+      "The directory that contains compilation artifacts. If specified, it will be emptied between mutation testing iterations.")]
+  public string AbsoluteCompilationArtifactDirectory
   {
-    get => _absoluteTemporaryDirectoryPath;
-    init => _absoluteTemporaryDirectoryPath =
+    get => _absoluteCompilationArtifactDirectory;
+    init => _absoluteCompilationArtifactDirectory =
       ParseUtil.ParseAbsoluteDirectory(value);
   }
 
-  [Option("dry-run", Default = false, HelpText = "Dry run.")]
+  [Option("test-output", Required = true,
+    HelpText =
+      "The output directory to store metadata of tests currently being worked on.")]
+  public string AbsoluteTestMetadataDirectory
+  {
+    get => _absoluteTestMetadataDirectory;
+    init => _absoluteTestMetadataDirectory =
+      ParseUtil.ParseAbsoluteDirectory(value);
+  }
+
+  [Option("killed-mutants-output", Required = true,
+    HelpText =
+      "The output directory to store metadata of mutants killed by tests.")]
+  public string AbsoluteKilledMutantsMetadataDirectory
+  {
+    get => _absoluteKilledMutantsMetadataDirectory;
+    init => _absoluteKilledMutantsMetadataDirectory =
+      ParseUtil.ParseAbsoluteDirectory(value);
+  }
+
+  [Option("dry-run", Default = false, HelpText = "Perform dry run.")]
   public bool DryRun { get; init; }
 }
