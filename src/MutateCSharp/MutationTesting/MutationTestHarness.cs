@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Data;
 using System.Text.Json;
 using MutateCSharp.ExecutionTracing;
 using MutateCSharp.FileSystem;
@@ -28,11 +29,11 @@ public sealed class MutationTestHarness
 
   // Mutants that survived after the mutation test campaign.
   private readonly ConcurrentDictionary<MutantActivationInfo, byte>
-    _coveredAndSurvivedMutants; 
-  
+    _coveredAndSurvivedMutants;
+
   // Mutants that are independently discovered to be killed or timed out.
   private readonly ConcurrentDictionary<MutantActivationInfo, byte>
-    _skippedMutants; 
+    _skippedMutants;
 
   // Mutants that are killed during the mutation test campaign.
   private readonly ConcurrentDictionary<MutantActivationInfo, TestCase>
@@ -44,12 +45,13 @@ public sealed class MutationTestHarness
     _timedOutMutants;
 
   private readonly ConcurrentDictionary<TestCase,
-    FrozenDictionary<MutantActivationInfo, TestRunResult>> _mutationTestingResults;
+      FrozenDictionary<MutantActivationInfo, TestRunResult>>
+    _mutationTestingResults;
 
   private readonly string _absoluteCompilationArtifactPath;
   private readonly string _absoluteTestMetadataPath;
   private readonly string _absoluteKilledMutantsMetadataPath;
-  
+
   private readonly int _totalTraceableMutantCount;
 
   public MutationTestHarness(
@@ -64,21 +66,22 @@ public sealed class MutationTestHarness
     _dryRun = dryRun;
     _testsSortedByDuration = testsSortedByDuration;
     _executionTraces = executionTraces;
-    _mutantsByEnvVar = 
+    _mutantsByEnvVar =
       mutationRegistry.ProjectRelativePathToRegistry
-      .Values
-      .ToFrozenDictionary(registry => registry.EnvironmentVariable,
-        registry => registry);
+        .Values
+        .ToFrozenDictionary(registry => registry.EnvironmentVariable,
+          registry => registry);
     _skippedMutants =
       new ConcurrentDictionary<MutantActivationInfo, byte>();
-    _killedMutants = 
+    _killedMutants =
       new ConcurrentDictionary<MutantActivationInfo, TestCase>();
     _timedOutMutants =
       new ConcurrentDictionary<MutantActivationInfo, TestCase>();
     _mutationTestingResults =
       new ConcurrentDictionary<TestCase,
         FrozenDictionary<MutantActivationInfo, TestRunResult>>();
-    _absoluteCompilationArtifactPath = absoluteCompilationTemporaryDirectoryPath;
+    _absoluteCompilationArtifactPath =
+      absoluteCompilationTemporaryDirectoryPath;
     _absoluteTestMetadataPath = absoluteTestMetadataPath;
     _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
 
@@ -88,27 +91,29 @@ public sealed class MutationTestHarness
       .ToHashSet();
 
     var illegalMutant = traceableMutants.FirstOrDefault(
-        mutant => !_mutantsByEnvVar.ContainsKey(mutant.EnvVar) || 
-                  !_mutantsByEnvVar[mutant.EnvVar].Mutations.ContainsKey(mutant.MutantId));
-    
+      mutant => !_mutantsByEnvVar.ContainsKey(mutant.EnvVar) ||
+                !_mutantsByEnvVar[mutant.EnvVar].Mutations
+                  .ContainsKey(mutant.MutantId));
+
     if (illegalMutant is not null)
     {
       throw new InvalidDataException(
         $"Found mutant {illegalMutant.MutantId} of {illegalMutant.EnvVar} in execution trace that do not belong to the supplied mutation registry.");
     }
-    
+
     _coveredAndSurvivedMutants =
       new ConcurrentDictionary<MutantActivationInfo, byte>(
         traceableMutants.ToDictionary(mutant => mutant, _ => byte.MinValue));
 
     var allMutants = _mutantsByEnvVar.SelectMany(envVarToRegistry =>
-      envVarToRegistry.Value.Mutations.Select(mutations =>
-        new MutantActivationInfo(envVarToRegistry.Key, mutations.Key))).ToHashSet();
+        envVarToRegistry.Value.Mutations.Select(mutations =>
+          new MutantActivationInfo(envVarToRegistry.Key, mutations.Key)))
+      .ToHashSet();
 
     _nonTraceableMutants = allMutants.Except(traceableMutants).ToFrozenSet();
     _totalTraceableMutantCount = traceableMutants.Count;
   }
-  
+
   public async Task<MutationTestResult> PerformMutationTesting()
   {
     // Flags mutants not traced by any tests early. Surfacing these mutants
@@ -117,31 +122,34 @@ public sealed class MutationTestHarness
     {
       Log.Warning(
         "Mutant {MutantId} in {SourceFilePath} is not covered by any tests.",
-        nonTracedMutant.MutantId, _mutantsByEnvVar[nonTracedMutant.EnvVar].FileRelativePath);
+        nonTracedMutant.MutantId,
+        _mutantsByEnvVar[nonTracedMutant.EnvVar].FileRelativePath);
     }
 
     Log.Information(
       "{TraceableMutantCount} out of {TotalMutantCount} mutants are traceable.",
-      _totalTraceableMutantCount, 
+      _totalTraceableMutantCount,
       _mutantsByEnvVar.Values
         .Select(registry => registry.Mutations.Count).Sum());
-    
+
     Log.Information(
       "{RelevantTestCount} out of {TotalTestCount} tests cover one or more mutants.",
       _testsSortedByDuration
         .Select(test => _executionTraces.GetCandidateMutantsForTestCase(test))
-        .Count(candidates => candidates.Count > 0), _testsSortedByDuration.Length);
+        .Count(candidates => candidates.Count > 0),
+      _testsSortedByDuration.Length);
 
     if (_dryRun)
     {
       return new MutationTestResult
       {
-        MutantTestResultsOfTestCases = FrozenDictionary<string, 
+        MutantTestResultsOfTestCases = FrozenDictionary<string,
           FrozenDictionary<MutantActivationInfo, TestRunResult>>.Empty,
-        MutantStatus = FrozenDictionary<MutantActivationInfo, MutantStatus>.Empty
+        MutantStatus =
+          FrozenDictionary<MutantActivationInfo, MutantStatus>.Empty
       };
     }
-    
+
     // Executes the test cases in order of ascending duration.
     for (var i = 0; i < _testsSortedByDuration.Length; i++)
     {
@@ -151,17 +159,17 @@ public sealed class MutationTestHarness
         testCase.Name, i + 1, _testsSortedByDuration.Length);
       Log.Information(
         "Survived mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TotalMutantCount}",
-        _coveredAndSurvivedMutants.Count, 
+        _coveredAndSurvivedMutants.Count,
         _killedMutants.Count,
         _timedOutMutants.Count,
         _totalTraceableMutantCount);
-      
+
       // 1) Check if the current test has been evaluated or are under evaluation.
       // We perform the check using persisted metadata; this allows us to recover
       // from crashes and start at the same spot where we left off.
       var testCaseMetadataDir = Path.Combine(_absoluteTestMetadataPath,
         TestCaseUtil.ValidTestFileName(testCase.Name));
-      
+
       // Note: this check is not thread-safe, and assumes only this program
       // instance is working on mutation testing.
       if (Directory.Exists(testCaseMetadataDir))
@@ -187,7 +195,8 @@ public sealed class MutationTestHarness
       }
 
       var ignoredMutants =
-        tracedMutants.Where(mutant => !_coveredAndSurvivedMutants.ContainsKey(mutant))
+        tracedMutants.Where(mutant =>
+            !_coveredAndSurvivedMutants.ContainsKey(mutant))
           .ToImmutableHashSet();
 
       foreach (var mutant in ignoredMutants)
@@ -216,25 +225,29 @@ public sealed class MutationTestHarness
       if (derivedTimeout < DefaultTimeout) derivedTimeout = DefaultTimeout;
 
       var mutantRunResults =
-        new ConcurrentBag<(MutantActivationInfo mutant, TestRunResult testResult)>();
+        new ConcurrentBag<(MutantActivationInfo mutant, TestRunResult testResult
+          )>();
 
       // Note: the operation will execute at most ProcessorCount operations in parallel.
       await Parallel.ForEachAsync(candidateMutants,
         async (mutant, cancellationToken) =>
         {
           // 5) Check if mutant is already killed.
+          // Important to check that the python script also has the same name.
           var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
           var killedMutantMetadataDir =
             Path.Combine(_absoluteKilledMutantsMetadataPath, mutantFileName);
-          
+
           if (Directory.Exists(killedMutantMetadataDir))
           {
-            Log.Information("Skipping mutant {MutantId} in {SourceFile} as it has been killed.",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
+            Log.Information(
+              "Skipping mutant {MutantId} in {SourceFile} as it has been killed.",
+              mutant.MutantId,
+              _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
             mutantRunResults.Add((mutant, TestRunResult.Skipped));
             return;
           }
-          
+
           var result = await testCase.RunTestWithTimeout(mutant.EnvVar,
             mutant.MutantId, derivedTimeout);
           mutantRunResults.Add((mutant, result.testResult));
@@ -246,19 +259,20 @@ public sealed class MutationTestHarness
               testCase.Name);
             return;
           }
-          
+
           // 6) Persist individual mutant kill result.
           // Note: since all mutants are only tested at most once concurrently,
           // we don't have to check if the mutant is killed again.
-          var jsonData = new { 
-            mutant = $"{mutant.EnvVar}:{mutant.MutantId}", 
+          var jsonData = new
+          {
+            mutant = $"{mutant.EnvVar}:{mutant.MutantId}",
             killed_by_test = testCase.Name,
             kill_status = result.testResult.ToString()
           };
 
           var killMetadataPath =
             Path.Combine(killedMutantMetadataDir, "kill_info.json");
-          
+
           try
           {
             Directory.CreateDirectory(killedMutantMetadataDir);
@@ -266,7 +280,8 @@ public sealed class MutationTestHarness
               "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
               killMetadataPath);
-            await File.WriteAllTextAsync(killMetadataPath, JsonSerializer.Serialize(jsonData), cancellationToken);
+            await File.WriteAllTextAsync(killMetadataPath,
+              JsonSerializer.Serialize(jsonData), cancellationToken);
           }
           catch (Exception)
           {
@@ -293,7 +308,7 @@ public sealed class MutationTestHarness
           }
         });
 
-      // 6) Record results (put the killed mutants in corresponding bins)
+      // 7) Record results (put the killed mutants in corresponding bins)
       foreach (var runResult in mutantRunResults)
       {
         switch (runResult.testResult)
@@ -323,29 +338,83 @@ public sealed class MutationTestHarness
       }
 
       _mutationTestingResults[testCase] = results.ToFrozenDictionary();
-      
-      // 7) Persist current test case result summary.
-      
-      
+
+      // Sanity check: result list should have the same mutants as traced mutant list
+      if (tracedMutants.Count != results.Count)
+      {
+        throw new DataException(
+          $"Number of evaluated mutants do not match number of" +
+          $"traced mutants for test {testCase.Name}");
+      }
+
+      foreach (var mutantInfo in results.Keys.Where(mutantInfo => !tracedMutants.Contains(mutantInfo)))
+      {
+        throw new DataException(
+          $"Mutant {mutantInfo.MutantId} in {_mutantsByEnvVar[mutantInfo.EnvVar].FileRelativePath} is traced by test {testCase.Name} but not evaluated.");
+      }
+
+      // 8) Persist current test case result summary.
+      var testSummary = new
+      {
+        test_name = testCase.Name,
+        killed_mutants = results
+          .Where(entry =>
+            entry.Value is TestRunResult.Failed or TestRunResult.Timeout)
+          .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+          .ToArray(),
+        skipped_mutants = results
+          .Where(entry => entry.Value is TestRunResult.Skipped)
+          .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+          .ToArray(),
+        survived_mutants = results
+          .Where(entry => entry.Value is TestRunResult.Success)
+          .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+          .ToArray(),
+        covered_mutants = results.Select(entry =>
+            $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+          .ToArray()
+      };
+
+      var testSummaryPath =
+        Path.Combine(testCaseMetadataDir, "test-summary.json");
+
+      try
+      {
+        Log.Information(
+          "Persisting test result summary of {TestName} to {Path}.",
+          testCase.Name, testSummaryPath);
+        await File.WriteAllTextAsync(testSummaryPath,
+          JsonSerializer.Serialize(testSummary));
+      }
+      catch (Exception)
+      {
+        Log.Error(
+          "Test summary cannot be recorded for test {TestName}.",
+          testCase.Name);
+      }
+
       // Delete compilation artifacts.
       DirectoryCleanup.DeleteAllDirectoryContents(
         _absoluteCompilationArtifactPath);
     }
-  
-    // 6) Summarise all mutation testing at the end.
+
+    // 9) Summarise all mutation testing at the end.
     var mutantStatus = new Dictionary<MutantActivationInfo, MutantStatus>();
     foreach (var mutantEntry in _killedMutants)
     {
       mutantStatus[mutantEntry.Key] = MutantStatus.Killed;
     }
+
     foreach (var mutantEntry in _timedOutMutants)
     {
       mutantStatus[mutantEntry.Key] = MutantStatus.Timeout;
     }
+
     foreach (var mutant in _nonTraceableMutants)
     {
       mutantStatus[mutant] = MutantStatus.Uncovered;
     }
+
     foreach (var mutantEntry in _coveredAndSurvivedMutants)
     {
       mutantStatus[mutantEntry.Key] = MutantStatus.Survived;
@@ -359,7 +428,8 @@ public sealed class MutationTestHarness
     return new MutationTestResult
     {
       MutantTestResultsOfTestCases = _mutationTestingResults
-        .ToDictionary(testCaseToMutantResults => testCaseToMutantResults.Key.Name, 
+        .ToDictionary(
+          testCaseToMutantResults => testCaseToMutantResults.Key.Name,
           entry => entry.Value).ToFrozenDictionary(),
       MutantStatus = mutantStatus.ToFrozenDictionary()
     };
