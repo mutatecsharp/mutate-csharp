@@ -1,7 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Data;
-using System.Diagnostics;
 using MutateCSharp.MutationTesting;
 using MutateCSharp.Util;
 using Serilog;

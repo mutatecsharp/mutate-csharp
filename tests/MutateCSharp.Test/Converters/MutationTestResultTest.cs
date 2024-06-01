@@ -13,19 +13,6 @@ public class MutationTestResultTest(ITestOutputHelper testOutputHelper)
   private static readonly MutationTestResult ExampleMutationTestResult =
     new()
     {
-      MutantTestResultsOfTestCases = 
-        new Dictionary<string, FrozenDictionary<MutantActivationInfo, TestRunResult>>
-      {
-        ["first-test"] = new Dictionary<MutantActivationInfo, TestRunResult>
-            {
-              [new MutantActivationInfo("mutant-1", 23)] = TestRunResult.Failed
-            }.ToFrozenDictionary(),
-        ["second-test"] = new Dictionary<MutantActivationInfo, TestRunResult>
-        {
-          [new MutantActivationInfo("mutant-2", 42)] = TestRunResult.Failed,
-          [new MutantActivationInfo("mutant-3", 32)] = TestRunResult.Success
-        }.ToFrozenDictionary(),
-      }.ToFrozenDictionary(),
       MutantStatus = new Dictionary<MutantActivationInfo, MutantStatus>
       {
         [new MutantActivationInfo("mutant-3", 12)] = MutantStatus.Survived,

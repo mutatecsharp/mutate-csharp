@@ -8,13 +8,6 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed record MutationTestResult
 {
-  // Test case name to a collection of mutant test run results.
-  [JsonInclude]
-  [JsonConverter(typeof(MutantTestResultsConverter))]
-  public required
-    FrozenDictionary<string, FrozenDictionary<MutantActivationInfo, TestRunResult>>
-    MutantTestResultsOfTestCases;
-
   // One of { Survived, Killed, Timeout, Uncovered }.
   [JsonInclude] 
   [JsonConverter(typeof(MutantStatusConverter))]

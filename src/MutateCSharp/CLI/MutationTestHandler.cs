@@ -118,10 +118,10 @@ internal static class MutationTestHandler
         dryRun: options.DryRun
       );
   
-    // Run mutation testing
+    // Run mutation testing (results are persisted to disk)
     var stopwatch = new Stopwatch();
     stopwatch.Start();
-    var mutationTestResults = await testHarness.PerformMutationTesting();
+    await testHarness.PerformMutationTesting();
     stopwatch.Stop();
 
     if (options.DryRun) return;
@@ -131,6 +131,15 @@ internal static class MutationTestHandler
     Log.Information("Time elapsed: {ElapsedDays} day(s) {ElapsedHours} hour(s) {ElapsedMinutes} minute(s) {ElapsedSeconds} second(s)",
       stopwatch.Elapsed.Days, stopwatch.Elapsed.Hours, stopwatch.Elapsed.Minutes, stopwatch.Elapsed.Seconds);
 
+    // Analyse results
+    var mutationTestResults =
+      await AnalyseMutationTestResults(
+        passingTests: passingTestCasesSortedByDuration,
+        mutationRegistry: mutationRegistry,
+        executionTraces: mutantTraces,
+        absoluteKilledMutantsMetadataPath:
+          options.AbsoluteKilledMutantsMetadataDirectory);
+      
     // Do some tallying (the mutants can only be in at most one status)
     var killedMutants = 
       mutationTestResults.GetMutantOfStatus(MutantStatus.Killed);
@@ -140,9 +149,11 @@ internal static class MutationTestHandler
       mutationTestResults.GetMutantOfStatus(MutantStatus.Uncovered);
     var timedOutMutants =
       mutationTestResults.GetMutantOfStatus(MutantStatus.Timeout);
+    var skippedMutants =
+      mutationTestResults.GetMutantOfStatus(MutantStatus.Skipped);
 
     var totalEvaluatedMutants = killedMutants.Count + survivedMutants.Count +
-                       notTracedMutants.Count + timedOutMutants.Count;
+                       notTracedMutants.Count + timedOutMutants.Count + skippedMutants.Count;
     var totalRegisteredMutants = mutationRegistry.GetTotalMutantCount();
 
     if (totalEvaluatedMutants != totalRegisteredMutants)
@@ -156,6 +167,7 @@ internal static class MutationTestHandler
     Log.Information("Killed mutants: {KilledMutantCount}", killedMutants.Count);
     Log.Information("Survived mutants: {SurvivedMutantCount}", survivedMutants.Count);
     Log.Information("Timed out mutants: {TimedOutMutantCount}", timedOutMutants.Count);
+    Log.Information("Skipped mutants: {SkippedMutantCount}", skippedMutants.Count);
     Log.Information("Non-traced mutants: {NonTracedMutantCount}", notTracedMutants.Count);
     
     // Persist results to disk
@@ -210,5 +222,69 @@ internal static class MutationTestHandler
              tracerRegistry.ContainsKey(entry.Key) &&
              entry.Value.Mutations.Count == 
              tracerRegistry[entry.Key].Mutations.Count);
+  }
+
+  /*
+   * Reconstructs results from individual tests and check if a mutant is killed.
+   */
+  private static async Task<MutationTestResult> 
+    AnalyseMutationTestResults(
+      ImmutableArray<TestCase> passingTests,
+      ProjectLevelMutationRegistry mutationRegistry,
+      MutantExecutionTraces executionTraces,
+      string absoluteKilledMutantsMetadataPath)
+  {
+    var mutantStatuses =
+      mutationRegistry.ProjectRelativePathToRegistry.Values
+        .SelectMany(fileRegistry => fileRegistry.Mutations.Select(mutation =>
+          new MutantActivationInfo(fileRegistry.EnvironmentVariable, mutation.Key)))
+        .ToDictionary(mutant => mutant, _ => MutantStatus.Survived);
+
+    var traceableMutants = passingTests
+      .SelectMany(executionTraces.GetCandidateMutantsForTestCase)
+      .ToHashSet();
+
+    // 1) Identify and assign non-traceable mutants
+    var nonTraceableMutants = mutantStatuses.Keys.Except(traceableMutants);
+    foreach (var mutant in nonTraceableMutants)
+    {
+      mutantStatuses[mutant] = MutantStatus.Uncovered;
+    }
+    
+    // 2) Identify and assign killed mutants
+    // This information will have been persisted in killed mutants metadata directory
+    foreach (var mutant in traceableMutants)
+    {
+      var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
+      var killedMutantMetadataFilePath =
+        Path.Combine(absoluteKilledMutantsMetadataPath, mutantFileName, "kill_info.json");
+      if (!Path.Exists(killedMutantMetadataFilePath)) continue;
+      
+      await using var fs =
+        new FileStream(killedMutantMetadataFilePath, FileMode.Open, FileAccess.Read);
+      var killResult = await ConverterUtil.DeserializeToAnonymousTypeAsync
+        (fs, new { mutant = "", killed_by_test = "", kill_status = ""});
+      if (killResult is null)
+      {
+        Log.Warning("Mutant {MutantInfo} marked as killed but JSON cannot be parsed.", $"{mutant.EnvVar}:{mutant.MutantId}");
+        continue;
+      }
+      
+      // Parse kill status back to enum
+      if (!Enum.TryParse(typeof(MutantStatus), killResult.kill_status, out var killStatus))
+      {
+        Log.Warning("Mutant {MutantInfo} marked as killed but kill status cannot be parsed.", mutantFileName);
+        continue;
+      }
+
+      // Update mutant kill status (timeout / fail)
+      var status = (MutantStatus)killStatus;
+      mutantStatuses[mutant] = status;
+    }
+
+    return new MutationTestResult
+    {
+      MutantStatus = mutantStatuses.ToFrozenDictionary()
+    };
   }
 }
