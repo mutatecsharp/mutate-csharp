@@ -13,7 +13,8 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed class MutationTestHarness
 {
-  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(90);
+  private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+  private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
   private const int MaximumTimeoutScaleFactor = 3;
   private readonly bool _dryRun;
 
@@ -24,8 +25,6 @@ public sealed class MutationTestHarness
   // to the corresponding mutant/mutations within the mutated file.
   private readonly FrozenDictionary<string, FileLevelMutationRegistry>
     _mutantsByEnvVar;
-
-  private readonly FrozenSet<MutantActivationInfo> _nonTraceableMutants;
 
   // Mutants that survived after the mutation test campaign.
   private readonly ConcurrentDictionary<MutantActivationInfo, byte>
@@ -48,7 +47,9 @@ public sealed class MutationTestHarness
   private readonly string _absoluteTestMetadataPath;
   private readonly string _absoluteKilledMutantsMetadataPath;
 
+  private readonly int _allMutantCount;
   private readonly int _totalTraceableMutantCount;
+  private readonly int _totalNonTraceableMutantCount;
 
   public MutationTestHarness(
     ImmutableArray<TestCase> testsSortedByDuration,
@@ -103,27 +104,27 @@ public sealed class MutationTestHarness
           new MutantActivationInfo(envVarToRegistry.Key, mutations.Key)))
       .ToHashSet();
 
-    _nonTraceableMutants = allMutants.Except(traceableMutants).ToFrozenSet();
+    var nonTraceableMutants = allMutants.Except(traceableMutants).ToFrozenSet();
+    _allMutantCount = allMutants.Count;
     _totalTraceableMutantCount = traceableMutants.Count;
-  }
-
-  public async Task PerformMutationTesting()
-  {
+    _totalNonTraceableMutantCount = nonTraceableMutants.Count;
+    
     // Flags mutants not traced by any tests early. Surfacing these mutants
     // early gives us more time to work on them.
-    foreach (var nonTracedMutant in _nonTraceableMutants)
+    foreach (var nonTracedMutant in nonTraceableMutants)
     {
       Log.Warning(
         "Mutant {MutantId} in {SourceFilePath} is not covered by any tests.",
         nonTracedMutant.MutantId,
         _mutantsByEnvVar[nonTracedMutant.EnvVar].FileRelativePath);
     }
+  }
 
+  public async Task PerformMutationTesting()
+  {
     Log.Information(
       "{TraceableMutantCount} out of {TotalMutantCount} mutants are traceable.",
-      _totalTraceableMutantCount,
-      _mutantsByEnvVar.Values
-        .Select(registry => registry.Mutations.Count).Sum());
+      _totalTraceableMutantCount, _allMutantCount);
 
     Log.Information(
       "{RelevantTestCount} out of {TotalTestCount} tests cover one or more mutants.",
@@ -147,7 +148,7 @@ public sealed class MutationTestHarness
         _killedMutants.Count,
         _timedOutMutants.Count,
         _totalTraceableMutantCount,
-        _nonTraceableMutants.Count);
+        _totalNonTraceableMutantCount);
 
       // 1) Check if the current test has been evaluated or are under evaluation.
       // We perform the check using persisted metadata; this allows us to recover
@@ -200,6 +201,33 @@ public sealed class MutationTestHarness
       {
         Log.Information("Skipping {TestName} as it did not originally pass.",
           testCase.Name);
+        
+        // Persist this information in disk
+        var jsonTestFailData = new
+        {
+          test_name = testCase.Name,
+          test_result = originalRunResult.testResult.ToString()
+        };
+        
+        var testFailMetadataPath =
+          Path.Combine(testCaseMetadataDir, "test_failed.json");
+
+        Log.Information(
+          "Persisting failure of test {TestName} to {Path}.",
+          testCase.Name, testFailMetadataPath);
+
+        try
+        {
+          await File.WriteAllTextAsync(testFailMetadataPath,
+            JsonSerializer.Serialize(jsonTestFailData, JsonOptions));
+        }
+        catch (Exception)
+        {
+          Log.Error(
+            "Test fail information could not be recorded for test {TestName}.",
+            testCase.Name);
+        }
+        
         continue;
       }
 
@@ -262,7 +290,7 @@ public sealed class MutationTestHarness
           // 6) Persist individual mutant kill result.
           // Note: since all mutants are only tested at most once concurrently,
           // we don't have to check if the mutant is killed again.
-          var jsonData = new
+          var jsonKillData = new
           {
             mutant = $"{mutant.EnvVar}:{mutant.MutantId}",
             killed_by_test = testCase.Name,
@@ -280,7 +308,7 @@ public sealed class MutationTestHarness
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
               killMetadataPath);
             await File.WriteAllTextAsync(killMetadataPath,
-              JsonSerializer.Serialize(jsonData), cancellationToken);
+              JsonSerializer.Serialize(jsonKillData, JsonOptions), cancellationToken);
           }
           catch (Exception)
           {
@@ -363,7 +391,7 @@ public sealed class MutationTestHarness
           "Persisting test result summary of {TestName} to {Path}.",
           testCase.Name, testSummaryPath);
         await File.WriteAllTextAsync(testSummaryPath,
-          JsonSerializer.Serialize(testSummary));
+          JsonSerializer.Serialize(testSummary, JsonOptions));
       }
       catch (Exception)
       {
