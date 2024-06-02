@@ -1,0 +1,1 @@
+{"mutant":"MUTATE_CSHARP_ACTIVATED_MUTANT4:10","killed_by_test":"SearchTest.CombinedTest.AllSearchShouldFindTheSameIndex_Case2","kill_status":"Killed"}
