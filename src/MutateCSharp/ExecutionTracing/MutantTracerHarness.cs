@@ -83,6 +83,7 @@ public static class MutantTracerHarness
     process.Start();
     process.BeginOutputReadLine();
     process.BeginErrorReadLine();
+    // Note: this assumes the test will terminate
     await process.WaitForExitAsync();
 
     // 5) Record test result to console

@@ -46,8 +46,8 @@ public sealed partial class TestCase(string testName, string testProjectPath = "
     }
     catch (OperationCanceledException)
     {
-      // Kill process since the process timed out
-      process.Kill();
+      // Kill process tree since the process timed out
+      process.Kill(entireProcessTree: true);
       stopwatch.Stop();
       return (TestRunResult.Timeout, stopwatch.Elapsed);
     }
