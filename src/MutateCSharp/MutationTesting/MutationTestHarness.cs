@@ -26,21 +26,17 @@ public sealed class MutationTestHarness
     _mutantsByEnvVar;
 
   // Mutants that survived after the mutation test campaign.
+  // Used to maintain thread-safety of the analysis.
   private readonly ConcurrentDictionary<MutantActivationInfo, byte>
     _coveredAndSurvivedMutants;
-
-  // Mutants that are independently discovered to be killed or timed out.
-  private readonly ConcurrentDictionary<MutantActivationInfo, byte>
-    _skippedMutants;
-
-  // Mutants that are killed during the mutation test campaign.
-  private readonly ConcurrentDictionary<MutantActivationInfo, TestCase>
-    _killedMutants;
-
-  // Mutants that timed out during the mutation test campaign.
-  // We treat these mutants as killed.
-  private readonly ConcurrentDictionary<MutantActivationInfo, TestCase>
+  
+  // For diagnostics purposes.
+  private readonly ConcurrentDictionary<MutantActivationInfo, byte> 
     _timedOutMutants;
+
+  // For diagnostic purposes.
+  private readonly ConcurrentDictionary<MutantActivationInfo, byte>
+    _failedMutants;
 
   private readonly string _absoluteTestMetadataPath;
   private readonly string _absoluteKilledMutantsMetadataPath;
@@ -65,12 +61,10 @@ public sealed class MutationTestHarness
         .Values
         .ToFrozenDictionary(registry => registry.EnvironmentVariable,
           registry => registry);
-    _skippedMutants =
+    _failedMutants =
       new ConcurrentDictionary<MutantActivationInfo, byte>();
-    _killedMutants =
-      new ConcurrentDictionary<MutantActivationInfo, TestCase>();
     _timedOutMutants =
-      new ConcurrentDictionary<MutantActivationInfo, TestCase>();
+      new ConcurrentDictionary<MutantActivationInfo, byte>();
     _absoluteTestMetadataPath = absoluteTestMetadataPath;
     _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
 
@@ -151,7 +145,7 @@ public sealed class MutationTestHarness
         if (Directory.Exists(testCaseMetadataDir))
         {
           Log.Information(
-            "Skipping {TestName} as it is under evaluation or has been evaluated.",
+            "Skipping {TestName} as it has been evaluated.",
             testCase.Name);
           return;
         }
@@ -186,13 +180,18 @@ public sealed class MutationTestHarness
         Log.Information(
           "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
           testCase.Name, currentTestOrder, _testsSortedByDuration.Length);
+        
+        // Diagnostic report
         Log.Information(
-          "[Current session] Live mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
+          "[Current session] Live mutants: {SurvivedMutantCount} | Failed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
           _coveredAndSurvivedMutants.Count,
-          _killedMutants.Count,
+          _failedMutants.Count,
           _timedOutMutants.Count,
           _totalTraceableMutantCount,
           _totalNonTraceableMutantCount);
+
+        Log.Information(
+          "The previous diagnostics may not tally up between updating killed and timeout mutant count but does not affect the correctness of the mutation analysis.");
 
         // 4) Run the test without mutation to check for failures and record time taken
         var originalRunResult =
@@ -219,7 +218,8 @@ public sealed class MutationTestHarness
           try
           {
             await File.WriteAllTextAsync(testFailMetadataPath,
-              JsonSerializer.Serialize(jsonTestFailData, JsonOptions));
+              JsonSerializer.Serialize(jsonTestFailData, JsonOptions), 
+              cancellationToken);
           }
           catch (Exception)
           {
@@ -247,17 +247,10 @@ public sealed class MutationTestHarness
 
         foreach (var mutant in candidateMutants)
         {
-          // 5) Check if mutant is already killed.
-          // Important to check that the python script also has the same name.
-          var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
-          var killedMutantMetadataDir =
-            Path.Combine(_absoluteKilledMutantsMetadataPath, mutantFileName);
-
-          if (Directory.Exists(killedMutantMetadataDir))
+          // 6) Check if mutant is already killed.
+          // As the update is atomic this check is thread safe.
+          if (!_coveredAndSurvivedMutants.ContainsKey(mutant))
           {
-            _coveredAndSurvivedMutants.TryRemove(mutant, out _);
-            _skippedMutants.TryAdd(mutant, byte.MinValue);
-            
             Log.Information(
               "Skipping mutant {MutantId} in {SourceFile} as it has been killed.",
               mutant.MutantId,
@@ -278,6 +271,7 @@ public sealed class MutationTestHarness
           };
           
           mutantRunResults.Add((mutant, mutantStatus));
+          
           if (mutantStatus is MutantStatus.Survived)
           {
             Log.Information(
@@ -287,56 +281,69 @@ public sealed class MutationTestHarness
             return;
           }
           
-          _coveredAndSurvivedMutants.TryRemove(mutant, out _);
-
-          // 6) Persist individual mutant kill result.
-          // Note: since all mutants are only tested at most once concurrently,
-          // we don't have to check if the mutant is killed again.
-          var jsonKillData = new
+          // Test is killed!
+          // 7) Persist individual mutant kill result.
+          if (_coveredAndSurvivedMutants.TryRemove(mutant, out _))
           {
-            mutant = $"{mutant.EnvVar}:{mutant.MutantId}",
-            killed_by_test = testCase.Name,
-            kill_status = mutantStatus.ToString()
-          };
-
-          var killMetadataPath =
-            Path.Combine(killedMutantMetadataDir, "kill_info.json");
-
-          try
+            // 8) Update diagnostics
+            if (mutantStatus is MutantStatus.Killed)
+            {
+              _failedMutants.TryAdd(mutant, byte.MinValue);
+              Log.Information(
+                "Mutant {MutantId} in {SourceFile} has been killed by test {TestName}.",
+                mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+                testCase.Name);
+            }
+            else if (mutantStatus is MutantStatus.Timeout)
+            {
+              _timedOutMutants.TryAdd(mutant, byte.MinValue);
+              Log.Information(
+                "Mutant {MutantId} in {SourceFile} timed out while running {TestName}.",
+                mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+                testCase.Name);
+            }
+            
+            var jsonKillData = new
+            {
+              mutant = $"{mutant.EnvVar}:{mutant.MutantId}",
+              killed_by_test = testCase.Name,
+              kill_status = mutantStatus.ToString()
+            };
+          
+            // Important to check that the python script also has the same name.
+            var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
+            var killedMutantMetadataDir =
+              Path.Combine(_absoluteKilledMutantsMetadataPath, mutantFileName);
+            var killMetadataPath =
+              Path.Combine(killedMutantMetadataDir, "kill_info.json");
+            
+            try
+            {
+              Directory.CreateDirectory(killedMutantMetadataDir); // always succeed
+              Log.Information(
+                "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
+                mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+                killMetadataPath);
+              // 
+              await File.WriteAllTextAsync(killMetadataPath,
+                JsonSerializer.Serialize(jsonKillData, JsonOptions), cancellationToken);
+            }
+            catch (Exception)
+            {
+              Log.Error(
+                "Kill information could not be recorded for mutant {MutantId} in {SourceFile} against test {TestName}.",
+                mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+                testCase.Name);
+            }
+          }
+          else
           {
-            Directory.CreateDirectory(killedMutantMetadataDir);
             Log.Information(
-              "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              killMetadataPath);
-            await File.WriteAllTextAsync(killMetadataPath,
-              JsonSerializer.Serialize(jsonKillData, JsonOptions), cancellationToken);
+              "Mutant {MutantId} in {SourceFile} has been killed by another test.",
+              mutant.MutantId,
+              _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
           }
-          catch (Exception)
-          {
-            Log.Error(
-              "Kill information could not be recorded for mutant {MutantId} in {SourceFile} against test {TestName}.",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
-          }
-
-          // 5) Check result and mark test as killed or surviving
-          if (mutantStatus is MutantStatus.Killed)
-          {
-            _killedMutants.TryAdd(mutant, testCase);
-            Log.Information(
-              "Mutant {MutantId} in {SourceFile} has been killed by test {TestName}.",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
-          }
-          else if (mutantStatus is MutantStatus.Timeout)
-          {
-            _timedOutMutants.TryAdd(mutant, testCase);
-            Log.Information(
-              "Mutant {MutantId} in {SourceFile} timed out while running {TestName}.",
-              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-              testCase.Name);
-          }
+          
         }
         
         var results = mutantRunResults.ToDictionary(
@@ -362,7 +369,7 @@ public sealed class MutationTestHarness
             $"Mutant {mutantInfo.MutantId} in {_mutantsByEnvVar[mutantInfo.EnvVar].FileRelativePath} is traced by test {testCase.Name} but not evaluated.");
         }
 
-        // 8) Persist current test case result summary.
+        // 9) Persist current test case result summary.
         var testSummary = new
         {
           test_name = testCase.Name,
@@ -393,7 +400,8 @@ public sealed class MutationTestHarness
             "Persisting test result summary of {TestName} to {Path}.",
             testCase.Name, testSummaryPath);
           await File.WriteAllTextAsync(testSummaryPath,
-            JsonSerializer.Serialize(testSummary, JsonOptions));
+            JsonSerializer.Serialize(testSummary, JsonOptions), 
+            cancellationToken);
         }
         catch (Exception)
         {
