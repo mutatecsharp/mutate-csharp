@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Data;
 using System.Text.Json;
 using MutateCSharp.ExecutionTracing;
-using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
 using MutateCSharp.Util;
 using Serilog;
@@ -43,7 +42,6 @@ public sealed class MutationTestHarness
   private readonly ConcurrentDictionary<MutantActivationInfo, TestCase>
     _timedOutMutants;
 
-  private readonly string _absoluteCompilationArtifactPath;
   private readonly string _absoluteTestMetadataPath;
   private readonly string _absoluteKilledMutantsMetadataPath;
 
@@ -55,7 +53,6 @@ public sealed class MutationTestHarness
     ImmutableArray<TestCase> testsSortedByDuration,
     MutantExecutionTraces executionTraces,
     ProjectLevelMutationRegistry mutationRegistry,
-    string absoluteCompilationTemporaryDirectoryPath,
     string absoluteTestMetadataPath,
     string absoluteKilledMutantsMetadataPath,
     bool dryRun)
@@ -74,8 +71,6 @@ public sealed class MutationTestHarness
       new ConcurrentDictionary<MutantActivationInfo, TestCase>();
     _timedOutMutants =
       new ConcurrentDictionary<MutantActivationInfo, TestCase>();
-    _absoluteCompilationArtifactPath =
-      absoluteCompilationTemporaryDirectoryPath;
     _absoluteTestMetadataPath = absoluteTestMetadataPath;
     _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
 
@@ -136,114 +131,121 @@ public sealed class MutationTestHarness
     if (_dryRun) return;
 
     // Executes the test cases in order of ascending duration.
-    for (var i = 0; i < _testsSortedByDuration.Length; i++)
-    {
-      var testCase = _testsSortedByDuration[i];
-      Log.Information(
-        "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
-        testCase.Name, i + 1, _testsSortedByDuration.Length);
-      Log.Information(
-        "[Current session] Live mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
-        _coveredAndSurvivedMutants.Count,
-        _killedMutants.Count,
-        _timedOutMutants.Count,
-        _totalTraceableMutantCount,
-        _totalNonTraceableMutantCount);
+    // Note: a single test cannot be run concurrently but different tests can
+    // be run concurrently, to avoid concurrency bugs present in underlying tests
+    var testsProcessed = 0;
+    var testsToProcess = new ConcurrentQueue<TestCase>(_testsSortedByDuration);
 
-      // 1) Check if the current test has been evaluated or are under evaluation.
-      // We perform the check using persisted metadata; this allows us to recover
-      // from crashes and start at the same spot where we left off.
-      var testCaseMetadataDir = Path.Combine(_absoluteTestMetadataPath,
-        TestCaseUtil.ValidTestFileName(testCase.Name));
-
-      // Note: this check is not thread-safe, and assumes only this program
-      // instance is working on mutation testing.
-      if (Directory.Exists(testCaseMetadataDir))
+    await Parallel.ForEachAsync(testsToProcess,
+      async (testCase, cancellationToken) =>
       {
-        Log.Information(
-          "Skipping {TestName} as it is under evaluation or has been evaluated.",
-          testCase.Name);
-        continue;
-      }
+        var currentTestOrder = Interlocked.Increment(ref testsProcessed);
 
-      Directory.CreateDirectory(testCaseMetadataDir);
+        // 1) Check if the current test has been evaluated or are under evaluation.
+        // We perform the check using persisted metadata; this allows us to recover
+        // from crashes and start at the same spot where we left off.
+        var testCaseMetadataDir = Path.Combine(_absoluteTestMetadataPath,
+          TestCaseUtil.ValidTestFileName(testCase.Name));
 
-      // 2) Check if any mutants qualify as candidates
-      var tracedMutants =
-        _executionTraces.GetCandidateMutantsForTestCase(testCase);
-
-      if (tracedMutants.Count == 0)
-      {
-        Log.Information(
-          "Skipping {TestName} as no mutants were triggered in the test execution path.",
-          testCase.Name);
-        continue;
-      }
-
-      var ignoredMutants =
-        tracedMutants.Where(mutant =>
-            !_coveredAndSurvivedMutants.ContainsKey(mutant))
-          .ToImmutableHashSet();
-
-      foreach (var mutant in ignoredMutants)
-      {
-        Log.Information(
-          "Skipping mutant {MutantId} in {SourceFile} as it was evaluated as killed/timed out.",
-          mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
-      }
-
-      var candidateMutants = tracedMutants
-        .Where(mutant => !ignoredMutants.Contains(mutant)).ToImmutableHashSet();
-
-      // 3) Run the test without mutation to check for failures and record time taken
-      var originalRunResult = await testCase.RunTestWithTimeout(DefaultTimeout);
-      if (originalRunResult.testResult is not TestRunResult.Success)
-      {
-        Log.Information("Skipping {TestName} as it did not originally pass.",
-          testCase.Name);
-        
-        // Persist this information in disk
-        var jsonTestFailData = new
+        // Each test gets assigned to at most one thread so this check is safe
+        if (Directory.Exists(testCaseMetadataDir))
         {
-          test_name = testCase.Name,
-          test_result = originalRunResult.testResult.ToString()
-        };
-        
-        var testFailMetadataPath =
-          Path.Combine(testCaseMetadataDir, "test_failed.json");
-
-        Log.Information(
-          "Persisting failure of test {TestName} to {Path}.",
-          testCase.Name, testFailMetadataPath);
-
-        try
-        {
-          await File.WriteAllTextAsync(testFailMetadataPath,
-            JsonSerializer.Serialize(jsonTestFailData, JsonOptions));
-        }
-        catch (Exception)
-        {
-          Log.Error(
-            "Test fail information could not be recorded for test {TestName}.",
+          Log.Information(
+            "Skipping {TestName} as it is under evaluation or has been evaluated.",
             testCase.Name);
+          return;
         }
+
+        Directory.CreateDirectory(testCaseMetadataDir);
+
+        // 2) Check if any mutants qualify as candidates
+        var tracedMutants =
+          _executionTraces.GetCandidateMutantsForTestCase(testCase);
+
+        if (tracedMutants.Count == 0)
+        {
+          Log.Information(
+            "Skipping {TestName} as no mutants were triggered in the test execution path.",
+            testCase.Name);
+          return;
+        }
+
+        var ignoredMutants =
+          tracedMutants.Where(mutant =>
+              !_coveredAndSurvivedMutants.ContainsKey(mutant))
+            .ToImmutableHashSet();
+
+        // 3) Log information about current state for diagnostic purposes.
+        foreach (var mutant in ignoredMutants)
+        {
+          Log.Information(
+            "Skipping mutant {MutantId} in {SourceFile} as it was evaluated as killed/timed out.",
+            mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
+        }
+
+        Log.Information(
+          "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
+          testCase.Name, currentTestOrder, _testsSortedByDuration.Length);
+        Log.Information(
+          "[Current session] Live mutants: {SurvivedMutantCount} | Killed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
+          _coveredAndSurvivedMutants.Count,
+          _killedMutants.Count,
+          _timedOutMutants.Count,
+          _totalTraceableMutantCount,
+          _totalNonTraceableMutantCount);
+
+        // 4) Run the test without mutation to check for failures and record time taken
+        var originalRunResult =
+          await testCase.RunTestWithTimeout(DefaultTimeout);
+        if (originalRunResult.testResult is not TestRunResult.Success)
+        {
+          Log.Information("Skipping {TestName} as it did not originally pass.",
+            testCase.Name);
+
+          // Persist this information in disk
+          var jsonTestFailData = new
+          {
+            test_name = testCase.Name,
+            test_result = originalRunResult.testResult.ToString()
+          };
+
+          var testFailMetadataPath =
+            Path.Combine(testCaseMetadataDir, "test_failed.json");
+
+          Log.Information(
+            "Persisting failure of test {TestName} to {Path}.",
+            testCase.Name, testFailMetadataPath);
+
+          try
+          {
+            await File.WriteAllTextAsync(testFailMetadataPath,
+              JsonSerializer.Serialize(jsonTestFailData, JsonOptions));
+          }
+          catch (Exception)
+          {
+            Log.Error(
+              "Test fail information could not be recorded for test {TestName}.",
+              testCase.Name);
+          }
+
+          return;
+        }
+
+        var candidateMutants = tracedMutants
+          .Where(mutant => !ignoredMutants.Contains(mutant))
+          .ToImmutableHashSet();
         
-        continue;
-      }
+        // 5) Run the test with mutations to check for failures
+        // Raise the timeout to be 3x the original timeout with a minimum timeout of 60 seconds
+        var derivedTimeout =
+          originalRunResult.timeTaken.Scale(MaximumTimeoutScaleFactor);
+        if (derivedTimeout < DefaultTimeout) derivedTimeout = DefaultTimeout;
+        
+        var mutantRunResults =
+          new ConcurrentBag<
+            (MutantActivationInfo mutant, MutantStatus mutantStatus)>();
 
-      // 4) Concurrently run the test with mutations to check for failures
-      // Raise the timeout to be 3x the original timeout with a minimum timeout of 90 seconds
-      var derivedTimeout =
-        originalRunResult.timeTaken.Scale(MaximumTimeoutScaleFactor);
-      if (derivedTimeout < DefaultTimeout) derivedTimeout = DefaultTimeout;
-
-      var mutantRunResults =
-        new ConcurrentBag<(MutantActivationInfo mutant, MutantStatus mutantStatus
-          )>();
-
-      // Note: the operation will execute at most ProcessorCount operations in parallel.
-      await Parallel.ForEachAsync(candidateMutants,
-        async (mutant, cancellationToken) =>
+        foreach (var mutant in candidateMutants)
         {
           // 5) Check if mutant is already killed.
           // Important to check that the python script also has the same name.
@@ -335,74 +337,70 @@ public sealed class MutationTestHarness
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
               testCase.Name);
           }
-        });
+        }
+        
+        var results = mutantRunResults.ToDictionary(
+          result => result.mutant,
+          result => result.mutantStatus);
 
-      var results = mutantRunResults.ToDictionary(
-        result => result.mutant,
-        result => result.mutantStatus);
+        foreach (var mutant in ignoredMutants)
+        {
+          results[mutant] = MutantStatus.Skipped;
+        }
+        
+        // Sanity check: result list should have the same mutants as traced mutant list
+        if (tracedMutants.Count != results.Count)
+        {
+          throw new DataException(
+            $"Number of evaluated mutants do not match number of" +
+            $"traced mutants for test {testCase.Name}");
+        }
 
-      foreach (var mutant in ignoredMutants)
-      {
-        results[mutant] = MutantStatus.Skipped;
-      }
+        foreach (var mutantInfo in results.Keys.Where(mutantInfo => !tracedMutants.Contains(mutantInfo)))
+        {
+          throw new DataException(
+            $"Mutant {mutantInfo.MutantId} in {_mutantsByEnvVar[mutantInfo.EnvVar].FileRelativePath} is traced by test {testCase.Name} but not evaluated.");
+        }
 
-      // Sanity check: result list should have the same mutants as traced mutant list
-      if (tracedMutants.Count != results.Count)
-      {
-        throw new DataException(
-          $"Number of evaluated mutants do not match number of" +
-          $"traced mutants for test {testCase.Name}");
-      }
+        // 8) Persist current test case result summary.
+        var testSummary = new
+        {
+          test_name = testCase.Name,
+          killed_mutants = results
+            .Where(entry =>
+              entry.Value is MutantStatus.Killed or MutantStatus.Timeout)
+            .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+            .ToArray(),
+          skipped_mutants = results
+            .Where(entry => entry.Value is MutantStatus.Skipped)
+            .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+            .ToArray(),
+          survived_mutants = results
+            .Where(entry => entry.Value is MutantStatus.Survived)
+            .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+            .ToArray(),
+          covered_mutants = results.Select(entry =>
+              $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
+            .ToArray()
+        };
+        
+        var testSummaryPath =
+          Path.Combine(testCaseMetadataDir, "test-summary.json");
 
-      foreach (var mutantInfo in results.Keys.Where(mutantInfo => !tracedMutants.Contains(mutantInfo)))
-      {
-        throw new DataException(
-          $"Mutant {mutantInfo.MutantId} in {_mutantsByEnvVar[mutantInfo.EnvVar].FileRelativePath} is traced by test {testCase.Name} but not evaluated.");
-      }
-
-      // 8) Persist current test case result summary.
-      var testSummary = new
-      {
-        test_name = testCase.Name,
-        killed_mutants = results
-          .Where(entry =>
-            entry.Value is MutantStatus.Killed or MutantStatus.Timeout)
-          .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
-          .ToArray(),
-        skipped_mutants = results
-          .Where(entry => entry.Value is MutantStatus.Skipped)
-          .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
-          .ToArray(),
-        survived_mutants = results
-          .Where(entry => entry.Value is MutantStatus.Survived)
-          .Select(entry => $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
-          .ToArray(),
-        covered_mutants = results.Select(entry =>
-            $"{entry.Key.EnvVar}:{entry.Key.MutantId}")
-          .ToArray()
-      };
-
-      var testSummaryPath =
-        Path.Combine(testCaseMetadataDir, "test-summary.json");
-
-      try
-      {
-        Log.Information(
-          "Persisting test result summary of {TestName} to {Path}.",
-          testCase.Name, testSummaryPath);
-        await File.WriteAllTextAsync(testSummaryPath,
-          JsonSerializer.Serialize(testSummary, JsonOptions));
-      }
-      catch (Exception)
-      {
-        Log.Error(
-          "Test summary cannot be recorded for test {TestName}.",
-          testCase.Name);
-      }
-
-      // Delete compilation artifacts.
-      DirectoryCleanup.DeleteAllDirectoryContents(
-        _absoluteCompilationArtifactPath);
-    }
+        try
+        {
+          Log.Information(
+            "Persisting test result summary of {TestName} to {Path}.",
+            testCase.Name, testSummaryPath);
+          await File.WriteAllTextAsync(testSummaryPath,
+            JsonSerializer.Serialize(testSummary, JsonOptions));
+        }
+        catch (Exception)
+        {
+          Log.Error(
+            "Test summary cannot be recorded for test {TestName}.",
+            testCase.Name);
+        }
+      });
   }
 }

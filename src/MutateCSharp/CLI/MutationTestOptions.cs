@@ -126,16 +126,6 @@ internal sealed class MutationTestOptions
       ParseUtil.ParseAbsolutePath(value, FileExtension.DotnetRunSettings);
   }
 
-  [Option("compilation-artifact-directory",
-    HelpText =
-      "The directory that contains compilation artifacts. If specified, it will be emptied between mutation testing iterations.")]
-  public string AbsoluteCompilationArtifactDirectory
-  {
-    get => _absoluteCompilationArtifactDirectory;
-    init => _absoluteCompilationArtifactDirectory =
-      ParseUtil.ParseAbsoluteDirectory(value);
-  }
-
   [Option("test-output", Required = true,
     HelpText =
       "The output directory to store metadata of tests currently being worked on.")]

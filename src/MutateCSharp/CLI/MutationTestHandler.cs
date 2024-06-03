@@ -112,7 +112,6 @@ internal static class MutationTestHandler
         testsSortedByDuration: passingTestCasesSortedByDuration, 
         executionTraces: mutantTraces, 
         mutationRegistry: mutationRegistry, 
-        absoluteCompilationTemporaryDirectoryPath: options.AbsoluteCompilationArtifactDirectory,
         absoluteTestMetadataPath: options.AbsoluteTestMetadataDirectory,
         absoluteKilledMutantsMetadataPath: options.AbsoluteKilledMutantsMetadataDirectory,
         dryRun: options.DryRun
