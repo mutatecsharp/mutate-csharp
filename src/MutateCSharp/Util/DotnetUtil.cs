@@ -17,7 +17,7 @@ public static class DotnetUtil
     var processInfo = new ProcessStartInfo
     {
       FileName = "dotnet",
-      Arguments = $"build --nologo -c Release {absolutePath}",
+      Arguments = $"build --nologo {absolutePath}",
       UseShellExecute = false,
       CreateNoWindow = true,
       RedirectStandardOutput = true,

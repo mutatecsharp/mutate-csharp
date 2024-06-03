@@ -7,7 +7,7 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed partial class TestCase(string testName, string testProjectPath = "", string runSettingsPath = "")
 {
-  private const string BuildFlags = "--no-restore --no-build --nologo -c Release";
+  private const string BuildFlags = "--no-restore --no-build --nologo";
   private const string LoggerFlags = "--logger \"console;verbosity=normal\"";
 
   public string Name { get; } = testName;
