@@ -318,15 +318,16 @@ public sealed class MutationTestHarness
             var killMetadataPath =
               Path.Combine(killedMutantMetadataDir, "kill_info.json");
             
+            Log.Information(
+              "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
+              mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
+              killMetadataPath);
+            
             try
             {
-              Directory.CreateDirectory(killedMutantMetadataDir); // always succeed
-              Log.Information(
-                "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
-                mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-                killMetadataPath);
-              await File.WriteAllTextAsync(killMetadataPath,
-                JsonSerializer.Serialize(jsonKillData, JsonOptions), cancellationToken);
+              Directory.CreateDirectory(killedMutantMetadataDir);
+              File.WriteAllText(killMetadataPath,
+                JsonSerializer.Serialize(jsonKillData, JsonOptions));
             }
             catch (Exception e)
             {
@@ -393,15 +394,15 @@ public sealed class MutationTestHarness
         
         var testSummaryPath =
           Path.Combine(testCaseMetadataDir, "test-summary.json");
+        
+        Log.Information(
+          "Persisting test result summary of {TestName} to {Path}.",
+          testCase.Name, testSummaryPath);
 
         try
         {
-          Log.Information(
-            "Persisting test result summary of {TestName} to {Path}.",
-            testCase.Name, testSummaryPath);
-          await File.WriteAllTextAsync(testSummaryPath,
-            JsonSerializer.Serialize(testSummary, JsonOptions), 
-            cancellationToken);
+          File.WriteAllText(testSummaryPath,
+            JsonSerializer.Serialize(testSummary, JsonOptions));
         }
         catch (Exception)
         {
