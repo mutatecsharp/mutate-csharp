@@ -325,16 +325,15 @@ public sealed class MutationTestHarness
                 "Persisting kill information of mutant {MutantId} in {SourceFile} to {Path}.",
                 mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
                 killMetadataPath);
-              // 
               await File.WriteAllTextAsync(killMetadataPath,
                 JsonSerializer.Serialize(jsonKillData, JsonOptions), cancellationToken);
             }
-            catch (Exception)
+            catch (Exception e)
             {
               Log.Error(
-                "Kill information could not be recorded for mutant {MutantId} in {SourceFile} against test {TestName}.",
+                "Kill information could not be recorded for mutant {MutantId} in {SourceFile} against test {TestName}: {ExceptionMessage}",
                 mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
-                testCase.Name);
+                testCase.Name, e.Message);
             }
           }
           else
