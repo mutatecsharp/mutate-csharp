@@ -59,7 +59,7 @@ public sealed partial class TestCase(string testName, string testProjectPath = "
           "No test matches the given testcase filter"))
     {
       Log.Warning(
-        "Test discovery for {TestName} failed - try running mutation analysis again for the single test case later.",
+        "Test discovery for {TestName} failed - either the mutant caused test discovery to fail, or something else happened. Try manually conducting mutation analysis on this test case later.",
         Name);
     }
     
