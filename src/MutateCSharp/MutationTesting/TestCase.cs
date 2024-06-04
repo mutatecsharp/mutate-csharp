@@ -58,7 +58,9 @@ public sealed partial class TestCase(string testName, string testProjectPath = "
     if (outputTraceString.Contains(
           "No test matches the given testcase filter"))
     {
-      throw new DataException($"{Name} failed: test not found");
+      Log.Warning(
+        "Test discovery for {TestName} failed - try running mutation analysis again for the single test case later.",
+        Name);
     }
     
     var errorTraceString = errorTrace.ToString();
