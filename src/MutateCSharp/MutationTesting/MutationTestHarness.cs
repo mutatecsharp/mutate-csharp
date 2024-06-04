@@ -196,6 +196,7 @@ public sealed class MutationTestHarness
         // 4) Run the test without mutation to check for failures and record time taken
         var originalRunResult =
           await testCase.RunTestWithTimeout(DefaultTimeout);
+        
         if (originalRunResult.testResult is not TestRunResult.Success)
         {
           Log.Information("Skipping {TestName} as it did not originally pass.",
@@ -256,7 +257,7 @@ public sealed class MutationTestHarness
               mutant.MutantId,
               _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
             mutantRunResults.Add((mutant, MutantStatus.Skipped));
-            return;
+            continue;
           }
 
           var result = await testCase.RunTestWithTimeout(mutant.EnvVar,
@@ -278,7 +279,7 @@ public sealed class MutationTestHarness
               "Mutant {MutantId} in {SourceFile} survives after running {TestName}!",
               mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
               testCase.Name);
-            return;
+            continue;
           }
           
           // Test is killed!
