@@ -218,9 +218,8 @@ public sealed class MutationTestHarness
 
           try
           {
-            await File.WriteAllTextAsync(testFailMetadataPath,
-              JsonSerializer.Serialize(jsonTestFailData, JsonOptions), 
-              cancellationToken);
+            File.WriteAllText(testFailMetadataPath,
+              JsonSerializer.Serialize(jsonTestFailData, JsonOptions));
           }
           catch (Exception)
           {
