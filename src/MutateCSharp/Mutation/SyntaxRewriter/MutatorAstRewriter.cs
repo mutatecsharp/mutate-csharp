@@ -118,8 +118,8 @@ public sealed partial class MutatorAstRewriter
 
     var mutator =
       mutatorCandidates
-        .Where(mutatorType => _mutators[mutatorType].CanBeApplied(currentNode))
-        .Select(mutatorType => _mutators[mutatorType])
+        .Where(mutatorType => _mutators.GetValueOrDefault(mutatorType)?.CanBeApplied(currentNode) ?? false)
+        .Select(mutatorType => _mutators.GetValueOrDefault(mutatorType))
         .ToList();
     Trace.Assert(mutator.Count <= 1,
       $"There should be at most one qualifying mutation operator. Candidates: {string.Join(",", mutator)}");
@@ -333,7 +333,8 @@ public sealed partial class MutatorAstRewriter
 
     // 2: Apply mutation operator to obtain possible mutations
     var mutator = node.IsNegativeLiteral()
-      ? _mutators[typeof(NumericConstantReplacer)] : LocateMutator(node);
+      ? _mutators.GetValueOrDefault(typeof(NumericConstantReplacer)) 
+      : LocateMutator(node);
 
     var mutationGroup = mutator?.CreateMutationGroup(node, null);
     if (mutationGroup is null) return nodeWithMutatedChildren;
@@ -424,9 +425,10 @@ public sealed partial class MutatorAstRewriter
     }
     
     var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
-    var mutator = LocateMutator(node.Condition) ?? _mutators[typeof(UnaryOpInserter)];
+    var mutator = LocateMutator(node.Condition) 
+                  ?? _mutators.GetValueOrDefault(typeof(UnaryOpInserter));
 
-    var mutationGroup = mutator.CreateMutationGroup(node.Condition, null);
+    var mutationGroup = mutator?.CreateMutationGroup(node.Condition, null);
     if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
 
     var baseMutantId =
