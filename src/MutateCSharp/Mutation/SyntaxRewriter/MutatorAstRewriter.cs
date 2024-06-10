@@ -41,37 +41,42 @@ public sealed partial class MutatorAstRewriter
 
     _mutators = new Dictionary<Type, IMutationOperator>
     {
+      // {
+      //   typeof(BooleanConstantReplacer),
+      //   new BooleanConstantReplacer(sutAssembly, semanticModel, optimise)
+      // },
+      // {
+      //   typeof(StringConstantReplacer),
+      //   new StringConstantReplacer(sutAssembly, semanticModel, optimise)
+      // },
+      // {
+      //   typeof(NumericConstantReplacer),
+      //   new NumericConstantReplacer(sutAssembly, semanticModel, optimise)
+      // },
+      // {
+      //   typeof(PrefixUnaryExprOpReplacer),
+      //   new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel,
+      //     predefinedUnaryOperatorSignatures, optimise)
+      // },
+      // {
+      //   typeof(PostfixUnaryExprOpReplacer),
+      //   new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel,
+      //     predefinedUnaryOperatorSignatures, optimise)
+      // },
+      // {
+      //   typeof(BinExprOpReplacer),
+      //   new BinExprOpReplacer(sutAssembly, semanticModel,
+      //     predefinedBinaryOperatorSignatures, optimise)
+      // },
+      // {
+      //   typeof(CompoundAssignOpReplacer),
+      //   new CompoundAssignOpReplacer(sutAssembly, semanticModel,
+      //     predefinedBinaryOperatorSignatures, optimise)
+      // },
       {
-        typeof(BooleanConstantReplacer),
-        new BooleanConstantReplacer(sutAssembly, semanticModel, optimise)
-      },
-      {
-        typeof(StringConstantReplacer),
-        new StringConstantReplacer(sutAssembly, semanticModel, optimise)
-      },
-      {
-        typeof(NumericConstantReplacer),
-        new NumericConstantReplacer(sutAssembly, semanticModel, optimise)
-      },
-      {
-        typeof(PrefixUnaryExprOpReplacer),
-        new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel,
-          predefinedUnaryOperatorSignatures, optimise)
-      },
-      {
-        typeof(PostfixUnaryExprOpReplacer),
-        new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel,
-          predefinedUnaryOperatorSignatures, optimise)
-      },
-      {
-        typeof(BinExprOpReplacer),
-        new BinExprOpReplacer(sutAssembly, semanticModel,
-          predefinedBinaryOperatorSignatures, optimise)
-      },
-      {
-        typeof(CompoundAssignOpReplacer),
-        new CompoundAssignOpReplacer(sutAssembly, semanticModel,
-          predefinedBinaryOperatorSignatures, optimise)
+        typeof(UnaryOpInserter),
+        new UnaryOpInserter(sutAssembly, semanticModel,
+          predefinedUnaryOperatorSignatures)
       }
     }.ToFrozenDictionary();
 
@@ -398,6 +403,126 @@ public sealed partial class MutatorAstRewriter
       SyntaxFactory.Argument(baseMutantIdLiteral),
       operand
     );
+  }
+}
+
+/*
+ * Specially handle while, do-while and if statements.
+ */
+public sealed partial class MutatorAstRewriter
+{
+  public override SyntaxNode VisitWhileStatement(WhileStatementSyntax node)
+  {
+    
+    // Note to the future: if block statement mutators are implemented 
+    // they should be applied here
+    var mutatedStat = (StatementSyntax)Visit(node.Statement);
+    
+    if (node.Condition.ContainsDeclarationPatternSyntax())
+    {
+      return node.WithStatement(mutatedStat);
+    }
+    
+    var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
+    var mutator = LocateMutator(node.Condition) ?? _mutators[typeof(UnaryOpInserter)];
+
+    var mutationGroup = mutator.CreateMutationGroup(node.Condition, null);
+    if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
+
+    var baseMutantId =
+      _schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+    var baseMutantIdLiteral =
+      SyntaxFactory.LiteralExpression(
+        SyntaxKind.NumericLiteralExpression,
+        SyntaxFactory.Literal(baseMutantId));
+
+    var operand = SyntaxFactory.Argument(conditionWithMutatedChildren);
+
+    var mutatedConditionWithMutatedChildren =
+      SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
+        MutantSchemataGenerator.Namespace,
+        _schemaRegistry.ClassName,
+        _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
+        SyntaxFactory.Argument(baseMutantIdLiteral),
+        operand);
+
+    return node.WithCondition(mutatedConditionWithMutatedChildren).WithStatement(mutatedStat);
+  }
+  
+  public override SyntaxNode VisitIfStatement(IfStatementSyntax node)
+  {
+    
+    // Note to the future: if block statement mutators are implemented 
+    // they should be applied here
+    var mutatedStat = (StatementSyntax)Visit(node.Statement);
+    
+    if (node.Condition.ContainsDeclarationPatternSyntax())
+    {
+      return node.WithStatement(mutatedStat);
+    }
+    
+    var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
+    var mutator = LocateMutator(node.Condition) ?? _mutators[typeof(UnaryOpInserter)];
+
+    var mutationGroup = mutator.CreateMutationGroup(node.Condition, null);
+    if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
+
+    var baseMutantId =
+      _schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+    var baseMutantIdLiteral =
+      SyntaxFactory.LiteralExpression(
+        SyntaxKind.NumericLiteralExpression,
+        SyntaxFactory.Literal(baseMutantId));
+
+    var operand = SyntaxFactory.Argument(conditionWithMutatedChildren);
+
+    var mutatedConditionWithMutatedChildren =
+      SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
+        MutantSchemataGenerator.Namespace,
+        _schemaRegistry.ClassName,
+        _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
+        SyntaxFactory.Argument(baseMutantIdLiteral),
+        operand);
+
+    return node.WithCondition(mutatedConditionWithMutatedChildren).WithStatement(mutatedStat);
+  }
+  
+  public override SyntaxNode VisitDoStatement(DoStatementSyntax node)
+  {
+    
+    // Note to the future: if block statement mutators are implemented 
+    // they should be applied here
+    var mutatedStat = (StatementSyntax)Visit(node.Statement);
+    
+    if (node.Condition.ContainsDeclarationPatternSyntax())
+    {
+      return node.WithStatement(mutatedStat);
+    }
+    
+    var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
+    var mutator = LocateMutator(node.Condition) ?? _mutators[typeof(UnaryOpInserter)];
+
+    var mutationGroup = mutator.CreateMutationGroup(node.Condition, null);
+    if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
+
+    var baseMutantId =
+      _schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
+    var baseMutantIdLiteral =
+      SyntaxFactory.LiteralExpression(
+        SyntaxKind.NumericLiteralExpression,
+        SyntaxFactory.Literal(baseMutantId));
+
+    var operand = SyntaxFactory.Argument(conditionWithMutatedChildren);
+
+    var mutatedConditionWithMutatedChildren =
+      SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
+        MutantSchemataGenerator.Namespace,
+        _schemaRegistry.ClassName,
+        _schemaRegistry.GetUniqueSchemaName(mutationGroup, _mutationMode),
+        SyntaxFactory.Argument(baseMutantIdLiteral),
+        operand);
+
+    return node.WithCondition(mutatedConditionWithMutatedChildren).WithStatement(mutatedStat);
   }
 }
 

@@ -13,6 +13,7 @@ public static class SyntaxRewriterUtil
   public static bool IsTypeResolvableLogged(
     ref readonly SemanticModel model, ref readonly SyntaxNode node)
   {
+    if (node is null) return false;
     var typeSymbol = model.ResolveTypeSymbol(node);
     var convertedTypeSymbol = model.ResolveConvertedTypeSymbol(node);
     if (typeSymbol is not null && convertedTypeSymbol is not null) return true;

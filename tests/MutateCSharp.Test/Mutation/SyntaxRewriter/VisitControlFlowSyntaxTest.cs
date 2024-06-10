@@ -559,4 +559,118 @@ public class VisitControlFlowSyntaxTest(ITestOutputHelper testOutputHelper)
         .Should().BeTrue();
     }
   }
+
+  [Fact]
+  public void ShouldInsertNegationOperatorForWhileAndIfStatements()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = false;
+          
+          while (x)
+          {
+            x = false;
+          }
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = CreateSchemaRegistry();
+
+    var mutatedNode = (WhileStatementSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+      <WhileStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitWhileStatement(node),
+        SyntaxRewriterMode.Mutate
+      );
+
+    mutatedNode.Condition.Should().BeOfType<InvocationExpressionSyntax>();
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+  }
+  
+  [Fact]
+  public void ShouldInsertNegationOperatorForWhileStatements()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = false;
+          
+          while (x)
+          {
+            x = false;
+          }
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = CreateSchemaRegistry();
+
+    var mutatedNode = (WhileStatementSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+      <WhileStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitWhileStatement(node),
+        SyntaxRewriterMode.Mutate
+      );
+
+    mutatedNode.Condition.Should().BeOfType<InvocationExpressionSyntax>();
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+  }
+  
+  [Fact]
+  public void ShouldInsertNegationOperatorForIfStatements()
+  {
+    var inputUnderMutation =
+      """
+      using System;
+
+      public class A
+      {
+        public static void Main()
+        {
+          var x = false;
+          
+          if (x)
+          {
+            x = false;
+          }
+        }
+      }
+      """;
+    
+    testOutputHelper.WriteLine(inputUnderMutation);
+    
+    var schemaRegistry = CreateSchemaRegistry();
+
+    var mutatedNode = (IfStatementSyntax) TestUtil.GetNodeUnderMutationAfterRewrite
+      <IfStatementSyntax>(
+        inputUnderMutation,
+        schemaRegistry,
+        (rewriter, node) => rewriter.VisitIfStatement(node),
+        SyntaxRewriterMode.Mutate
+      );
+
+    mutatedNode.Condition.Should().BeOfType<InvocationExpressionSyntax>();
+    
+    testOutputHelper.WriteLine(mutatedNode.ToFullString());
+  }
 }
