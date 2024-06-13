@@ -404,8 +404,7 @@ internal static class MutationTestHandler
         .OrderBy(mutantToKillTime => mutantToKillTime.Value)
         .Select(mutantToKillTime =>
           (mutantToKillTime.Key,
-            mutantToKillTime.Value.ToString("s", CultureInfo.InvariantCulture)
-            + "Z")
+            mutantToKillTime.Value.ToString("o", CultureInfo.InvariantCulture))
         )
         .ToImmutableArray();
 
