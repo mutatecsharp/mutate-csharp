@@ -425,8 +425,7 @@ public sealed partial class MutatorAstRewriter
     }
     
     var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
-    var mutator = LocateMutator(node.Condition) 
-                  ?? _mutators.GetValueOrDefault(typeof(UnaryOpInserter));
+    var mutator = _mutators.GetValueOrDefault(typeof(UnaryOpInserter));
 
     var mutationGroup = mutator?.CreateMutationGroup(node.Condition, null);
     if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
@@ -463,11 +462,12 @@ public sealed partial class MutatorAstRewriter
       return node.WithStatement(mutatedStat);
     }
     
-    var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
-    var mutator = LocateMutator(node.Condition) ?? _mutators[typeof(UnaryOpInserter)];
+    // Already applied mutation here. Don't mutate again.
+    var possiblyMutatedCondition = (ExpressionSyntax) Visit(node.Condition);
+    var mutator = _mutators.GetValueOrDefault(typeof(UnaryOpInserter));
 
-    var mutationGroup = mutator.CreateMutationGroup(node.Condition, null);
-    if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
+    var mutationGroup = mutator?.CreateMutationGroup(node.Condition, null);
+    if (mutationGroup is null) return node.WithCondition(possiblyMutatedCondition).WithStatement(mutatedStat);
 
     var baseMutantId =
       _schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
@@ -476,7 +476,7 @@ public sealed partial class MutatorAstRewriter
         SyntaxKind.NumericLiteralExpression,
         SyntaxFactory.Literal(baseMutantId));
 
-    var operand = SyntaxFactory.Argument(conditionWithMutatedChildren);
+    var operand = SyntaxFactory.Argument(possiblyMutatedCondition);
 
     var mutatedConditionWithMutatedChildren =
       SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(
@@ -501,11 +501,11 @@ public sealed partial class MutatorAstRewriter
       return node.WithStatement(mutatedStat);
     }
     
-    var conditionWithMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
-    var mutator = LocateMutator(node.Condition) ?? _mutators[typeof(UnaryOpInserter)];
+    var possiblyMutatedChildren = (ExpressionSyntax) Visit(node.Condition);
+    var mutator = _mutators.GetValueOrDefault(typeof(UnaryOpInserter));
 
-    var mutationGroup = mutator.CreateMutationGroup(node.Condition, null);
-    if (mutationGroup is null) return node.WithCondition(conditionWithMutatedChildren).WithStatement(mutatedStat);
+    var mutationGroup = mutator?.CreateMutationGroup(node.Condition, null);
+    if (mutationGroup is null) return node.WithCondition(possiblyMutatedChildren).WithStatement(mutatedStat);
 
     var baseMutantId =
       _schemaRegistry.RegisterMutationGroupAndGetIdAssignment(mutationGroup);
@@ -514,7 +514,7 @@ public sealed partial class MutatorAstRewriter
         SyntaxKind.NumericLiteralExpression,
         SyntaxFactory.Literal(baseMutantId));
 
-    var operand = SyntaxFactory.Argument(conditionWithMutatedChildren);
+    var operand = SyntaxFactory.Argument(possiblyMutatedChildren);
 
     var mutatedConditionWithMutatedChildren =
       SyntaxFactoryUtil.CreateMethodCallWithFormedArguments(

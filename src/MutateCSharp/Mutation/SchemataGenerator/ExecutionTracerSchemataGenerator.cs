@@ -146,7 +146,7 @@ public static class ExecutionTracerSchemataGenerator
           }
           
           bool newMutexCreated;
-          using (var mutex = new Mutex(false, mutexId, out newMutexCreated))
+          using (var mutex = new System.Threading.Mutex(false, mutexId, out newMutexCreated))
           {
             var hasHandle = false;
             try
