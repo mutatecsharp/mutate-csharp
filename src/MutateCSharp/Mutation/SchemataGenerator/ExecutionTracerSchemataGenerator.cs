@@ -142,7 +142,7 @@ public static class ExecutionTracerSchemataGenerator
           var mutexId = {{ExecutionTracerWriterLockGenerator.Class}}.{{ExecutionTracerWriterLockGenerator.LockObjectName}}.Value;
           if (string.IsNullOrEmpty(mutexId))
           {
-            continue;
+            return;
           }
           
           bool newMutexCreated;
