@@ -19,7 +19,7 @@ public static class ExecutionTracerWriterLockGenerator
         public static readonly System.Lazy<string> {{LockObjectName}} =
           new System.Lazy<string>(() => {
             var mutexName = System.Environment.GetEnvironmentVariable("{{ExecutionTracerSchemataGenerator.MutantTracerGlobalMutexEnvVar}}");
-            return !string.IsNullOrEmpty(tracerFilePath) ? $"Global\\{mutexName}" : string.Empty;
+            return !string.IsNullOrEmpty(mutexName) ? $"Global\\{mutexName}" : string.Empty;
           });
         
         public static readonly System.Lazy<string> MutantTracerFilePath =
