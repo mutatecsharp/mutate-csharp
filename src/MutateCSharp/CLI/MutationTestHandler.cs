@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 using MutateCSharp.ExecutionTracing;
 using MutateCSharp.FileSystem;
 using MutateCSharp.Mutation.Registry;
@@ -185,6 +186,10 @@ internal static class MutationTestHandler
     // Persist results to disk
     var outputDirectory =
       Path.GetDirectoryName(options.AbsoluteTestProjectPath)!;
+
+    var killTrendPath = Path.Combine(outputDirectory, "kill-trend.csv");
+    PersistMutantKillTrendAgainstTime(testHarness.AllKilledMutants, killTrendPath);
+    
     var resultPath = await mutationTestResults.PersistToDisk(outputDirectory);
     Log.Information(
       "Mutation testing result has been persisted to {ResultPath}.", resultPath);
@@ -386,5 +391,37 @@ internal static class MutationTestHandler
     {
       MutantStatus = mutantStatuses.ToFrozenDictionary()
     };
+  }
+    
+  
+  private static void PersistMutantKillTrendAgainstTime(
+    FrozenDictionary<MutantActivationInfo, DateTime> allMutantsKilled,
+    string outputPath) // csv
+  {
+    // 1) Sort by ascending kill time
+    var sortedByKillTime =
+      allMutantsKilled
+        .OrderBy(mutantToKillTime => mutantToKillTime.Value)
+        .Select(mutantToKillTime =>
+          (mutantToKillTime.Key,
+            mutantToKillTime.Value.ToString("s", CultureInfo.InvariantCulture)
+            + "Z")
+        )
+        .ToImmutableArray();
+
+    Log.Information("Logging kill trend to {Path}.", outputPath);
+
+    using (var writer = new StreamWriter(outputPath))
+    {
+      writer.WriteLine("Mutant,KilledTimestamp");
+      foreach (var (mutant, formattedTimestamp) in sortedByKillTime)
+      {
+        var eventName =
+          $"{mutant.EnvVar}:{mutant.MutantId}";
+        writer.WriteLine($"{eventName},{formattedTimestamp}");
+      }
+    }
+
+    Log.Information("Successfully logged kill trend.");
   }
 }

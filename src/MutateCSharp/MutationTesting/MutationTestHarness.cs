@@ -31,11 +31,11 @@ public sealed class MutationTestHarness
     _coveredAndSurvivedMutants;
   
   // For diagnostics purposes.
-  private readonly ConcurrentDictionary<MutantActivationInfo, byte> 
+  private readonly ConcurrentDictionary<MutantActivationInfo, DateTime> 
     _timedOutMutants;
 
   // For diagnostic purposes.
-  private readonly ConcurrentDictionary<MutantActivationInfo, byte>
+  private readonly ConcurrentDictionary<MutantActivationInfo, DateTime>
     _failedMutants;
 
   private readonly string _absoluteTestMetadataPath;
@@ -44,7 +44,10 @@ public sealed class MutationTestHarness
   private readonly int _allMutantCount;
   private readonly int _totalTraceableMutantCount;
   private readonly int _totalNonTraceableMutantCount;
-  
+
+  public FrozenDictionary<MutantActivationInfo, DateTime> AllKilledMutants 
+    => _failedMutants.Union(_timedOutMutants).ToFrozenDictionary();
+
   /*
    * Without execution trace; cannot perform optimisation.
    */
@@ -63,9 +66,9 @@ public sealed class MutationTestHarness
         .ToFrozenDictionary(registry => registry.EnvironmentVariable,
           registry => registry);
     _failedMutants =
-      new ConcurrentDictionary<MutantActivationInfo, byte>();
+      new ConcurrentDictionary<MutantActivationInfo, DateTime>();
     _timedOutMutants =
-      new ConcurrentDictionary<MutantActivationInfo, byte>();
+      new ConcurrentDictionary<MutantActivationInfo, DateTime>();
     _absoluteTestMetadataPath = absoluteTestMetadataPath;
     _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
     
@@ -102,9 +105,9 @@ public sealed class MutationTestHarness
         .ToFrozenDictionary(registry => registry.EnvironmentVariable,
           registry => registry);
     _failedMutants =
-      new ConcurrentDictionary<MutantActivationInfo, byte>();
+      new ConcurrentDictionary<MutantActivationInfo, DateTime>();
     _timedOutMutants =
-      new ConcurrentDictionary<MutantActivationInfo, byte>();
+      new ConcurrentDictionary<MutantActivationInfo, DateTime>();
     _absoluteTestMetadataPath = absoluteTestMetadataPath;
     _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
 
@@ -340,10 +343,12 @@ public sealed class MutationTestHarness
           // 7) Persist individual mutant kill result.
           if (_coveredAndSurvivedMutants.TryRemove(mutant, out _))
           {
+            var killedAtTime = DateTime.UtcNow;
+            
             // 8) Update diagnostics
             if (mutantStatus is MutantStatus.Killed)
             {
-              _failedMutants.TryAdd(mutant, byte.MinValue);
+              _failedMutants.TryAdd(mutant, killedAtTime);
               Log.Information(
                 "Mutant {MutantId} in {SourceFile} has been killed by test {TestName}.",
                 mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,
@@ -351,7 +356,7 @@ public sealed class MutationTestHarness
             }
             else if (mutantStatus is MutantStatus.Timeout)
             {
-              _timedOutMutants.TryAdd(mutant, byte.MinValue);
+              _timedOutMutants.TryAdd(mutant, killedAtTime);
               Log.Information(
                 "Mutant {MutantId} in {SourceFile} timed out while running {TestName}.",
                 mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath,

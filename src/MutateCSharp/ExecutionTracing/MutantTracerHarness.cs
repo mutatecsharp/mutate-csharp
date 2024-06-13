@@ -12,6 +12,7 @@ namespace MutateCSharp.ExecutionTracing;
 
 public static class MutantTracerHarness
 {
+  public const string GlobalMutexPrefix = "mutate-csharp-trace";
   /*
    * For each test, set the environment variable for the output path,
    * and run the test on the instrumented system under test.
@@ -23,10 +24,15 @@ public static class MutantTracerHarness
     string runSettingsPath)
   {
     var failedTests = new ConcurrentBag<string>();
+    // Each test run gets a global lock instance
+    var lockIdGenerator = 1;
 
     await Parallel.ForEachAsync(testNames,
       async (testName, cancellationToken) =>
       {
+        var localLockId = Interlocked.Increment(ref lockIdGenerator);
+        var lockName = $"{GlobalMutexPrefix}{localLockId}";
+        
         var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
         var traceFilePath = Path.Combine(outputDirectory, sanitisedName);
         var exitCode = await TraceExecutionForTest(testProjectDirectory,
