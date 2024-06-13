@@ -90,32 +90,37 @@ internal static class MutationTestHandler
     // Mutant execution trace
     // Filter the mutant traces with the environment variable corresponding
     // to the file
-    var mutantTraces =
-      string.IsNullOrEmpty(options.AbsoluteSourceFileUnderTestPath)
-        ? await MutantExecutionTraces.ReconstructTraceFromDisk(
-          options.AbsoluteRecordedExecutionTraceDirectory,
-          passingTestCasesSortedByDuration)
-        : await MutantExecutionTraces.ReconstructTraceFromDisk(
-          options.AbsoluteRecordedExecutionTraceDirectory,
-          passingTestCasesSortedByDuration,
-          fileEnvVar);
-    
-    // Sanity checks
-    WarnIfExecutionTraceIsAbsent(ref passingTestCasesSortedByDuration, ref mutantTraces);
+    var mutantTraces = await
+      ReconstructExecutionTrace(
+        traceDirectory: options.AbsoluteRecordedExecutionTraceDirectory,
+        passingTestCasesSortedByDuration: passingTestCasesSortedByDuration,
+        sourceFileUnderTestPath: options.AbsoluteSourceFileUnderTestPath, 
+        fileEnvVar: fileEnvVar
+        );
     
     // Create directories if they don't exist
     Directory.CreateDirectory(options.AbsoluteTestMetadataDirectory);
     Directory.CreateDirectory(options.AbsoluteKilledMutantsMetadataDirectory);
 
-    var testHarness = 
-      new MutationTestHarness(
-        testsSortedByDuration: passingTestCasesSortedByDuration, 
-        executionTraces: mutantTraces, 
-        mutationRegistry: mutationRegistry, 
-        absoluteTestMetadataPath: options.AbsoluteTestMetadataDirectory,
-        absoluteKilledMutantsMetadataPath: options.AbsoluteKilledMutantsMetadataDirectory,
-        dryRun: options.DryRun
-      );
+    var testHarness =
+      mutantTraces is not null
+        ? new MutationTestHarness(
+          testsSortedByDuration: passingTestCasesSortedByDuration,
+          executionTraces: mutantTraces,
+          mutationRegistry: mutationRegistry,
+          absoluteTestMetadataPath: options.AbsoluteTestMetadataDirectory,
+          absoluteKilledMutantsMetadataPath: options
+            .AbsoluteKilledMutantsMetadataDirectory,
+          dryRun: options.DryRun
+        )
+        : new MutationTestHarness(
+          testsSortedByDuration: passingTestCasesSortedByDuration,
+          mutationRegistry: mutationRegistry,
+          absoluteTestMetadataPath: options.AbsoluteTestMetadataDirectory,
+          absoluteKilledMutantsMetadataPath: options
+            .AbsoluteKilledMutantsMetadataDirectory,
+          dryRun: options.DryRun
+        );
   
     // Run mutation testing (results are persisted to disk)
     var stopwatch = new Stopwatch();
@@ -132,12 +137,20 @@ internal static class MutationTestHandler
 
     // Analyse results
     var mutationTestResults =
-      await AnalyseMutationTestResults(
-        passingTests: passingTestCasesSortedByDuration,
-        mutationRegistry: mutationRegistry,
-        executionTraces: mutantTraces,
-        absoluteKilledMutantsMetadataPath:
-          options.AbsoluteKilledMutantsMetadataDirectory);
+      mutantTraces is not null
+        ? await AnalyseMutationTestResultsWithRecordedTrace(
+          passingTests: passingTestCasesSortedByDuration,
+          mutationRegistry: mutationRegistry,
+          executionTraces: mutantTraces,
+          absoluteKilledMutantsMetadataPath:
+          options.AbsoluteKilledMutantsMetadataDirectory
+          )
+        : await AnalyseMutationTestResults(
+          passingTests: passingTestCasesSortedByDuration,
+          mutationRegistry: mutationRegistry,
+          absoluteKilledMutantsMetadataPath:
+          options.AbsoluteKilledMutantsMetadataDirectory
+        );
       
     // Do some tallying (the mutants can only be in at most one status)
     var killedMutants = 
@@ -175,6 +188,31 @@ internal static class MutationTestHandler
     var resultPath = await mutationTestResults.PersistToDisk(outputDirectory);
     Log.Information(
       "Mutation testing result has been persisted to {ResultPath}.", resultPath);
+  }
+
+  private static async Task<MutantExecutionTraces?> 
+    ReconstructExecutionTrace(
+      string traceDirectory,
+      ImmutableArray<TestCase> passingTestCasesSortedByDuration,
+      string sourceFileUnderTestPath,
+      string fileEnvVar)
+  {
+    if (string.IsNullOrEmpty(traceDirectory)) return null;
+    
+    var mutantTraces =
+      string.IsNullOrEmpty(sourceFileUnderTestPath)
+        ? await MutantExecutionTraces.ReconstructTraceFromDisk(
+          traceDirectory,
+          passingTestCasesSortedByDuration)
+        : await MutantExecutionTraces.ReconstructTraceFromDisk(
+          traceDirectory,
+          passingTestCasesSortedByDuration,
+          fileEnvVar);
+    
+    // Sanity checks
+    WarnIfExecutionTraceIsAbsent(ref passingTestCasesSortedByDuration, ref mutantTraces);
+
+    return mutantTraces;
   }
 
   private static void WarnIfExecutionTraceIsAbsent(
@@ -227,7 +265,7 @@ internal static class MutationTestHandler
    * Reconstructs results from individual tests and check if a mutant is killed.
    */
   private static async Task<MutationTestResult> 
-    AnalyseMutationTestResults(
+    AnalyseMutationTestResultsWithRecordedTrace(
       ImmutableArray<TestCase> passingTests,
       ProjectLevelMutationRegistry mutationRegistry,
       MutantExecutionTraces executionTraces,
@@ -253,6 +291,69 @@ internal static class MutationTestHandler
     // 2) Identify and assign killed mutants
     // This information will have been persisted in killed mutants metadata directory
     foreach (var mutant in traceableMutants)
+    {
+      var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
+      var killedMutantMetadataFilePath =
+        Path.Combine(absoluteKilledMutantsMetadataPath, mutantFileName, "kill_info.json");
+      if (!Path.Exists(killedMutantMetadataFilePath)) continue;
+      
+      await using var fs =
+        new FileStream(killedMutantMetadataFilePath, FileMode.Open, FileAccess.Read);
+      var killResult = await ConverterUtil.DeserializeToAnonymousTypeAsync
+        (fs, new { mutant = "", killed_by_test = "", kill_status = ""});
+      if (killResult is null)
+      {
+        Log.Warning("Mutant {MutantInfo} marked as killed but JSON cannot be parsed.", $"{mutant.EnvVar}:{mutant.MutantId}");
+        continue;
+      }
+      
+      // Parse kill status back to enum
+      if (!Enum.TryParse(typeof(MutantStatus), killResult.kill_status, out var killStatus))
+      {
+        Log.Warning("Mutant {MutantInfo} marked as killed but kill status cannot be parsed.", mutantFileName);
+        continue;
+      }
+
+      // Update mutant kill status (timeout / fail)
+      var status = (MutantStatus)killStatus;
+      mutantStatuses[mutant] = status;
+    }
+
+    return new MutationTestResult
+    {
+      MutantStatus = mutantStatuses.ToFrozenDictionary()
+    };
+  }
+  
+  /*
+   * Reconstructs results from individual tests and check if a mutant is killed.
+   */
+  private static async Task<MutationTestResult> 
+    AnalyseMutationTestResults(
+      ImmutableArray<TestCase> passingTests,
+      ProjectLevelMutationRegistry mutationRegistry,
+      string absoluteKilledMutantsMetadataPath)
+  {
+    var mutantStatuses =
+      mutationRegistry.ProjectRelativePathToRegistry.Values
+        .SelectMany(fileRegistry => fileRegistry.Mutations.Select(mutation =>
+          new MutantActivationInfo(fileRegistry.EnvironmentVariable, mutation.Key)))
+        .ToDictionary(mutant => mutant, _ => MutantStatus.Survived);
+    
+    var mutantsByEnvVar =
+      mutationRegistry.ProjectRelativePathToRegistry
+        .Values
+        .ToFrozenDictionary(registry => registry.EnvironmentVariable,
+          registry => registry);
+    
+    var allMutants = mutantsByEnvVar.SelectMany(envVarToRegistry =>
+            envVarToRegistry.Value.Mutations.Select(mutations =>
+              new MutantActivationInfo(envVarToRegistry.Key, mutations.Key)))
+          .ToImmutableHashSet();
+    
+    // 2) Identify and record killed mutants based on directory
+    // This information will have been persisted in killed mutants metadata directory
+    foreach (var mutant in allMutants)
     {
       var mutantFileName = $"{mutant.EnvVar}-{mutant.MutantId}";
       var killedMutantMetadataFilePath =

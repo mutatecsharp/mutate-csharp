@@ -3,7 +3,7 @@ namespace MutateCSharp.Mutation.SchemataGenerator;
 public static class ExecutionTracerWriterLockGenerator
 {
   public const string Class = "MutatorGlobalInstance";
-  public const string LockObjectName = "WriterLock";
+  public const string LockObjectName = "FileMutexLock";
   public const string FileName = $"{Class}.cs";
   
   public static string GenerateGlobalWriterLock()
@@ -16,7 +16,11 @@ public static class ExecutionTracerWriterLockGenerator
       
       public static class {{Class}}
       {
-        public static readonly object {{LockObjectName}} = new object();
+        public static readonly System.Lazy<string> {{LockObjectName}} =
+          new System.Lazy<string>(() => {
+            var mutexName = System.Environment.GetEnvironmentVariable("{{ExecutionTracerSchemataGenerator.MutantTracerGlobalMutexEnvVar}}");
+            return !string.IsNullOrEmpty(tracerFilePath) ? $"Global\\{mutexName}" : string.Empty;
+          });
         
         public static readonly System.Lazy<string> MutantTracerFilePath =
           new System.Lazy<string>(() => {

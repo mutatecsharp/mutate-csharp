@@ -41,38 +41,38 @@ public sealed partial class MutatorAstRewriter
 
     _mutators = new Dictionary<Type, IMutationOperator>
     {
-      // {
-      //   typeof(BooleanConstantReplacer),
-      //   new BooleanConstantReplacer(sutAssembly, semanticModel, optimise)
-      // },
-      // {
-      //   typeof(StringConstantReplacer),
-      //   new StringConstantReplacer(sutAssembly, semanticModel, optimise)
-      // },
-      // {
-      //   typeof(NumericConstantReplacer),
-      //   new NumericConstantReplacer(sutAssembly, semanticModel, optimise)
-      // },
-      // {
-      //   typeof(PrefixUnaryExprOpReplacer),
-      //   new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel,
-      //     predefinedUnaryOperatorSignatures, optimise)
-      // },
-      // {
-      //   typeof(PostfixUnaryExprOpReplacer),
-      //   new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel,
-      //     predefinedUnaryOperatorSignatures, optimise)
-      // },
-      // {
-      //   typeof(BinExprOpReplacer),
-      //   new BinExprOpReplacer(sutAssembly, semanticModel,
-      //     predefinedBinaryOperatorSignatures, optimise)
-      // },
-      // {
-      //   typeof(CompoundAssignOpReplacer),
-      //   new CompoundAssignOpReplacer(sutAssembly, semanticModel,
-      //     predefinedBinaryOperatorSignatures, optimise)
-      // },
+      {
+        typeof(BooleanConstantReplacer),
+        new BooleanConstantReplacer(sutAssembly, semanticModel, optimise)
+      },
+      {
+        typeof(StringConstantReplacer),
+        new StringConstantReplacer(sutAssembly, semanticModel, optimise)
+      },
+      {
+        typeof(NumericConstantReplacer),
+        new NumericConstantReplacer(sutAssembly, semanticModel, optimise)
+      },
+      {
+        typeof(PrefixUnaryExprOpReplacer),
+        new PrefixUnaryExprOpReplacer(sutAssembly, semanticModel,
+          predefinedUnaryOperatorSignatures, optimise)
+      },
+      {
+        typeof(PostfixUnaryExprOpReplacer),
+        new PostfixUnaryExprOpReplacer(sutAssembly, semanticModel,
+          predefinedUnaryOperatorSignatures, optimise)
+      },
+      {
+        typeof(BinExprOpReplacer),
+        new BinExprOpReplacer(sutAssembly, semanticModel,
+          predefinedBinaryOperatorSignatures, optimise)
+      },
+      {
+        typeof(CompoundAssignOpReplacer),
+        new CompoundAssignOpReplacer(sutAssembly, semanticModel,
+          predefinedBinaryOperatorSignatures, optimise)
+      },
       {
         typeof(UnaryOpInserter),
         new UnaryOpInserter(sutAssembly, semanticModel,

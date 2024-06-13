@@ -98,7 +98,7 @@ internal sealed class MutationTestOptions
     }
   }
 
-  [Option("mutant-traces", Required = true, 
+  [Option("mutant-traces", 
     HelpText = "The directory to mutant execution trace.")]
   public required string AbsoluteRecordedExecutionTraceDirectory
   {

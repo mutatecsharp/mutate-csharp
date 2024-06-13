@@ -11,6 +11,8 @@ public static class ExecutionTracerSchemataGenerator
 {
   public const string Namespace = "MutateCSharp";
   public const string MutantTracerFilePathEnvVar = "MUTATE_CSHARP_TRACER_FILEPATH";
+  public const string MutantTracerGlobalMutexEnvVar = "MUTATE_CSHARP_TRACER_MUTEX";
+  public const int LockTimeoutMilliseconds = 60000;
   
   private static readonly string
     MutantIdType = FileLevelMutantSchemaRegistry.MutantIdType.ToClrTypeName();
@@ -137,10 +139,37 @@ public static class ExecutionTracerSchemataGenerator
           
           var mutantsToRecord = string.Join(string.Empty, executedMutants);
           
-          // Persist mutant execution trace to disk
-          lock ({{ExecutionTracerWriterLockGenerator.Class}}.{{ExecutionTracerWriterLockGenerator.LockObjectName}})
+          var mutexId = {{ExecutionTracerWriterLockGenerator.Class}}.{{ExecutionTracerWriterLockGenerator.LockObjectName}}.Value;
+          if (string.IsNullOrEmpty(mutexId)
           {
-            System.IO.File.AppendAllText({{ExecutionTracerWriterLockGenerator.Class}}.MutantTracerFilePath.Value, mutantsToRecord);
+            continue;
+          }
+          
+          bool newMutexCreated;
+          using (var mutex = new Mutex(false, mutexId, out newMutexCreated))
+          {
+            var hasHandle = false;
+            try
+            {
+              try
+              {
+                hasHandle = mutex.WaitOne({{LockTimeoutMilliseconds}}, false);
+                if (hasHandle == false)
+                  throw new Exception("Timeout waiting for exclusive access");
+              }
+              catch (System.Threading.AbandonedMutexException)
+              {
+                // Mutex was abandoned in another process; it will still get acquired
+                hasHandle = true;
+              }
+          
+              // Persist mutant execution trace to disk
+              System.IO.File.AppendAllText({{ExecutionTracerWriterLockGenerator.Class}}.MutantTracerFilePath.Value, mutantsToRecord);
+            }
+            finally
+            {
+              if(hasHandle) mutex.ReleaseMutex();
+            }
           }
         }
         """;

@@ -18,7 +18,7 @@ public sealed class MutationTestHarness
   private readonly bool _dryRun;
 
   private readonly ImmutableArray<TestCase> _testsSortedByDuration;
-  private readonly MutantExecutionTraces _executionTraces;
+  private readonly MutantExecutionTraces? _executionTraces;
 
   // One-to-many mapping from a file-scoped mutant activation environment variable
   // to the corresponding mutant/mutations within the mutated file.
@@ -44,6 +44,46 @@ public sealed class MutationTestHarness
   private readonly int _allMutantCount;
   private readonly int _totalTraceableMutantCount;
   private readonly int _totalNonTraceableMutantCount;
+  
+  /*
+   * Without execution trace; cannot perform optimisation.
+   */
+   public MutationTestHarness(
+    ImmutableArray<TestCase> testsSortedByDuration,
+    ProjectLevelMutationRegistry mutationRegistry,
+    string absoluteTestMetadataPath,
+    string absoluteKilledMutantsMetadataPath,
+    bool dryRun)
+  {
+    _dryRun = dryRun;
+    _testsSortedByDuration = testsSortedByDuration;
+    _mutantsByEnvVar =
+      mutationRegistry.ProjectRelativePathToRegistry
+        .Values
+        .ToFrozenDictionary(registry => registry.EnvironmentVariable,
+          registry => registry);
+    _failedMutants =
+      new ConcurrentDictionary<MutantActivationInfo, byte>();
+    _timedOutMutants =
+      new ConcurrentDictionary<MutantActivationInfo, byte>();
+    _absoluteTestMetadataPath = absoluteTestMetadataPath;
+    _absoluteKilledMutantsMetadataPath = absoluteKilledMutantsMetadataPath;
+    
+    // Create mutant activation information
+    var allMutants = _mutantsByEnvVar.SelectMany(envVarToRegistry =>
+        envVarToRegistry.Value.Mutations.Select(mutations =>
+          new MutantActivationInfo(envVarToRegistry.Key, mutations.Key)))
+      .ToHashSet();
+    
+    _coveredAndSurvivedMutants =
+      new ConcurrentDictionary<MutantActivationInfo, byte>(
+        allMutants.ToDictionary(mutant => mutant, _ => byte.MinValue));
+    
+    _allMutantCount = allMutants.Count;
+    // Assume all mutants traceable (not reliable)
+    _totalTraceableMutantCount = _allMutantCount;
+    _totalNonTraceableMutantCount = 0;
+  }
 
   public MutationTestHarness(
     ImmutableArray<TestCase> testsSortedByDuration,
@@ -107,10 +147,7 @@ public sealed class MutationTestHarness
         nonTracedMutant.MutantId,
         _mutantsByEnvVar[nonTracedMutant.EnvVar].FileRelativePath);
     }
-  }
-
-  public async Task PerformMutationTesting()
-  {
+    
     Log.Information(
       "{TraceableMutantCount} out of {TotalMutantCount} mutants are traceable.",
       _totalTraceableMutantCount, _allMutantCount);
@@ -121,7 +158,10 @@ public sealed class MutationTestHarness
         .Select(test => _executionTraces.GetCandidateMutantsForTestCase(test))
         .Count(candidates => candidates.Count > 0),
       _testsSortedByDuration.Length);
+  }
 
+  public async Task PerformMutationTesting()
+  {
     if (_dryRun) return;
 
     // Executes the test cases in order of ascending duration.
@@ -154,21 +194,23 @@ public sealed class MutationTestHarness
 
         // 2) Check if any mutants qualify as candidates
         var tracedMutants =
-          _executionTraces.GetCandidateMutantsForTestCase(testCase);
-
-        if (tracedMutants.Count == 0)
+          _executionTraces?.GetCandidateMutantsForTestCase(testCase);
+        
+        if (_executionTraces is not null && tracedMutants?.Count == 0)
         {
           Log.Information(
             "Skipping {TestName} as no mutants were triggered in the test execution path.",
             testCase.Name);
           return;
         }
-
+        
+        // Default: ignore failed / timed out mutants (not atomic but is thread-safe)
         var ignoredMutants =
-          tracedMutants.Where(mutant =>
+          tracedMutants?.Where(mutant =>
               !_coveredAndSurvivedMutants.ContainsKey(mutant))
-            .ToImmutableHashSet();
-
+            .ToImmutableHashSet()
+          ?? _failedMutants.Keys.Union(_timedOutMutants.Keys).ToImmutableHashSet();
+        
         // 3) Log information about current state for diagnostic purposes.
         foreach (var mutant in ignoredMutants)
         {
@@ -176,22 +218,30 @@ public sealed class MutationTestHarness
             "Skipping mutant {MutantId} in {SourceFile} as it was evaluated as killed/timed out.",
             mutant.MutantId, _mutantsByEnvVar[mutant.EnvVar].FileRelativePath);
         }
-
+        
         Log.Information(
           "Processing test {TestName} ({CurrentCount}/{TotalCount} tests)",
           testCase.Name, currentTestOrder, _testsSortedByDuration.Length);
         
         // Diagnostic report
-        Log.Information(
-          "[Current session] Live mutants: {SurvivedMutantCount} | Failed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
-          _coveredAndSurvivedMutants.Count,
-          _failedMutants.Count,
-          _timedOutMutants.Count,
-          _totalTraceableMutantCount,
-          _totalNonTraceableMutantCount);
-
-        Log.Information(
-          "The previous diagnostics may not tally up between updating killed and timeout mutant count but does not affect the correctness of the mutation analysis.");
+        if (_executionTraces is not null)
+        {
+          Log.Information(
+            "[Current session] Live mutants: {SurvivedMutantCount} | Failed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount} | Total traceable mutants: {TraceableMutantCount} | Untraceable mutants: {UntraceableMutantCount}",
+            _coveredAndSurvivedMutants.Count,
+            _failedMutants.Count,
+            _timedOutMutants.Count,
+            _totalTraceableMutantCount,
+            _totalNonTraceableMutantCount); 
+        }
+        else
+        {
+          Log.Information(
+            "[Current session] Live mutants: {SurvivedMutantCount} | Failed mutants: {KilledMutantCount} | Timed out mutants: {TimedOutMutantCount}",
+            _coveredAndSurvivedMutants.Count,
+            _failedMutants.Count,
+            _timedOutMutants.Count);
+        }
 
         // 4) Run the test without mutation to check for failures and record time taken
         var originalRunResult =
@@ -230,10 +280,15 @@ public sealed class MutationTestHarness
 
           return;
         }
-
-        var candidateMutants = tracedMutants
-          .Where(mutant => !ignoredMutants.Contains(mutant))
-          .ToImmutableHashSet();
+  
+        // TODO: change this to be injected / allow specify
+        var candidateMutants = 
+          tracedMutants
+            ?.Where(mutant =>
+              !ignoredMutants.Contains(mutant))
+            .ToImmutableHashSet()
+          ?? _coveredAndSurvivedMutants.Keys
+            .ToImmutableHashSet();
         
         // 5) Run the test with mutations to check for failures
         // Raise the timeout to be 3x the original timeout with a minimum timeout of 60 seconds
@@ -356,19 +411,22 @@ public sealed class MutationTestHarness
         }
         
         // Sanity check: result list should have the same mutants as traced mutant list
-        if (tracedMutants.Count != results.Count)
+        if (_executionTraces is not null)
         {
-          throw new DataException(
-            $"Number of evaluated mutants do not match number of" +
-            $"traced mutants for test {testCase.Name}");
+          if (tracedMutants?.Count != results.Count)
+          {
+            throw new DataException(
+              $"Number of evaluated mutants do not match number of" +
+              $"traced mutants for test {testCase.Name}");
+          }
+          
+          foreach (var mutantInfo in results.Keys.Where(mutantInfo => !tracedMutants.Contains(mutantInfo)))
+          {
+            throw new DataException(
+              $"Mutant {mutantInfo.MutantId} in {_mutantsByEnvVar[mutantInfo.EnvVar].FileRelativePath} is traced by test {testCase.Name} but not evaluated.");
+          }
         }
-
-        foreach (var mutantInfo in results.Keys.Where(mutantInfo => !tracedMutants.Contains(mutantInfo)))
-        {
-          throw new DataException(
-            $"Mutant {mutantInfo.MutantId} in {_mutantsByEnvVar[mutantInfo.EnvVar].FileRelativePath} is traced by test {testCase.Name} but not evaluated.");
-        }
-
+        
         // 9) Persist current test case result summary.
         var testSummary = new
         {
