@@ -140,7 +140,7 @@ public static class ExecutionTracerSchemataGenerator
           var mutantsToRecord = string.Join(string.Empty, executedMutants);
           
           var mutexId = {{ExecutionTracerWriterLockGenerator.Class}}.{{ExecutionTracerWriterLockGenerator.LockObjectName}}.Value;
-          if (string.IsNullOrEmpty(mutexId)
+          if (string.IsNullOrEmpty(mutexId))
           {
             continue;
           }
