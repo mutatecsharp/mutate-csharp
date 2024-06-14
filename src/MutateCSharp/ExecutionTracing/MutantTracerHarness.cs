@@ -13,6 +13,7 @@ namespace MutateCSharp.ExecutionTracing;
 public static class MutantTracerHarness
 {
   public const string GlobalMutexPrefix = "mutate-csharp-trace";
+  
   /*
    * For each test, set the environment variable for the output path,
    * and run the test on the instrumented system under test.
@@ -35,8 +36,13 @@ public static class MutantTracerHarness
         
         var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
         var traceFilePath = Path.Combine(outputDirectory, sanitisedName);
-        var exitCode = await TraceExecutionForTest(testProjectDirectory,
-          traceFilePath, testName, runSettingsPath);
+        var exitCode = await
+          TraceExecutionForTest(
+            testProjectDirectory: testProjectDirectory,
+            outputPath: traceFilePath,
+            mutexName: lockName,
+            testName: testName,
+            runSettingsPath: runSettingsPath);
         if (exitCode != 0) failedTests.Add(testName);
       });
 
@@ -46,11 +52,15 @@ public static class MutantTracerHarness
   public static async Task<int> TraceExecutionForTest(
     string testProjectDirectory,
     string outputPath,
+    string mutexName,
     string testName,
     string runSettingsPath)
   {
     // 1) Obtain the output path environment variable
-    var envVar = ExecutionTracerSchemataGenerator.MutantTracerFilePathEnvVar;
+    var traceFileKey =
+      ExecutionTracerSchemataGenerator.MutantTracerFilePathEnvVar;
+    var traceGlobalMutexKey =
+      ExecutionTracerSchemataGenerator.MutantTracerGlobalMutexEnvVar;
 
     // 2) Initialise necessary arguments for test runs
     var buildArgs = "--no-build --nologo";
@@ -58,8 +68,11 @@ public static class MutantTracerHarness
     var runsettingsArgs = !string.IsNullOrEmpty(runSettingsPath)
       ? $"--settings \"{runSettingsPath}\""
       : string.Empty;
-    var injectEnvVarFlags = $"-e {envVar}=\"{outputPath}\"";
-    var testcaseFilterArgs = $"--filter \"DisplayName={testName}\"";
+
+    // Inject the key for global mutex lock *and* the trace file output
+    var injectEnvVarFlags =
+      $"-e {traceFileKey}=\"{outputPath}\" -e {traceGlobalMutexKey}=\"{mutexName}\"";
+    var testcaseFilterArgs = $"--filter \"Name~{testName}\"";
 
     // 3) Create an isolated subprocess with environment variable injected into
     // the subprocess
@@ -75,7 +88,8 @@ public static class MutantTracerHarness
     };
 
     Log.Information("Testing {TestName}.", testName);
-    Log.Information("Executing the process with command: {Binary} {CommandArguments}",
+    Log.Information(
+      "Executing the process with command: {Binary} {CommandArguments}",
       processInfo.FileName, processInfo.Arguments);
 
     // 4) Start the testing subprocess
@@ -94,7 +108,7 @@ public static class MutantTracerHarness
 
     // 5) Record test result to console
     var outputTraceString = outputTrace.ToString();
-    
+
     Log.Information(outputTraceString);
     if (outputTraceString.Contains(
           "No test matches the given testcase filter"))
@@ -105,7 +119,8 @@ public static class MutantTracerHarness
     var errorTraceString = errorTrace.ToString();
     if (!string.IsNullOrWhiteSpace(errorTraceString))
     {
-      Log.Error("{TestName} failed:\n{TestErrorReason}", testName, errorTraceString);
+      Log.Error("{TestName} failed:\n{TestErrorReason}", testName,
+        errorTraceString);
     }
 
     // 6) Return exit code

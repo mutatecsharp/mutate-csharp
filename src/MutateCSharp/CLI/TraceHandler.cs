@@ -112,10 +112,12 @@ internal static class TraceHandler
   {
     var sanitisedName = TestCaseUtil.ValidTestFileName(testName);
     var traceFilePath = Path.Combine(traceOutputDir, sanitisedName);
+    var globalMutexLock = "mutate-csharp-one-test-lock";
     
     var exitCode = await MutantTracerHarness.TraceExecutionForTest(
       testProjectDirectory: testProjectDir, 
       outputPath: traceFilePath,
+      mutexName: globalMutexLock,
       testName: testName,
       runSettingsPath: runSettingsPath);
     
