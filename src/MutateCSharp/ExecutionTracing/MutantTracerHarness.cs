@@ -72,7 +72,7 @@ public static class MutantTracerHarness
     // Inject the key for global mutex lock *and* the trace file output
     var injectEnvVarFlags =
       $"-e {traceFileKey}=\"{outputPath}\" -e {traceGlobalMutexKey}=\"{mutexName}\"";
-    var testcaseFilterArgs = $"--filter \"Name~{testName}\"";
+    var testcaseFilterArgs = $"--filter \"FullyQualifiedName~{testName}\"";
 
     // 3) Create an isolated subprocess with environment variable injected into
     // the subprocess
