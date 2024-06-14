@@ -1,6 +1,7 @@
 using CommandLine;
 using MutateCSharp.FileSystem;
 using MutateCSharp.Util;
+using Serilog;
 
 namespace MutateCSharp.CLI;
 
@@ -15,7 +16,7 @@ internal sealed class MutationTestOptions
   private readonly string _absoluteMutantExecutionTraceDirectory = string.Empty;
   private readonly string _absoluteRunSettingsPath = string.Empty;
   private readonly string _absoluteProjectUnderTestPath = string.Empty;
-  private readonly string _absoluteCompilationArtifactDirectory = string.Empty;
+  private readonly string _absoluteSpecifiedMutantsListPath = string.Empty;
   private readonly string _absoluteTestMetadataDirectory = string.Empty;
   private readonly string _absoluteKilledMutantsMetadataDirectory = string.Empty;
 
@@ -114,6 +115,22 @@ internal sealed class MutationTestOptions
 
       _absoluteMutantExecutionTraceDirectory =
         ParseUtil.ParseAbsoluteDirectory(value);
+    }
+  }
+
+  [Option("specified-mutants",
+    HelpText = "The path to a list of specific mutants to test against.")]
+  public required string AbsoluteSpecifiedMutantsListPath
+  {
+    get => _absoluteSpecifiedMutantsListPath;
+    init
+    {
+      if (!Path.Exists(value))
+      {
+        throw new ArgumentException("Specified mutants file path not found.");
+      }
+      _absoluteSpecifiedMutantsListPath = 
+        ParseUtil.ParseAbsolutePath(value, FileExtension.Any);
     }
   }
   

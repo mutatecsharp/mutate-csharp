@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using MutateCSharp.ExecutionTracing;
@@ -42,6 +43,9 @@ internal static class MutationTestHandler
         return;
       }
     }
+
+    var specifiedMutants =
+      GetAllSpecifiedMutants(options.AbsoluteSpecifiedMutantsListPath);
     
     // (Re)construct the required ingredients to perform mutation testing
     // Tests list
@@ -106,6 +110,7 @@ internal static class MutationTestHandler
     var testHarness =
       mutantTraces is not null
         ? new MutationTestHarness(
+          specifiedMutants: specifiedMutants,
           testsSortedByDuration: passingTestCasesSortedByDuration,
           executionTraces: mutantTraces,
           mutationRegistry: mutationRegistry,
@@ -115,6 +120,7 @@ internal static class MutationTestHandler
           dryRun: options.DryRun
         )
         : new MutationTestHarness(
+          specifiedMutants: specifiedMutants,
           testsSortedByDuration: passingTestCasesSortedByDuration,
           mutationRegistry: mutationRegistry,
           absoluteTestMetadataPath: options.AbsoluteTestMetadataDirectory,
@@ -193,6 +199,44 @@ internal static class MutationTestHandler
     var resultPath = await mutationTestResults.PersistToDisk(outputDirectory);
     Log.Information(
       "Mutation testing result has been persisted to {ResultPath}.", resultPath);
+  }
+
+  private static FrozenSet<MutantActivationInfo> GetAllSpecifiedMutants(
+    string absoluteSpecifiedMutantsListPath)
+  {
+    if (string.IsNullOrEmpty(absoluteSpecifiedMutantsListPath)) return 
+      FrozenSet<MutantActivationInfo>.Empty;
+    
+    var mutantTracesForTestCase = 
+      File.ReadAllLines(absoluteSpecifiedMutantsListPath);
+
+    try
+    {
+      var parsedTrace = mutantTracesForTestCase
+        .Select(ParseRecordedTrace);
+
+      return parsedTrace.ToFrozenSet();
+    }
+    catch (Exception)
+    {
+      Log.Error("Error while parsing execution trace for test {TestName}.",
+        absoluteSpecifiedMutantsListPath);
+      throw;
+    }
+      
+    MutantActivationInfo ParseRecordedTrace(string trace)
+    {
+      var result = trace.Split(':');
+    
+      if (result.Length != 2 ||
+          !result[0].StartsWith("MUTATE_CSHARP_ACTIVATED_MUTANT"))
+      {
+        throw new DataException($"Parse failed: {trace}");
+      }
+    
+      return new MutantActivationInfo(
+        EnvVar: result[0], MutantId: int.Parse(result[1]));
+    }
   }
 
   private static async Task<MutantExecutionTraces?> 
