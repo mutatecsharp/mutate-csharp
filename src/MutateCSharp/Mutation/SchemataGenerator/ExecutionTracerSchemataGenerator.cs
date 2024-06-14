@@ -155,7 +155,7 @@ public static class ExecutionTracerSchemataGenerator
               {
                 hasHandle = mutex.WaitOne({{LockTimeoutMilliseconds}}, false);
                 if (hasHandle == false)
-                  throw new Exception("Timeout waiting for exclusive access");
+                  throw new System.Exception("Timeout waiting for exclusive access");
               }
               catch (System.Threading.AbandonedMutexException)
               {
