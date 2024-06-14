@@ -63,7 +63,7 @@ public static class MutantTracerHarness
       ExecutionTracerSchemataGenerator.MutantTracerGlobalMutexEnvVar;
 
     // 2) Initialise necessary arguments for test runs
-    var buildArgs = "--no-build --nologo";
+    var buildArgs = "--no-build --nologo -c Release";
     var loggerArgs = "--logger \"console;verbosity=normal\"";
     var runsettingsArgs = !string.IsNullOrEmpty(runSettingsPath)
       ? $"--settings \"{runSettingsPath}\""
