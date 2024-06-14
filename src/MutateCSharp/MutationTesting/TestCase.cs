@@ -7,7 +7,7 @@ namespace MutateCSharp.MutationTesting;
 
 public sealed partial class TestCase(string testName, string testProjectPath = "", string runSettingsPath = "")
 {
-  private const string BuildFlags = "--no-restore --no-build --nologo";
+  private const string BuildFlags = "--no-restore --no-build --nologo -c Release";
   private const string LoggerFlags = "--logger \"console;verbosity=normal\"";
 
   public string Name { get; } = testName;
@@ -78,12 +78,12 @@ public sealed partial class TestCase(string testName, string testProjectPath = "
 
   private string TestCommandArguments()
   {
-    return $"test {BuildFlags} {LoggerFlags} {SettingsFlag()} --filter \"Name~{Name}\" {testProjectPath}";
+    return $"test {BuildFlags} {LoggerFlags} {SettingsFlag()} --filter \"FullyQualifiedName~{Name}\" {testProjectPath}";
   }
 
   private string TestCommandArguments(string mutantFileEnvVar, int mutantId)
   {
-    return $"test {BuildFlags} {LoggerFlags} {SettingsFlag()} -e \"{mutantFileEnvVar}={mutantId}\" --filter \"Name~{Name}\" {testProjectPath}";
+    return $"test {BuildFlags} {LoggerFlags} {SettingsFlag()} -e \"{mutantFileEnvVar}={mutantId}\" --filter \"FullyQualifiedName~{Name}\" {testProjectPath}";
   }
   
   private string SettingsFlag() => !string.IsNullOrEmpty(runSettingsPath) 
