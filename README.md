@@ -58,6 +58,12 @@ run:
 dotnet artifacts/MutateCSharp/bin/Release/net8.0/MutateCSharp.dll <command> [args]
 ```
 
+or 
+```sh
+artifacts/MutateCSharp/bin/Release/net8.0/MutateCSharp <command> [args]
+```
+
+
 ## Usage
 
 
