@@ -92,6 +92,9 @@ This creates a _mutation registry_ that contains display information of all muta
 under test: it is output in the same directory as the specified (solution / project) directory, with the name
 `mutation.mucs.json`.
 
+The mutation occurs in place - if you want to check how many mutants are produced, you can enable
+the `--restore` flag, which restores the files that are backed up by default to its original state.
+
 Recommended: enable `--omit-redundant` by default to reduce work needed to evaluate equivalent / redundant mutants.
 
 ```sh
@@ -119,7 +122,12 @@ Usage: MutateCSharp mutate [<args>]
 
 ### Usage for `generate-tracer`
 Instruments the program under test with mechanisms that record execution traces for tests.
-To record the execution trace, see `trace`.
+The configurations for `generate-tracer` should match that of `mutate`.
+
+This should create the same mutation registry as the `mutate` command when the same (solution / project / directory in project / source file)
+is specified, but with the name `tracer-registry.mucs.json`.
+
+As with `mutate`, the instrumentation occurs in place. To record the execution trace, see `trace`.
 
 ```sh
 Usage: MutateCSharp generate-tracer [<args>]
@@ -147,6 +155,9 @@ Usage: MutateCSharp generate-tracer [<args>]
 ### Usage for `trace`
 Runs the tests to record which mutants are reachable per test. This is not necessary,
 but is recommended as it can greatly speed up the mutation testing process.
+
+`trace` requires the existence of the program under test that has been applied with
+`generate-tracer`.
 ```sh
 Usage: MutateCSharp trace [<args>]
   --test-project         Required. The directory/path to test project containing
@@ -174,6 +185,8 @@ Usage: MutateCSharp trace [<args>]
 ### Usage for `test`
 Evaluates each mutant (representing an artificial fault) if it can be detected by
 the tests corresponding to the program under test.
+
+`test` requires the mutated version of the program under test to be available.
 ```sh
 Usage: MutateCSharp test [<args>]
   --test-project              Required. The path to the test project.
