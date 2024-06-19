@@ -10,7 +10,7 @@ that are effective at detecting artificial faults are also
 effective at detecting real-world bugs,
 `mutate-csharp` injects artificial defects into C# programs 
 by systematically _mutating_ the source code of programs 
-under test.
+under test, and executes tests to check if it can detect these faults.
 
 ## Features
 
