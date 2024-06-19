@@ -233,3 +233,6 @@ Usage: MutateCSharp analyse [<args>]
   --project     The path to mutated C# project file (.csproj).
 ```
 
+## License
+`mutate-csharp` is covered under the terms of the [MIT license](https://en.wikipedia.org/wiki/MIT_License). 
+Contributions are welcome!
